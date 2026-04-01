@@ -16,7 +16,7 @@ else
 fi
 
 # API Settings from .env
-KEY="$OWM_API_KEY"
+KEY="$OPENWEATHER_KEY"
 ID="$OPENWEATHER_CITY_ID"
 UNIT="${OPENWEATHER_UNIT:-metric}" # Default to metric if not set
 

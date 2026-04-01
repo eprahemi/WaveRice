@@ -318,29 +318,18 @@ if [[ "$OS" == "fedora" ]]; then
     sudo dnf copr enable -y errornointernet/quickshell > /dev/null 2>&1 || true
 fi
 
-TOTAL_PKGS=${#PKGS[@]}
-CURRENT_PKG=0
-
 for pkg in "${PKGS[@]}"; do
-    ((CURRENT_PKG++))
-    PERCENT=$((CURRENT_PKG * 100 / TOTAL_PKGS))
-    BAR_WIDTH=30
-    FILLED=$((PERCENT * BAR_WIDTH / 100))
-    EMPTY=$((BAR_WIDTH - FILLED))
-    BAR=$(printf "%${FILLED}s" | tr ' ' '█')
-    SPACES=$(printf "%${EMPTY}s" | tr ' ' '-')
-
-    # Print the loading bar state
-    printf "\r${C_CYAN}[%s%s] %3d%%${RESET} | Installing %-30s" "$BAR" "$SPACES" "$PERCENT" "$pkg"
-
-    if $PKG_MANAGER "$pkg" > /dev/null 2>&1; then
-        # Overwrite with success state
-        printf "\r${C_CYAN}[%s%s] %3d%%${RESET} | %-30s ${C_GREEN}[ OK ]${RESET}       \n" "$BAR" "$SPACES" "$PERCENT" "$pkg"
+    echo -e "\n${C_CYAN}=================================================================${RESET}"
+    echo -e "${C_BLUE}::${RESET} ${BOLD}Installing ${pkg}...${RESET}"
+    echo -e "${C_CYAN}=================================================================${RESET}"
+    
+    if $PKG_MANAGER "$pkg"; then
+        echo -e "\n${C_GREEN}[ OK ] Successfully installed ${pkg}${RESET}"
     else
-        # Overwrite with failure state
-        printf "\r${C_CYAN}[%s%s] %3d%%${RESET} | %-30s ${C_RED}[ FAILED ]${RESET}   \n" "$BAR" "$SPACES" "$PERCENT" "$pkg"
+        echo -e "\n${C_RED}[ FAILED ] Failed to install ${pkg}${RESET}"
         FAILED_PKGS+=("$pkg")
     fi
+    sleep 0.5
 done
 
 # --- 2. Fallback Binaries ---
@@ -507,6 +496,12 @@ if [ -f "$ZSH_RC" ]; then
     echo "export WALLPAPER_DIR=\"$WALLPAPER_DIR\"" >> "$ZSH_RC"
     echo "export SCRIPT_DIR=\"$HOME/.config/hypr/scripts\"" >> "$ZSH_RC"
     sed -i "s/OS_LOGO_PLACEHOLDER/${OS}_small/g" "$ZSH_RC"
+fi
+
+# 8. Remove Schedule Directory
+SCHEDULE_DIR="$TARGET_CONFIG_DIR/hypr/scripts/quickshell/calendar/schedule"
+if [ -d "$SCHEDULE_DIR" ]; then
+    rm -rf "$SCHEDULE_DIR"
 fi
 
 printf "  -> System adaptations applied %-11s ${C_GREEN}[ OK ]${RESET}\n" ""
