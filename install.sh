@@ -38,9 +38,11 @@ WEATHER_CITY_ID=""
 WEATHER_UNIT=""
 FAILED_PKGS=()
 
-INSTALL_SWAYOSD=false
 INSTALL_NVIM=false
 INSTALL_ZSH=false
+INSTALL_SDDM=false
+REPLACE_DM=false
+SETUP_SDDM_THEME=false
 
 DRIVER_CHOICE="Not Set"
 DRIVER_PKGS=()
@@ -58,7 +60,7 @@ ARCH_PKGS=(
     "pulseaudio-alsa" "ladspa" "imagemagick" "wget" "file" "git" "psmisc"
     "matugen-bin" "ffmpeg" "fastfetch" "quickshell-git" "unzip"
     "grim" "playerctl" "satty" "yq" "xdg-desktop-portal-gtk" "slurp" "mpvpaper"
-    "wmctrl" "power-profiles-daemon" "easyeffects" "sddm"
+    "wmctrl" "power-profiles-daemon" "easyeffects" "swayosd-git"
 )
 
 FEDORA_PKGS=(
@@ -70,7 +72,7 @@ FEDORA_PKGS=(
     "pulseaudio-utils" "ladspa" "imagemagick" "wget" "file" "git" "psmisc"
     "matugen" "ffmpeg" "fastfetch" "quickshell" "unzip"
     "grim" "playerctl" "satty" "yq" "xdg-desktop-portal-gtk" "slurp" "mpvpaper"
-    "wmctrl" "power-profiles-daemon" "easyeffects" "sddm"
+    "wmctrl" "power-profiles-daemon" "easyeffects" "swayosd"
 )
 
 # ==============================================================================
@@ -417,12 +419,49 @@ prompt_optional_features() {
     draw_header
     echo -e "${BOLD}${C_CYAN}=== Optional Component Setup ===${RESET}\n"
 
-    echo -e "${BOLD}1. SwayOSD Integration${RESET}"
-    read -p "Do you want to install and configure SwayOSD? (y/N): " choice_sway
-    if [[ "$choice_sway" =~ ^[Yy]$ ]]; then
-        INSTALL_SWAYOSD=true
-        if [[ "$OS" == "fedora" ]]; then PKGS+=("swayosd"); else PKGS+=("swayosd-git"); fi
-        echo -e "${C_GREEN}>> SwayOSD added to queue.${RESET}\n"
+    echo -e "${BOLD}1. Display Manager Integration${RESET}"
+    
+    # Detect current display manager
+    DM_SERVICES=("gdm" "gdm3" "lightdm" "sddm" "lxdm" "lxdm-gtk3" "ly")
+    CURRENT_DM=""
+    for dm in "${DM_SERVICES[@]}"; do
+        if systemctl is-enabled "$dm.service" &>/dev/null || systemctl is-active "$dm.service" &>/dev/null; then
+            CURRENT_DM="$dm"
+            break
+        fi
+    done
+
+    if [[ -z "$CURRENT_DM" ]]; then
+        read -p "No display manager detected. Do you want to install and enable SDDM? (y/N): " choice_sddm
+        if [[ "$choice_sddm" =~ ^[Yy]$ ]]; then
+            INSTALL_SDDM=true
+            SETUP_SDDM_THEME=true
+            PKGS+=("sddm")
+            echo -e "${C_GREEN}>> SDDM added to queue.${RESET}\n"
+        else
+            echo ""
+        fi
+    elif [[ "$CURRENT_DM" == "sddm" ]]; then
+        echo -e "Current session manager: ${C_YELLOW}sddm${RESET}"
+        read -p "Do you want to ADD a theme (don't remove the old ones)? (y/N): " choice_theme
+        if [[ "$choice_theme" =~ ^[Yy]$ ]]; then
+            SETUP_SDDM_THEME=true
+            echo -e "${C_GREEN}>> SDDM theme queued.${RESET}\n"
+        else
+            echo ""
+        fi
+    else
+        echo -e "Current session manager: ${C_YELLOW}${CURRENT_DM}${RESET}"
+        read -p "Do you want to replace it with SDDM? (y/N): " choice_replace
+        if [[ "$choice_replace" =~ ^[Yy]$ ]]; then
+            INSTALL_SDDM=true
+            REPLACE_DM=true
+            SETUP_SDDM_THEME=true
+            PKGS+=("sddm")
+            echo -e "${C_GREEN}>> SDDM added to queue (will replace $CURRENT_DM).${RESET}\n"
+        else
+            echo ""
+        fi
     fi
 
     echo -e "${BOLD}2. Neovim Matugen Configuration${RESET}"
@@ -599,23 +638,30 @@ if [[ "$OS" == "fedora" ]]; then
 fi
 
 # --- 3. Display Manager Cleanup & SDDM Setup ---
-echo -e "\n${C_CYAN}[ INFO ]${RESET} Configuring Display Manager (SDDM)..."
-DMS=("lightdm" "gdm" "gdm3" "lxdm" "lxdm-gtk3" "ly")
-for dm in "${DMS[@]}"; do
-    if systemctl is-enabled "$dm.service" &>/dev/null || systemctl is-active "$dm.service" &>/dev/null; then
-        echo "  -> Disabling conflicting Display Manager: $dm"
-        sudo systemctl disable "$dm.service" --now 2>/dev/null || true
-    fi
-    # Uninstall conflicting display managers
-    if [[ "$OS" == "fedora" ]]; then
-        sudo dnf remove -y "$dm" > /dev/null 2>&1 || true
-    else
-        sudo pacman -Rns --noconfirm "$dm" > /dev/null 2>&1 || true
-    fi
-done
+if [[ "$INSTALL_SDDM" == true || "$SETUP_SDDM_THEME" == true || "$REPLACE_DM" == true ]]; then
+    echo -e "\n${C_CYAN}[ INFO ]${RESET} Configuring Display Manager..."
+fi
 
-sudo systemctl enable sddm.service -f
-printf "  -> SDDM enabled successfully %-14s ${C_GREEN}[ OK ]${RESET}\n" ""
+if [[ "$REPLACE_DM" == true ]]; then
+    # Disable and uninstall any conflicting managers
+    DMS=("lightdm" "gdm" "gdm3" "lxdm" "lxdm-gtk3" "ly")
+    for dm in "${DMS[@]}"; do
+        if systemctl is-enabled "$dm.service" &>/dev/null || systemctl is-active "$dm.service" &>/dev/null; then
+            echo "  -> Disabling conflicting Display Manager: $dm"
+            sudo systemctl disable "$dm.service" --now 2>/dev/null || true
+            if [[ "$OS" == "fedora" ]]; then
+                sudo dnf remove -y "$dm" > /dev/null 2>&1 || true
+            else
+                sudo pacman -Rns --noconfirm "$dm" > /dev/null 2>&1 || true
+            fi
+        fi
+    done
+fi
+
+if [[ "$INSTALL_SDDM" == true ]]; then
+    sudo systemctl enable sddm.service -f
+    printf "  -> SDDM enabled successfully %-14s ${C_GREEN}[ OK ]${RESET}\n" ""
+fi
 
 # --- 4. Repository Cloning & Wallpapers ---
 echo -e "\n${C_CYAN}[ INFO ]${RESET} Setting up Dotfiles Repository..."
@@ -657,8 +703,7 @@ echo -e "\n${C_CYAN}[ INFO ]${RESET} Applying Configurations & Backing Up Old On
 TARGET_CONFIG_DIR="$HOME/.config"
 BACKUP_DIR="$HOME/.config-backup-$(date +%Y%m%d_%H%M%S)"
 
-CONFIG_FOLDERS=("cava" "hypr" "kitty" "rofi" "swaync" "matugen" "zsh")
-if [ "$INSTALL_SWAYOSD" = true ]; then CONFIG_FOLDERS+=("swayosd"); fi
+CONFIG_FOLDERS=("cava" "hypr" "kitty" "rofi" "swaync" "matugen" "zsh" "swayosd")
 if [ "$INSTALL_NVIM" = true ]; then CONFIG_FOLDERS+=("nvim"); fi
 
 mkdir -p "$TARGET_CONFIG_DIR" "$BACKUP_DIR"
@@ -770,9 +815,7 @@ WP_DIR="$TARGET_CONFIG_DIR/hypr/scripts/quickshell/wallpaper"
 
 if [ -f "$HYPR_CONF" ]; then
     # 1. Inject SwayOSD Autostart (Looking for the new 'awww-daemon' entry)
-    if [ "$INSTALL_SWAYOSD" = true ]; then
-        sed -i '/^exec-once = awww-daemon/a exec-once = swayosd-server --top-margin 0.9 --style ~/.config/swayosd/style.css' "$HYPR_CONF"
-    fi
+    sed -i '/^exec-once = awww-daemon/a exec-once = swayosd-server --top-margin 0.9 --style ~/.config/swayosd/style.css' "$HYPR_CONF"
 
     # 2. Inject Environment Variables for Quickshell
     sed -i "/^env = NIXOS_OZONE_WL,1/a env = WALLPAPER_DIR,$WALLPAPER_DIR\nenv = SCRIPT_DIR,$HOME/.config/hypr/scripts" "$HYPR_CONF"
@@ -804,14 +847,16 @@ if [ -f "$ZSH_RC" ]; then
 fi
 
 # 7. Setup SDDM Theme and Config
-if [ -d "$REPO_DIR/.config/sddm/themes/matugen-minimal" ]; then
-    sudo mkdir -p /usr/share/sddm/themes/matugen-minimal
-    sudo cp -r "$REPO_DIR/.config/sddm/themes/matugen-minimal/"* /usr/share/sddm/themes/matugen-minimal/
-    sudo touch /usr/share/sddm/themes/matugen-minimal/Colors.qml
-    sudo chown $USER:$USER /usr/share/sddm/themes/matugen-minimal/Colors.qml
-    
-    echo -e "[Theme]\nCurrent=matugen-minimal" | sudo tee /etc/sddm.conf > /dev/null
-    printf "  -> SDDM Theme configured %-17s ${C_GREEN}[ OK ]${RESET}\n" ""
+if [[ "$SETUP_SDDM_THEME" == true ]]; then
+    if [ -d "$REPO_DIR/.config/sddm/themes/matugen-minimal" ]; then
+        sudo mkdir -p /usr/share/sddm/themes/matugen-minimal
+        sudo cp -r "$REPO_DIR/.config/sddm/themes/matugen-minimal/"* /usr/share/sddm/themes/matugen-minimal/
+        sudo touch /usr/share/sddm/themes/matugen-minimal/Colors.qml
+        sudo chown $USER:$USER /usr/share/sddm/themes/matugen-minimal/Colors.qml
+        
+        echo -e "[Theme]\nCurrent=matugen-minimal" | sudo tee /etc/sddm.conf > /dev/null
+        printf "  -> SDDM Theme configured %-17s ${C_GREEN}[ OK ]${RESET}\n" ""
+    fi
 fi
 
 printf "  -> System adaptations applied %-11s ${C_GREEN}[ OK ]${RESET}\n" ""
