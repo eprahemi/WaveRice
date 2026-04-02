@@ -99,6 +99,7 @@ Item {
                         pkill mpvpaper || true
                         swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 &
                         matugen image "$FINAL_THUMB" --source-color-index 0 && bash "$RELOAD_SCRIPT"
+                        wait
                     ) >/dev/null 2>&1 & disown
                 `;
                 Quickshell.execDetached(["bash", "-c", applyScript]);
@@ -133,6 +134,7 @@ Item {
                             pkill mpvpaper || true
                             swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 &
                             matugen image "$FINAL_THUMB" --source-color-index 0 && bash "$RELOAD_SCRIPT"
+                            wait
                         fi
                     ) >/dev/null 2>&1 & disown
                 `;
@@ -170,6 +172,7 @@ Item {
                 pkill mpvpaper || true
                 ${wallpaperCmd} &
                 matugen image "$THUMB_FILE" --source-color-index 0 && bash "$RELOAD_SCRIPT"
+                wait
             ) >/dev/null 2>&1 & disown
         `
         Quickshell.execDetached(["bash", "-c", fullScript])
@@ -1002,8 +1005,6 @@ Item {
                     matrix: Qt.matrix4x4(1, s, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
                 }
                 
-                // Moved MouseArea inside the transformed Item so its hit-box inherits the skew
-                // and perfectly matches the visual parallelograms.
                 MouseArea {
                     anchors.fill: parent
                     enabled: delegateRoot.matchesFilter && !window.isScrollingBlocked
