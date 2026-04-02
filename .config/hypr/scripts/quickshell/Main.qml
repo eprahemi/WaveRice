@@ -51,7 +51,7 @@ FloatingWindow {
 
         let base = {
             "battery":   { w: 480, h: 760, rx: mw - 500, ry: 70, comp: "battery/BatteryPopup.qml" },
-            "calendar":  { w: 1450, h: 750, rx: 235, ry: 70, comp: "calendar/CalendarPopup.qml" },
+            "calendar":  { w: 1450, h: 500, rx: 235, ry: 70, comp: "calendar/CalendarPopup.qml" },
             "music":     { w: 700, h: 620, rx: 12, ry: 70, comp: "music/MusicPopup.qml" },
             "network":   { w: 900, h: 700, rx: mw - 920, ry: 70, comp: "network/NetworkPopup.qml" },
             "stewart":   { w: 800, h: 600, rx: Math.floor((mw/2)-(800/2)), ry: Math.floor((mh/2)-(600/2)), comp: "stewart/stewart.qml" },

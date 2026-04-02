@@ -766,7 +766,6 @@ echo -e "\n${C_CYAN}[ INFO ]${RESET} Adapting configurations to your specific sy
 HYPR_CONF="$TARGET_CONFIG_DIR/hypr/hyprland.conf"
 ZSH_RC="$HOME/.zshrc"
 WP_QML="$TARGET_CONFIG_DIR/hypr/scripts/quickshell/wallpaper/WallpaperPicker.qml"
-DIARY_MGR="$TARGET_CONFIG_DIR/hypr/scripts/quickshell/calendar/diary_manager.sh"
 WP_DIR="$TARGET_CONFIG_DIR/hypr/scripts/quickshell/wallpaper"
 
 if [ -f "$HYPR_CONF" ]; then
@@ -796,12 +795,7 @@ if [ -d "$WP_DIR" ]; then
     find "$WP_DIR" -type f -exec sed -i 's/swww/awww/g' {} +
 fi
 
-# 6. Remove Personal Diary Manager
-if [ -f "$DIARY_MGR" ]; then
-    rm -f "$DIARY_MGR"
-fi
-
-# 7. Zsh Dynamism
+# 6. Zsh Dynamism
 if [ -f "$ZSH_RC" ]; then
     echo -e "\n# Dynamic System Paths" >> "$ZSH_RC"
     echo "export WALLPAPER_DIR=\"$WALLPAPER_DIR\"" >> "$ZSH_RC"
@@ -809,13 +803,7 @@ if [ -f "$ZSH_RC" ]; then
     sed -i "s/OS_LOGO_PLACEHOLDER/${OS}_small/g" "$ZSH_RC"
 fi
 
-# 8. Remove Schedule Directory
-SCHEDULE_DIR="$TARGET_CONFIG_DIR/hypr/scripts/quickshell/calendar/schedule"
-if [ -d "$SCHEDULE_DIR" ]; then
-    rm -rf "$SCHEDULE_DIR"
-fi
-
-# 9. Setup SDDM Theme and Config
+# 7. Setup SDDM Theme and Config
 if [ -d "$REPO_DIR/.config/sddm/themes/matugen-minimal" ]; then
     sudo mkdir -p /usr/share/sddm/themes/matugen-minimal
     sudo cp -r "$REPO_DIR/.config/sddm/themes/matugen-minimal/"* /usr/share/sddm/themes/matugen-minimal/

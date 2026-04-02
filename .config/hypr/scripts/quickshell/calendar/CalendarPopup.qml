@@ -95,7 +95,6 @@ Item {
     property real introClock: 0
     property real introCalendar: 0
     property real introWeather: 0
-    property real introSchedule: 0
 
     SequentialAnimation {
         running: true
@@ -130,12 +129,6 @@ Item {
                 PauseAnimation { duration: 400 }
                 NumberAnimation { target: window; property: "introWeather"; from: 0; to: 1.0; duration: 850; easing.type: Easing.OutQuint }
             }
-
-            // Bottom section (Schedule) flows up smoothly
-            SequentialAnimation {
-                PauseAnimation { duration: 500 }
-                NumberAnimation { target: window; property: "introSchedule"; from: 0; to: 1.0; duration: 900; easing.type: Easing.OutExpo }
-            }
         }
         ScriptAction { script: window.startupComplete = true }
     }
@@ -147,7 +140,6 @@ Item {
         NumberAnimation { target: window; property: "introClock"; to: 0; duration: 300; easing.type: Easing.InQuart }
         NumberAnimation { target: window; property: "introCalendar"; to: 0; duration: 350; easing.type: Easing.InQuart }
         NumberAnimation { target: window; property: "introWeather"; to: 0; duration: 350; easing.type: Easing.InQuart }
-        NumberAnimation { target: window; property: "introSchedule"; to: 0; duration: 200; easing.type: Easing.InQuart }
     }
 
     property real globalOrbitAngle: 0
@@ -309,31 +301,6 @@ Item {
     }
 
     // -------------------------------------------------------------------------
-    // SCHEDULE DATA
-    // -------------------------------------------------------------------------
-    property var scheduleData: { "header": "Loading Schedule...", "link": "", "lessons": [] }
-
-    Process {
-        id: schedulePoller
-        command: ["bash", window.scriptsDir + "/schedule/schedule_manager.sh"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let txt = this.text.trim();
-                if (txt !== "") {
-                    try { window.scheduleData = JSON.parse(txt); } catch(e) { console.log("Schedule Parse Error:", e); }
-                }
-            }
-        }
-    }
-
-    Timer {
-        interval: 600000 
-        running: true; repeat: true
-        onTriggered: schedulePoller.running = true
-    }
-
-    // -------------------------------------------------------------------------
     // CALENDAR GRID LOGIC & TRANSITIONS
     // -------------------------------------------------------------------------
     property int monthOffset: 0
@@ -465,7 +432,6 @@ Item {
             // Big Parallax Weather Icon (Tied to Weather Transition)
             Text {
                 anchors.centerIn: parent
-                anchors.verticalCenterOffset: -100
                 text: window.weatherData && window.weatherData.forecast[window.weatherView] ? window.weatherData.forecast[window.weatherView].icon : ""
                 font.family: "Iosevka Nerd Font"
                 font.pixelSize: 800
@@ -493,7 +459,6 @@ Item {
             Item {
                 id: centralHub
                 anchors.centerIn: parent
-                anchors.verticalCenterOffset: -100
                 width: 1; height: 1 
                 z: 5
 
@@ -770,17 +735,6 @@ Item {
                             Text { anchors.centerIn: parent; text: ""; font.family: "Iosevka Nerd Font"; color: window.text; font.pixelSize: 16 }
                             MouseArea { id: nextMa; anchors.fill: parent; hoverEnabled: true; onClicked: window.setMonthOffset(window.targetMonthOffset + 1) }
                         }
-
-                        Rectangle {
-                            width: 32; height: 32; radius: 16
-                            color: diaryMa.containsMouse ? window.surface1 : "transparent"
-                            Text { anchors.centerIn: parent; text: "+"; font.family: "Iosevka Nerd Font"; color: diaryMa.containsMouse ? window.mauve : window.text; font.pixelSize: 32 }
-                            MouseArea { 
-                                id: diaryMa; anchors.fill: parent; hoverEnabled: true; 
-                                onClicked: Quickshell.execDetached(["bash", window.scriptsDir + "/diary_manager.sh"]) 
-                            }
-                            Behavior on color { ColorAnimation { duration: 150 } }
-                        }
                     }
 
                     RowLayout {
@@ -952,22 +906,34 @@ Item {
                         Layout.alignment: Qt.AlignRight
                         Layout.rightMargin: 10
                         spacing: 20
-                        opacity: window.weatherContentOpacity
-                        transform: Translate { x: window.weatherContentOffset }
 
                         Repeater {
-                            model: window.weatherData && window.weatherData.forecast[window.weatherView] ? [
-                                { icon: "", val: window.weatherData.forecast[window.weatherView].wind + "m/s", lbl: "WIND", fill: Math.min(1.0, window.weatherData.forecast[window.weatherView].wind / 25.0) },
-                                { icon: "", val: window.weatherData.forecast[window.weatherView].humidity + "%", lbl: "HUMID", fill: window.weatherData.forecast[window.weatherView].humidity / 100.0 },
-                                { icon: "", val: window.weatherData.forecast[window.weatherView].pop + "%", lbl: "RAIN", fill: window.weatherData.forecast[window.weatherView].pop / 100.0 },
-                                { icon: "", val: window.weatherData.forecast[window.weatherView].feels_like + "°", lbl: "FEELS", fill: Math.max(0.0, Math.min(1.0, (window.weatherData.forecast[window.weatherView].feels_like + 15) / 55.0)) }
-                            ] : []
+                            model: 4
 
                             Item {
                                 width: 68
                                 height: 100
                                 scale: gaugeMa.containsMouse ? 1.15 : 1.0
                                 Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
+
+                                property var forecast: window.weatherData && window.weatherData.forecast[window.targetWeatherView] ? window.weatherData.forecast[window.targetWeatherView] : null
+
+                                property string gaugeIcon: index === 0 ? "" : index === 1 ? "" : index === 2 ? "" : ""
+                                property string gaugeLbl: index === 0 ? "WIND" : index === 1 ? "HUMID" : index === 2 ? "RAIN" : "FEELS"
+
+                                property string gaugeVal: forecast ? (
+                                    index === 0 ? forecast.wind + "m/s" :
+                                    index === 1 ? forecast.humidity + "%" :
+                                    index === 2 ? forecast.pop + "%" :
+                                    forecast.feels_like + "°"
+                                ) : ""
+
+                                property real gaugeFill: forecast ? (
+                                    index === 0 ? Math.min(1.0, forecast.wind / 25.0) :
+                                    index === 1 ? forecast.humidity / 100.0 :
+                                    index === 2 ? forecast.pop / 100.0 :
+                                    Math.max(0.0, Math.min(1.0, (forecast.feels_like + 15) / 55.0))
+                                ) : 0.0
                                 
                                 Rectangle {
                                     anchors.top: parent.top
@@ -989,11 +955,10 @@ Item {
                                         anchors.fill: parent
                                         rotation: -90 
                                         
-                                        property real progress: modelData.fill
-                                        property real animProgress: 0
+                                        property real animProgress: parent.parent.gaugeFill
                                         
-                                        NumberAnimation on animProgress {
-                                            to: gaugeCanvas.progress; duration: 1500; easing.type: Easing.OutExpo; running: true
+                                        Behavior on animProgress {
+                                            NumberAnimation { duration: 1000; easing.type: Easing.OutExpo }
                                         }
                                         
                                         onAnimProgressChanged: requestPaint()
@@ -1021,12 +986,11 @@ Item {
                                                 ctx.stroke();
                                             }
                                         }
-                                        Behavior on progress { NumberAnimation { duration: 1000; easing.type: Easing.OutExpo } }
                                     }
                                     
                                     Text {
                                         anchors.centerIn: parent
-                                        text: modelData.val
+                                        text: parent.parent.gaugeVal
                                         font.family: "JetBrains Mono"
                                         font.weight: Font.Black
                                         font.pixelSize: 14
@@ -1040,14 +1004,14 @@ Item {
                                     spacing: 4
                                     
                                     Text { 
-                                        text: modelData.icon
+                                        text: parent.parent.gaugeIcon
                                         font.family: "Iosevka Nerd Font"
                                         font.pixelSize: 14
                                         color: gaugeMa.containsMouse ? window.textAccent : window.overlay0
                                         Behavior on color { ColorAnimation { duration: 200 } }
                                     }
                                     Text { 
-                                        text: modelData.lbl
+                                        text: parent.parent.gaugeLbl
                                         font.family: "JetBrains Mono"
                                         font.weight: Font.Bold
                                         font.pixelSize: 12
@@ -1056,302 +1020,6 @@ Item {
                                 }
                                 
                                 MouseArea { id: gaugeMa; anchors.fill: parent; hoverEnabled: true }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // =======================================================
-            // BOTTOM SECTION: FRAMELESS FLUID DATA STREAM (SCHEDULE)
-            // =======================================================
-            Item {
-                id: bottomSection
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: 240
-                z: 20 
-
-                opacity: introSchedule
-                transform: Translate { y: 50 * (1.0 - introSchedule) }
-
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: "transparent" }
-                        GradientStop { position: 1.0; color: Qt.alpha(window.crust, 0.6) }
-                    }
-                }
-
-                Rectangle { anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; height: 1; color: Qt.alpha(window.surface1, 0.5) }
-
-                Canvas {
-                    anchors.fill: parent
-                    z: -1 
-                    opacity: 0.15
-                    
-                    property real phase1: 0
-                    property real phase2: 0
-                    property real phase3: 0
-                    
-                    NumberAnimation on phase1 { from: 0; to: Math.PI * 2; duration: 4000; loops: Animation.Infinite; running: true }
-                    NumberAnimation on phase2 { from: 0; to: Math.PI * 2; duration: 5500; loops: Animation.Infinite; running: true }
-                    NumberAnimation on phase3 { from: 0; to: Math.PI * 2; duration: 7000; loops: Animation.Infinite; running: true }
-                    
-                    onPhase1Changed: requestPaint()
-                    
-                    onPaint: {
-                        var ctx = getContext("2d");
-                        ctx.clearRect(0, 0, width, height);
-                        var cy = height / 2;
-                        
-                        ctx.beginPath();
-                        ctx.moveTo(0, cy);
-                        for(var x = 0; x <= width; x += 10) ctx.lineTo(x, cy + Math.sin(x/100 + phase1) * 30);
-                        ctx.strokeStyle = window.mauve;
-                        ctx.lineWidth = 2;
-                        ctx.stroke();
-                        
-                        ctx.beginPath();
-                        ctx.moveTo(0, cy);
-                        for(var x = 0; x <= width; x += 10) ctx.lineTo(x, cy + Math.sin(x/120 - phase2) * 40);
-                        ctx.strokeStyle = window.sapphire;
-                        ctx.lineWidth = 2;
-                        ctx.stroke();
-                        
-                        ctx.beginPath();
-                        ctx.moveTo(0, cy);
-                        for(var x = 0; x <= width; x += 10) ctx.lineTo(x, cy + Math.sin(x/80 + phase3) * 20);
-                        ctx.strokeStyle = window.peach;
-                        ctx.lineWidth = 2;
-                        ctx.stroke();
-                    }
-                }
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 25
-                    spacing: 15
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 15
-                        
-                        Rectangle {
-                            width: 40; height: 40; radius: 20; color: window.surface0
-                            Text { anchors.centerIn: parent; text: ""; font.family: "Iosevka Nerd Font"; font.pixelSize: 18; color: window.textAccent }
-                        }
-                        
-                        Text { 
-                            text: window.scheduleData ? window.scheduleData.header : "Loading Schedule..."
-                            font.family: "JetBrains Mono"
-                            font.weight: Font.Bold
-                            font.pixelSize: 16
-                            color: window.overlay0
-                        }
-                        
-                        Item { Layout.fillWidth: true }
-                        
-                        Rectangle {
-                            width: 120; height: 36; radius: 10
-                            color: schLinkMa.containsMouse ? window.mauve : Qt.alpha(window.surface1, 0.5)
-                            border.color: window.mauve; border.width: 1
-                            Behavior on color { ColorAnimation { duration: 150 } }
-                            
-                            RowLayout {
-                                anchors.centerIn: parent
-                                spacing: 6
-                                Text { text: "Open Web"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: 14; color: schLinkMa.containsMouse ? window.base : window.text }
-                                Text { text: ""; font.family: "Iosevka Nerd Font"; font.pixelSize: 14; color: schLinkMa.containsMouse ? window.base : window.text }
-                            }
-                            
-                            MouseArea {
-                                id: schLinkMa; anchors.fill: parent; hoverEnabled: true
-                                onClicked: if(window.scheduleData && window.scheduleData.link) Quickshell.execDetached(["xdg-open", window.scheduleData.link])
-                            }
-                        }
-                    }
-
-                    Item {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-
-                        Text {
-                            text: "Data stream offline. No scheduled events."
-                            font.family: "JetBrains Mono"
-                            font.italic: true
-                            font.pixelSize: 14
-                            color: window.overlay0
-                            visible: window.scheduleData && window.scheduleData.lessons.length === 0
-                            anchors.centerIn: parent
-                        }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            height: 2
-                            color: Qt.alpha(window.surface1, 0.4)
-                            visible: window.scheduleData && window.scheduleData.lessons.length > 0
-                        }
-
-                        ScrollView {
-                            id: schedScroll
-                            anchors.fill: parent
-                            clip: true
-                            ScrollBar.vertical.policy: ScrollBar.AlwaysOff
-                            ScrollBar.horizontal.policy: ScrollBar.AsNeeded
-                            visible: window.scheduleData && window.scheduleData.lessons.length > 0
-                            contentWidth: scheduleRow.width
-                            contentHeight: parent.height
-
-                            Row {
-                                id: scheduleRow
-                                height: parent.height
-                                spacing: 0
-                                
-                                property real scaleRatio: schedScroll.width / 750.0
-
-                                Repeater {
-                                    model: window.scheduleData ? window.scheduleData.lessons : []
-
-                                    delegate: Item {
-                                        property bool isClass: modelData.type === "class"
-                                        property int baseDataWidth: modelData.width || 100
-                                        
-                                        width: baseDataWidth * scheduleRow.scaleRatio
-                                        height: parent.height
-                                        
-                                        Item {
-                                            id: classNode
-                                            anchors.fill: parent
-                                            anchors.topMargin: 10
-                                            anchors.bottomMargin: 10
-                                            visible: parent.isClass
-                                            
-                                            property bool isActive: parent.isClass && window.currentEpoch >= (modelData.start || 0) && window.currentEpoch <= (modelData.end || 0)
-                                            property bool isPast: parent.isClass && window.currentEpoch > (modelData.end || 0)
-                                            
-                                            Canvas {
-                                                anchors.fill: parent
-                                                visible: classMa.containsMouse || classNode.isActive
-                                                opacity: classMa.containsMouse ? 0.2 : 0.08
-                                                Behavior on opacity { NumberAnimation { duration: 200 } }
-                                                
-                                                property real wavePhase: 0
-                                                NumberAnimation on wavePhase {
-                                                    from: 0; to: Math.PI * 2; duration: 2000; loops: Animation.Infinite; running: parent.visible
-                                                }
-                                                onWavePhaseChanged: requestPaint()
-                                                onPaint: {
-                                                    var ctx = getContext("2d");
-                                                    ctx.clearRect(0, 0, width, height);
-                                                    ctx.beginPath();
-                                                    ctx.moveTo(0, height);
-                                                    for(var x = 0; x <= width; x += 10) {
-                                                        ctx.lineTo(x, height/2 + Math.sin(x/25 + wavePhase) * 20);
-                                                    }
-                                                    ctx.lineTo(width, height);
-                                                    ctx.lineTo(0, height);
-                                                    var grad = ctx.createLinearGradient(0, 0, width, 0);
-                                                    grad.addColorStop(0, window.mauve);
-                                                    grad.addColorStop(1, "transparent");
-                                                    ctx.fillStyle = grad;
-                                                    ctx.fill();
-                                                }
-                                            }
-
-                                            Rectangle {
-                                                id: accentLine
-                                                width: classNode.isActive || classMa.containsMouse ? 4 : 2
-                                                anchors.left: parent.left
-                                                anchors.top: parent.top
-                                                anchors.bottom: parent.bottom
-                                                radius: 2
-                                                color: classNode.isActive ? window.mauve : (classNode.isPast ? window.surface1 : window.surface2)
-                                                Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
-                                                Behavior on color { ColorAnimation { duration: 200 } }
-                                            }
-
-                                            ColumnLayout {
-                                                anchors.left: accentLine.right
-                                                anchors.right: parent.right
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                anchors.leftMargin: classMa.containsMouse ? 25 : 15
-                                                Behavior on anchors.leftMargin { NumberAnimation { duration: 300; easing.type: Easing.OutBack } }
-                                                spacing: 6
-
-                                                Text {
-                                                    text: modelData.subject || ""
-                                                    font.family: "JetBrains Mono"
-                                                    font.weight: Font.Black
-                                                    font.pixelSize: 16
-                                                    color: classNode.isActive ? window.mauve : (classNode.isPast ? window.overlay0 : window.text)
-                                                    elide: Text.ElideRight
-                                                    Layout.fillWidth: true
-                                                }
-
-                                                RowLayout {
-                                                    visible: !modelData.is_compact
-                                                    spacing: 8
-                                                    Text { text: "󰅐"; font.family: "Iosevka Nerd Font"; font.pixelSize: 14; color: classNode.isActive ? window.mauve : window.overlay1 }
-                                                    Text { text: modelData.time || ""; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: 14; color: classNode.isActive ? window.text : window.overlay1 }
-                                                }
-
-                                                RowLayout {
-                                                    visible: !modelData.is_compact && (modelData.room || "") !== ""
-                                                    spacing: 8
-                                                    Text { text: ""; font.family: "Iosevka Nerd Font"; font.pixelSize: 14; color: classNode.isPast ? window.surface2 : window.peach }
-                                                    Text { text: modelData.room || ""; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: 14; color: window.subtext1; elide: Text.ElideRight; Layout.fillWidth: true }
-                                                }
-                                            }
-
-                                            MouseArea { id: classMa; anchors.fill: parent; hoverEnabled: parent.visible }
-                                        }
-
-                                        Item {
-                                            anchors.fill: parent
-                                            visible: !parent.isClass
-                                            
-                                            Rectangle {
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                anchors.left: parent.left
-                                                anchors.right: parent.right
-                                                height: gapMa.containsMouse ? 4 : 2
-                                                color: gapMa.containsMouse ? window.mauve : "transparent"
-                                                Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
-                                                Behavior on color { ColorAnimation { duration: 150 } }
-                                            }
-
-                                            Rectangle {
-                                                anchors.centerIn: parent
-                                                width: breakText.width + 16
-                                                height: 24
-                                                radius: 6
-                                                color: window.mantle
-                                                border.color: window.surface2
-                                                border.width: 1
-                                                opacity: gapMa.containsMouse ? 1.0 : 0.0
-                                                scale: gapMa.containsMouse ? 1.0 : 0.8
-                                                Behavior on opacity { NumberAnimation { duration: 150 } }
-                                                Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
-
-                                                Text {
-                                                    id: breakText
-                                                    anchors.centerIn: parent
-                                                    text: modelData.desc || ""
-                                                    font.family: "JetBrains Mono"
-                                                    font.weight: Font.Bold
-                                                    font.pixelSize: 14
-                                                    color: window.mauve
-                                                }
-                                            }
-
-                                            MouseArea { id: gapMa; anchors.fill: parent; hoverEnabled: parent.visible }
-                                        }
-                                    }
-                                }
                             }
                         }
                     }
