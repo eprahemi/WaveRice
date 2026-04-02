@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.0.3"
+DOTS_VERSION="1.0.2"
 VERSION_FILE="$HOME/.local/state/imperative-dots-version"
 
 mkdir -p "$(dirname "$VERSION_FILE")"
@@ -167,23 +167,26 @@ draw_header() {
     printf "\033[H"
     printf "${BOLD}${C_CYAN}"
     cat << "EOF"
- ██╗██╗  ██╗   ██╗ █████╗ ███╗   ███╗██╗██████╗  ██████╗ 
- ██║██║  ╚██╗ ██╔╝██╔══██╗████╗ ████║██║██╔══██╗██╔═══██╗
- ██║██║   ╚████╔╝ ███████║██╔████╔██║██║██████╔╝██║   ██║
- ██║██║    ╚██╔╝  ██╔══██║██║╚██╔╝██║██║██╔══██╗██║   ██║
- ██║███████╗██║   ██║  ██║██║ ╚═╝ ██║██║██║  ██║╚██████╔╝
- ╚═╝╚══════╝╚═╝   ╚═╝  ╚═╝╚═╝    ╚═╝╚═╝╚═╝  ╚═╝ ╚═════╝  
+ ██╗██╗     ██╗   ██╗ █████╗ ███╗   ███╗██╗██████╗  ██████╗ 
+ ██║██║     ╚██╗ ██╔╝██╔══██╗████╗ ████║██║██╔══██╗██╔═══██╗
+ ██║██║      ╚████╔╝ ███████║██╔████╔██║██║██████╔╝██║   ██║
+ ██║██║       ╚██╔╝  ██╔══██║██║╚██╔╝██║██║██╔══██╗██║   ██║
+ ██║███████╗   ██║   ██║  ██║██║ ╚═╝ ██║██║██║  ██║╚██████╔╝
+ ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═╝ ╚═════╝ 
 EOF
     printf "${RESET}\n"
-    printf "\033[K${C_MAGENTA}=================================================================${RESET}\n"
-    printf "\033[K${BOLD} User:${RESET}              %s\n" "$USER_NAME"
-    printf "\033[K${BOLD} OS:  ${RESET}              %s\n" "$OS_NAME"
-    printf "\033[K${BOLD} CPU: ${RESET}              %s\n" "$CPU_INFO"
-    printf "\033[K${BOLD} GPU: ${RESET}              %s\n" "$GPU_INFO"
-    printf "\033[K${C_MAGENTA}-----------------------------------------------------------------${RESET}\n"
-    printf "\033[K${BOLD} Server Version:${RESET}  %s\n" "$DOTS_VERSION"
-    printf "\033[K${BOLD} Local Version: ${RESET}  %s\n" "$LOCAL_VERSION"
-    printf "\033[K${C_MAGENTA}=================================================================${RESET}\n\n"
+    printf "\033[K${C_BLUE} -----------------------------------------------------------------${RESET}\n"
+    printf "\033[K${BOLD}${C_GREEN} GitHub:${RESET}  https://github.com/ilyamiro/imperative-dots.git\n"
+    printf "\033[K${BOLD}${C_CYAN} Twitter:${RESET} @ilyamirox  |  ${BOLD}${C_RED}Reddit:${RESET} r/ilyamiro1\n"
+    printf "\033[K${C_BLUE} -----------------------------------------------------------------${RESET}\n"
+    printf "\033[K${BOLD} User:           ${RESET} %s\n" "$USER_NAME"
+    printf "\033[K${BOLD} OS:             ${RESET} %s\n" "$OS_NAME"
+    printf "\033[K${BOLD} CPU:            ${RESET} %s\n" "$CPU_INFO"
+    printf "\033[K${BOLD} GPU:            ${RESET} %s\n" "$GPU_INFO"
+    printf "\033[K${C_BLUE} -----------------------------------------------------------------${RESET}\n"
+    printf "\033[K${BOLD} Server Version: ${RESET} %s\n" "$DOTS_VERSION"
+    printf "\033[K${BOLD} Local Version:  ${RESET} %s\n" "$LOCAL_VERSION"
+    printf "\033[K${C_BLUE} =================================================================${RESET}\n\n"
     printf "\033[J"
 }
 
@@ -193,17 +196,23 @@ manage_packages() {
         local action
         action=$(echo -e "1. View Packages to be Installed\n2. Add Custom Packages\n3. Back to Main Menu" | fzf \
             --layout=reverse \
-            --height=12 \
-            --prompt="Package Manager > " \
-            --header="Use ARROW KEYS and ENTER")
+            --border=rounded \
+            --margin=1,2 \
+            --height=15 \
+            --prompt=" Package Manager > " \
+            --pointer=">" \
+            --header=" Use ARROW KEYS and ENTER ")
 
         case "$action" in
             *"1"*)
                 echo "${PKGS[@]}" | tr ' ' '\n' | fzf \
                     --layout=reverse \
+                    --border=rounded \
+                    --margin=1,2 \
                     --height=25 \
-                    --prompt="Current Packages > " \
-                    --header="Press ESC or ENTER to return to menu."
+                    --prompt=" Current Packages > " \
+                    --pointer=">" \
+                    --header=" Press ESC or ENTER to return to menu "
                 ;;
             *"2"*)
                 echo -e "${C_CYAN}Enter package names to add (separated by space):${RESET}"
@@ -224,6 +233,12 @@ manage_drivers() {
     while true; do
         draw_header
         echo -e "${BOLD}${C_CYAN}=== Hardware Driver Configuration ===${RESET}"
+        echo -e "${BOLD}${C_RED}=================== EXPERIMENTAL WARNING ===================${RESET}"
+        echo -e "${C_RED}This automated driver installer is highly experimental and${RESET}"
+        echo -e "${C_RED}can be unreliable across different kernel/distro variations.${RESET}"
+        echo -e "${C_RED}It is strongly recommended to SKIP this and install your${RESET}"
+        echo -e "${C_RED}graphics drivers manually according to your distro's wiki.${RESET}"
+        echo -e "${BOLD}${C_RED}============================================================${RESET}\n"
         echo -e "Detected GPU Vendor: ${BOLD}${C_YELLOW}$GPU_VENDOR${RESET}\n"
 
         # Determine if a kernel driver is currently in use to prevent conflicts
@@ -267,7 +282,15 @@ manage_drivers() {
         esac
 
         local choice
-        choice=$(echo -e "$options\nBack to Main Menu" | fzf --ansi --layout=reverse --height=12 --prompt="Drivers > " --header="Select the graphics drivers to install")
+        choice=$(echo -e "$options\nBack to Main Menu" | fzf \
+            --ansi \
+            --layout=reverse \
+            --border=rounded \
+            --margin=1,2 \
+            --height=15 \
+            --prompt=" Drivers > " \
+            --pointer=">" \
+            --header=" Select the graphics drivers to install ")
 
         if [[ "$choice" == *"Back"* ]]; then break; fi
 
@@ -339,9 +362,12 @@ set_keyboard_shortcut() {
     local choice
     choice=$(echo -e "Alt + Shift\nSuper + Space\nCtrl + Shift\nCaps Lock" | fzf \
         --layout=reverse \
-        --height=12 \
-        --prompt="Select Layout Toggle Shortcut > " \
-        --header="Select the keybind to switch languages")
+        --border=rounded \
+        --margin=1,2 \
+        --height=15 \
+        --prompt=" Select Layout Toggle Shortcut > " \
+        --pointer=">" \
+        --header=" Select the keybind to switch languages ")
     
     if [[ -n "$choice" ]]; then
         KB_SHORTCUT_DISPLAY="$choice"
@@ -358,7 +384,13 @@ set_weather_api() {
     while true; do
         draw_header
         echo -e "${BOLD}${C_CYAN}=== OpenWeatherMap Interactive Setup ===${RESET}"
-        echo -e "${BOLD}${C_YELLOW}WARNING: Without this, weather widgets WILL NOT WORK.${RESET}\n"
+        echo -e "${BOLD}${C_YELLOW}Without this, weather widgets WILL NOT WORK.${RESET}\n"
+        
+        echo -e "${C_MAGENTA}How to get a free API key:${RESET}"
+        echo -e "  1. Visit ${C_BLUE}https://openweathermap.org/${RESET}"
+        echo -e "  2. Create a free account and log in."
+        echo -e "  3. Click your profile name -> 'My API keys'."
+        echo -e "  4. Generate a new key and paste it below.\n"
         
         read -p "Enter your OpenWeather API Key (or press Enter to skip): " input_key
         
@@ -407,9 +439,13 @@ set_weather_api() {
             
             # Create a selection menu of matched cities
             selected_city=$(echo "$api_response" | jq -r '.list[] | "\(.id) | \(.name), \(.sys.country) (Lat: \(.coord.lat), Lon: \(.coord.lon))"' | fzf \
-                --layout=reverse --height=15 \
-                --prompt="Select your exact city > " \
-                --header="Use ARROWS to navigate. ENTER to confirm.")
+                --layout=reverse \
+                --border=rounded \
+                --margin=1,2 \
+                --height=20 \
+                --prompt=" Select your exact city > " \
+                --pointer=">" \
+                --header=" Use ARROWS to navigate. ENTER to confirm. ")
             
             if [[ -n "$selected_city" ]]; then
                 WEATHER_CITY_ID=$(echo "$selected_city" | awk '{print $1}')
@@ -426,9 +462,13 @@ set_weather_api() {
         
         # Ask for standard units
         unit_choice=$(echo -e "metric (Celsius)\nimperial (Fahrenheit)\nstandard (Kelvin)" | fzf \
-            --layout=reverse --height=10 \
-            --prompt="Select Temperature Unit > " \
-            --header="Choose your preferred unit format")
+            --layout=reverse \
+            --border=rounded \
+            --margin=1,2 \
+            --height=12 \
+            --prompt=" Select Temperature Unit > " \
+            --pointer=">" \
+            --header=" Choose your preferred unit format ")
         
         WEATHER_UNIT=$(echo "$unit_choice" | awk '{print $1}')
         [[ -z "$WEATHER_UNIT" ]] && WEATHER_UNIT="metric"
@@ -520,13 +560,24 @@ while true; do
     elif [[ "$WEATHER_API_KEY" == "Skipped" ]]; then API_DISPLAY="Skipped"
     else API_DISPLAY="Set ($WEATHER_UNIT, ID: $WEATHER_CITY_ID)"; fi
 
-    # We use --ansi flag in fzf so the color codes (like RED for drivers) render properly inside the menu list
-    MENU_OPTION=$(echo -e "1. Manage Packages [${#PKGS[@]} queued]\n2. Set Keyboard Switcher [${KB_SHORTCUT_DISPLAY}]\n3. Set Weather API Key [${API_DISPLAY}]\n4. ${BOLD}${C_RED}[ DRIVERS ]${RESET} Setup [${DRIVER_CHOICE}]\n5. START INSTALLATION\n6. Exit" | fzf \
+    # Build the color-coded menu string
+    MENU_ITEMS="1. ${C_GREEN}Manage Packages${RESET} [${#PKGS[@]} queued]\n"
+    MENU_ITEMS+="2. ${C_CYAN}Set Keyboard Switcher${RESET} [${KB_SHORTCUT_DISPLAY}]\n"
+    MENU_ITEMS+="3. ${C_YELLOW}Set Weather API Key${RESET} [${API_DISPLAY}]\n"
+    MENU_ITEMS+="4. ${C_RED}[ DRIVERS ] Setup${RESET} [${DRIVER_CHOICE}]\n"
+    MENU_ITEMS+="5. ${BOLD}${C_MAGENTA}START INSTALLATION${RESET}\n"
+    MENU_ITEMS+="6. ${DIM}Exit${RESET}"
+
+    # We use --ansi flag in fzf so the color codes render properly inside the menu list
+    MENU_OPTION=$(echo -e "$MENU_ITEMS" | fzf \
         --ansi \
         --layout=reverse \
-        --height=13 \
-        --prompt="Main Menu > " \
-        --header="Navigate with ARROWS. Select with ENTER.")
+        --border=rounded \
+        --margin=1,2 \
+        --height=15 \
+        --prompt=" Main Menu > " \
+        --pointer=">" \
+        --header=" Navigate with ARROWS. Select with ENTER. ")
 
     case "$MENU_OPTION" in
         *"1"*) manage_packages ;;
