@@ -123,21 +123,32 @@ case $OS in
 esac
 
 # ==============================================================================
-# Hardware Information Gathering & Nvidia Detection
+# Hardware Information Gathering & Precise Nvidia Detection
 # ==============================================================================
 USER_NAME=$USER
 OS_NAME=$(grep '^PRETTY_NAME=' /etc/os-release | cut -d= -f2 | tr -d '"')
 CPU_INFO=$(grep -m 1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs)
-GPU_INFO=$(lspci 2>/dev/null | grep -iE 'vga|3d|display' | cut -d: -f3 | xargs | head -n 1)
-[[ -z "$GPU_INFO" ]] && GPU_INFO="Unknown / Virtual Machine"
 
-HAS_NVIDIA=false
-if echo "$GPU_INFO" | grep -qi "nvidia"; then
+# More robust GPU detection
+GPU_INFO=$(lspci -nnk | grep -i -A2 "VGA compatible controller" | grep -i "NVIDIA" | head -n 1)
+if [[ -z "$GPU_INFO" ]]; then
+    # Fallback to general 3D controller check if VGA isn't matched
+    GPU_INFO=$(lspci -nnk | grep -i -A2 "3D controller" | grep -i "NVIDIA" | head -n 1)
+fi
+
+if [[ -z "$GPU_INFO" ]]; then
+    GPU_INFO=$(lspci 2>/dev/null | grep -iE 'vga|3d|display' | cut -d: -f3 | xargs | head -n 1)
+    [[ -z "$GPU_INFO" ]] && GPU_INFO="Unknown / Virtual Machine"
+    HAS_NVIDIA=false
+else
+    GPU_INFO=$(echo "$GPU_INFO" | cut -d: -f3 | xargs)
     HAS_NVIDIA=true
+    
+    # Queue essential kernel drivers and wayland compatibility layers
     if [[ "$OS" == "fedora" ]]; then
-        PKGS+=("akmod-nvidia" "xorg-x11-drv-nvidia-cuda")
+        PKGS+=("akmod-nvidia" "xorg-x11-drv-nvidia-cuda" "egl-wayland")
     else
-        PKGS+=("nvidia-dkms" "nvidia-utils" "lib32-nvidia-utils" "linux-headers")
+        PKGS+=("nvidia-dkms" "nvidia-utils" "lib32-nvidia-utils" "linux-headers" "egl-wayland")
     fi
 fi
 
@@ -164,7 +175,7 @@ EOF
     printf "\033[K${BOLD} CPU: ${RESET}              %s\n" "$CPU_INFO"
     printf "\033[K${BOLD} GPU: ${RESET}              %s\n" "$GPU_INFO"
     if [ "$HAS_NVIDIA" = true ]; then
-        printf "\033[K${C_GREEN}${BOLD} -> NVIDIA Detected. Drivers queued.${RESET}\n"
+        printf "\033[K${C_GREEN}${BOLD} -> NVIDIA Detected. Advanced Wayland Drivers Queued.${RESET}\n"
     fi
     printf "\033[K${C_MAGENTA}-----------------------------------------------------------------${RESET}\n"
     printf "\033[K${BOLD} Server Version:${RESET}  %s\n" "$DOTS_VERSION"
@@ -413,6 +424,53 @@ for pkg in "${PKGS[@]}"; do
     sleep 0.5
 done
 
+# --- 1.5. Advanced NVIDIA Setup (CRITICAL FOR WAYLAND) ---
+if [ "$HAS_NVIDIA" = true ]; then
+    echo -e "\n${C_CYAN}[ INFO ]${RESET} Performing Precise NVIDIA Initialization for Wayland..."
+    
+    # 1. Blacklist Nouveau
+    echo -e "  -> Blacklisting Nouveau open-source drivers..."
+    echo -e "blacklist nouveau\noptions nouveau modeset=0" | sudo tee /etc/modprobe.d/nouveau-blacklist.conf > /dev/null
+    
+    # 2. Kernel Parameters (modeset=1 fbdev=1 are required to avoid black screens)
+    echo -e "  -> Injecting kernel parameters (nvidia-drm.modeset=1 fbdev=1)..."
+    if [[ "$OS" == "fedora" ]]; then
+        sudo grubby --update-kernel=ALL --args="nvidia-drm.modeset=1 nvidia-drm.fbdev=1"
+        printf "  -> Fedora kernel parameters configured %-5s ${C_GREEN}[ OK ]${RESET}\n" ""
+    else
+        # Arch based - Check for GRUB
+        if [ -f /etc/default/grub ]; then
+            if ! grep -q "nvidia-drm.modeset=1" /etc/default/grub; then
+                sudo sed -i 's/\(GRUB_CMDLINE_LINUX_DEFAULT=".*\)"/\1 nvidia-drm.modeset=1 nvidia-drm.fbdev=1"/' /etc/default/grub
+                sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1
+                printf "  -> GRUB parameters updated %-15s ${C_GREEN}[ OK ]${RESET}\n" ""
+            fi
+        fi
+        # Arch based - Check for systemd-boot
+        if command -v bootctl &> /dev/null && [ -d /boot/loader/entries ]; then
+            for entry in /boot/loader/entries/*.conf; do
+                if ! grep -q "nvidia-drm.modeset=1" "$entry"; then
+                    sudo sed -i '/^options/ s/$/ nvidia-drm.modeset=1 nvidia-drm.fbdev=1/' "$entry"
+                fi
+            done
+            printf "  -> Systemd-boot parameters updated %-7s ${C_GREEN}[ OK ]${RESET}\n" ""
+        fi
+        
+        # 3. Rebuild initramfs to load Nvidia modules early
+        echo -e "  -> Rebuilding initramfs (mkinitcpio) for early module loading..."
+        if [ -f /etc/mkinitcpio.conf ]; then
+            # Inject modules if not present
+            if ! grep -q "nvidia nvidia_modeset nvidia_uvm nvidia_drm" /etc/mkinitcpio.conf; then
+                sudo sed -i 's/^MODULES=(/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm /' /etc/mkinitcpio.conf
+                # Remove kms from HOOKS if it exists since nvidia does modesetting directly
+                sudo sed -i 's/\b kms\b//g' /etc/mkinitcpio.conf
+            fi
+            sudo mkinitcpio -P >/dev/null 2>&1
+            printf "  -> Mkinitcpio rebuild successful %-9s ${C_GREEN}[ OK ]${RESET}\n" ""
+        fi
+    fi
+fi
+
 # --- 2. Fallback Binaries ---
 if [[ "$OS" == "fedora" ]]; then
     echo -e "\n${C_CYAN}[ INFO ]${RESET} Installing Fallback Binaries for Fedora..."
@@ -620,9 +678,9 @@ if [ -f "$HYPR_CONF" ]; then
     # 2. Inject Environment Variables for Quickshell
     sed -i "/^env = NIXOS_OZONE_WL,1/a env = WALLPAPER_DIR,$WALLPAPER_DIR\nenv = SCRIPT_DIR,$HOME/.config/hypr/scripts" "$HYPR_CONF"
     
-    # 3. Inject Nvidia specific configurations if detected
+    # 3. Inject Advanced Nvidia specific configurations
     if [ "$HAS_NVIDIA" = true ]; then
-        sed -i '/^env = NIXOS_OZONE_WL,1/a env = LIBVA_DRIVER_NAME,nvidia\nenv = XDG_SESSION_TYPE,wayland\nenv = GBM_BACKEND,nvidia-drm\nenv = __GLX_VENDOR_LIBRARY_NAME,nvidia\nenv = WLR_NO_HARDWARE_CURSORS,1' "$HYPR_CONF"
+        sed -i '/^env = NIXOS_OZONE_WL,1/a env = LIBVA_DRIVER_NAME,nvidia\nenv = XDG_SESSION_TYPE,wayland\nenv = GBM_BACKEND,nvidia-drm\nenv = __GLX_VENDOR_LIBRARY_NAME,nvidia\nenv = WLR_NO_HARDWARE_CURSORS,1\ncursor {\n    no_hardware_cursors = true\n}' "$HYPR_CONF"
     fi
 else
     echo -e "${C_RED}Warning: hyprland.conf not found at $HYPR_CONF${RESET}"
@@ -689,4 +747,3 @@ fi
 
 echo -e "Old configurations backed up to: ${C_CYAN}$BACKUP_DIR${RESET}"
 echo -e "Please log out and log back in, or restart Hyprland to apply all changes."
-echo -e "-> Note: You must restart Quickshell (or log out and back in) for Qt to see the new font weights.\n"
