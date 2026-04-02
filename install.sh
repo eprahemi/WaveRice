@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.0.2"
+DOTS_VERSION="1.0.3"
 VERSION_FILE="$HOME/.local/state/imperative-dots-version"
 
 mkdir -p "$(dirname "$VERSION_FILE")"
@@ -294,7 +294,21 @@ manage_drivers() {
 
         if [[ "$choice" == *"Back"* ]]; then break; fi
 
-        # Reset states before configuring
+        # Require confirmation to INSTALL drivers, rather than skipping.
+        if [[ "$choice" != *"Skip"* ]]; then
+            echo -e "\n${BOLD}${C_RED}=================== ACTION REQUIRED ===================${RESET}"
+            echo -e "${C_YELLOW}You have selected to AUTOMATICALLY install/configure drivers.${RESET}"
+            echo -e "${C_YELLOW}If your system already has working drivers, this might break your boot sequence.${RESET}"
+            echo -n -e "Are you ${BOLD}${C_RED}100% sure${RESET} you want to proceed with this driver installation? (y/n): "
+            read -r confirm
+            if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+                echo -e "\n${C_RED}Driver setup aborted. Returning to menu...${RESET}"
+                sleep 1.2
+                continue
+            fi
+        fi
+
+        # Strictly reset states before applying the verified configuration
         DRIVER_PKGS=()
         HAS_NVIDIA_PROPRIETARY=false
 
@@ -340,15 +354,8 @@ manage_drivers() {
             fi
 
         elif [[ "$choice" == *"Skip"* ]]; then
-            echo -e "\n${C_RED}WARNING: Skipping driver installation can result in a completely black screen!${RESET}"
-            echo -n -e "Are you ${BOLD}${C_RED}100% sure${RESET} you want to proceed without graphics drivers? (y/n): "
-            read -r confirm
-            if [[ "$confirm" =~ ^[Yy]$ ]]; then
-                DRIVER_CHOICE="Skipped"
-                DRIVER_PKGS=()
-            else
-                continue
-            fi
+            DRIVER_CHOICE="Skipped"
+            DRIVER_PKGS=()
         fi
 
         echo -e "\n${C_GREEN}Driver configuration saved!${RESET}"
