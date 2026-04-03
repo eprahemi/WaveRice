@@ -148,6 +148,7 @@ PanelWindow {
     // Music -------------------------------------
     Process {
         id: musicPoller
+        running: true
         command: ["bash", "-c", "cat /tmp/music_info.json 2>/dev/null || bash ~/.config/hypr/scripts/quickshell/music/music_info.sh"]
         stdout: StdioCollector {
             onStreamFinished: {
@@ -166,11 +167,11 @@ PanelWindow {
             onStreamFinished: musicPoller.running = true
         }
     }
-    Timer { interval: 500; running: true; repeat: false; onTriggered: musicPoller.running = true }
 
     // Unified System Info ------------------------
     Process {
         id: sysPoller
+        running: true
         command: ["bash", "-c", "~/.config/hypr/scripts/quickshell/sys_info.sh"]
         stdout: StdioCollector {
             onStreamFinished: {
@@ -210,8 +211,7 @@ PanelWindow {
         stdout: StdioCollector {
             onStreamFinished: sysPoller.running = true
         }
-    }
-    // Kickoff the initial fetch
+    }    // Kickoff the initial fetch
     Timer { interval: 100; running: true; repeat: false; onTriggered: sysPoller.running = true }
 
     // Weather remains a slow poll since it fetches from web
@@ -941,7 +941,7 @@ PanelWindow {
                                 color: barWindow.isSoundActive ? mocha.base : mocha.text; 
                             }
                         }
-                        MouseArea { id: volMouse; hoverEnabled: true; anchors.fill: parent; onClicked: Quickshell.execDetached(["pavucontrol"]) }
+                        MouseArea { id: volMouse; hoverEnabled: true; anchors.fill: parent; onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/qs_manager.sh toggle volume"]) }
                     }
 
                     // Battery
