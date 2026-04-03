@@ -13,5 +13,5 @@ configuration {
     case-sensitive: 		false;
 }
 
-@theme "theme.rasi"
+@theme "~/.config/rofi/theme.rasi"
 
