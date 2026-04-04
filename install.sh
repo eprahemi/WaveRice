@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.0.3"
+DOTS_VERSION="1.0.4"
 VERSION_FILE="$HOME/.local/state/imperative-dots-version"
 
 mkdir -p "$(dirname "$VERSION_FILE")"
@@ -53,9 +53,10 @@ ARCH_PKGS=(
     "hyprland" "weston" "kitty" "cava" "rofi-wayland" "swaync" 
     "pavucontrol" "alsa-utils" "awww" "networkmanager-dmenu-git"
     "wl-clipboard" "fd" "qt6-multimedia" "qt6-5compat" "ripgrep"
-    "cliphist" "jq" "socat" "inotify-tools" "pamixer" "libpulse" "brightnessctl" "acpi" "iw"
+    "cliphist" "jq" "socat" "inotify-tools" "pamixer" "brightnessctl" "acpi" "iw"
     "bluez" "bluez-utils" "libnotify" "networkmanager" "lm_sensors" "bc" 
-    "pulseaudio-alsa" "ladspa" "imagemagick" "wget" "file" "git" "psmisc"
+    "pipewire" "wireplumber" "pipewire-pulse" "pipewire-alsa" "pipewire-jack"
+    "imagemagick" "wget" "file" "git" "psmisc"
     "matugen-bin" "ffmpeg" "fastfetch" "quickshell-git" "unzip" "python-websockets" "qt6-websockets"
     "grim" "playerctl" "satty" "yq" "xdg-desktop-portal-gtk" "slurp" "mpvpaper"
     "wmctrl" "power-profiles-daemon" "easyeffects" "swayosd-git" "nautilus"
@@ -775,6 +776,9 @@ if [ -f "$REPO_DIR/utils/bin/cava" ]; then
     chmod +x "$HOME/.local/bin/cava"
     printf "  -> Deployed Cava wrapper %-17s ${C_GREEN}[ OK ]${RESET}\n" ""
 fi
+
+# Enable Pipewire natively for the user environment
+systemctl --user enable --now pipewire wireplumber pipewire-pulse 2>/dev/null || true
 
 if [ "$INSTALL_ZSH" = true ] && command -v zsh &> /dev/null; then
     if [ -f "$HOME/.zshrc" ]; then

@@ -154,7 +154,10 @@ PanelWindow {
             onStreamFinished: {
                 let txt = this.text.trim();
                 if (txt !== "") {
-                    try { barWindow.musicData = JSON.parse(txt); } catch(e) {}
+                    try { 
+                        let lines = txt.split("\n");
+                        barWindow.musicData = JSON.parse(lines[lines.length - 1]); 
+                    } catch(e) {}
                 }
                 musicWaiter.running = true;
             }
@@ -178,24 +181,41 @@ PanelWindow {
                 let txt = this.text.trim();
                 if (txt !== "") {
                     try {
-                        let data = JSON.parse(txt);
-                        barWindow.wifiStatus = data.wifi.status;
-                        barWindow.wifiIcon = data.wifi.icon;
-                        barWindow.wifiSsid = data.wifi.ssid;
+                        // Extract only the absolute last line returned. 
+                        // Process stacking on fails can inject newlines, breaking generic JSON.parse.
+                        let lines = txt.split("\n");
+                        let validJson = lines[lines.length - 1];
+                        let data = JSON.parse(validJson);
+                        
+                        // Targeted Updates: Only update properties if the backend data actually changed.
+                        // This prevents the Wayland compositor from repainting untouched UI elements.
 
-                        barWindow.btStatus = data.bt.status;
-                        barWindow.btIcon = data.bt.icon;
-                        barWindow.btDevice = data.bt.connected;
+                        // WiFi
+                        if (barWindow.wifiStatus !== data.wifi.status) barWindow.wifiStatus = data.wifi.status;
+                        if (barWindow.wifiIcon !== data.wifi.icon) barWindow.wifiIcon = data.wifi.icon;
+                        if (barWindow.wifiSsid !== data.wifi.ssid) barWindow.wifiSsid = data.wifi.ssid;
 
-                        barWindow.volPercent = data.audio.volume.toString() + "%";
-                        barWindow.volIcon = data.audio.icon;
-                        barWindow.isMuted = (data.audio.is_muted === "true");
+                        // Bluetooth
+                        if (barWindow.btStatus !== data.bt.status) barWindow.btStatus = data.bt.status;
+                        if (barWindow.btIcon !== data.bt.icon) barWindow.btIcon = data.bt.icon;
+                        if (barWindow.btDevice !== data.bt.connected) barWindow.btDevice = data.bt.connected;
 
-                        barWindow.batPercent = data.battery.percent.toString() + "%";
-                        barWindow.batIcon = data.battery.icon;
-                        barWindow.batStatus = data.battery.status;
+                        // Audio
+                        let newVol = data.audio.volume.toString() + "%";
+                        if (barWindow.volPercent !== newVol) barWindow.volPercent = newVol;
+                        if (barWindow.volIcon !== data.audio.icon) barWindow.volIcon = data.audio.icon;
+                        
+                        let newMuted = (data.audio.is_muted === "true");
+                        if (barWindow.isMuted !== newMuted) barWindow.isMuted = newMuted;
 
-                        barWindow.kbLayout = data.keyboard.layout;
+                        // Battery
+                        let newBat = data.battery.percent.toString() + "%";
+                        if (barWindow.batPercent !== newBat) barWindow.batPercent = newBat;
+                        if (barWindow.batIcon !== data.battery.icon) barWindow.batIcon = data.battery.icon;
+                        if (barWindow.batStatus !== data.battery.status) barWindow.batStatus = data.battery.status;
+
+                        // Keyboard
+                        if (barWindow.kbLayout !== data.keyboard.layout) barWindow.kbLayout = data.keyboard.layout;
 
                         barWindow.sysPollerLoaded = true;
                         barWindow.fastPollerLoaded = true;
@@ -212,7 +232,6 @@ PanelWindow {
             onStreamFinished: sysPoller.running = true
         }
     }
-
     // Weather remains a slow poll since it fetches from web
     Process {
         id: weatherPoller
