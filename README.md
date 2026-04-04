@@ -2,7 +2,7 @@
 
 ### I am actively working on it and I am looking for testers! Reach out to me:
 #### twitter/x: @ilyamirox
-#### reddit: u/ilyamiro-fix  (my main account is suspended for 2 days so i might not be able to respond)
+#### reddit: u/ilyamiro1
 #### telegram: @sacrificeit
 #### email: ilyamiro.work@gmail.com
 
