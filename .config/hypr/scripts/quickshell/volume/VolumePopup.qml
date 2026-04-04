@@ -425,13 +425,20 @@ Item {
                                     Behavior on color { ColorAnimation { duration: 200 } }
                                 }
 
-                                // 2. Clipped Text (Dark text that reveals over the wave fill)
+                                // 2. Clipped Text (Dark text that reveals over the wave fill dynamically)
                                 Item {
                                     id: waveClipItem
                                     anchors.bottom: parent.bottom
                                     anchors.left: parent.left
                                     anchors.right: parent.right
-                                    height: Math.min(parent.height, Math.max(0, parent.height * (window.activeVol / 100.0) + 8))
+
+                                    // Calculate the exact wave offset at the center of the orb using the Bezier formula
+                                    property real fillRatio: window.activeVol / 100.0
+                                    property real waveAmp: fillRatio < 0.99 ? 8 * Math.sin(fillRatio * Math.PI) : 0
+                                    property real waveCenterOffset: 0.375 * waveAmp * (Math.sin(orbWave.wavePhase) - Math.cos(orbWave.wavePhase))
+                                    property real baseClipHeight: parent.height * fillRatio
+
+                                    height: Math.min(parent.height, Math.max(0, baseClipHeight - waveCenterOffset))
                                     clip: true
                                     visible: window.activeVol > 0
 
