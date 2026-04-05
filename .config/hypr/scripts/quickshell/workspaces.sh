@@ -1,5 +1,22 @@
 #!/usr/bin/env bash
 
+# ============================================================================
+# 1. ZOMBIE PREVENTION
+# Kills any older instances of this script. When Quickshell reloads, 
+# it can leave the old listener pipelines running in the background infinitely.
+# ============================================================================
+for pid in $(pgrep -f "quickshell/workspaces.sh"); do
+    if [ "$pid" != "$$" ] && [ "$pid" != "$PPID" ]; then
+        kill -9 "$pid" 2>/dev/null
+    fi
+done
+
+# Cleanly kill immediate children (like socat) when the script exits normally
+cleanup() {
+    pkill -P $$ 2>/dev/null
+}
+trap cleanup EXIT SIGTERM SIGINT
+
 # --- Special Cleanup for Network/Bluetooth ---
 # The network toggle starts a background bluetooth scan that must be killed explicitly.
 BT_PID_FILE="$HOME/.cache/bt_scan_pid"
@@ -9,9 +26,7 @@ if [ -f "$BT_PID_FILE" ]; then
     rm -f "$BT_PID_FILE"
 fi
 
-# THE FIX: Run this in the background and add a timeout!
-# If the bluetooth daemon isn't enabled on a fresh Arch install, 
-# bluetoothctl hangs forever waiting for dbus. This prevents the lockup.
+# Ensure bluetooth scan is explicitly turned off (timeout prevents deadlocks on fresh installs)
 (timeout 2 bluetoothctl scan off > /dev/null 2>&1) &
 # ---------------------------------------------
 
@@ -56,12 +71,23 @@ print_workspaces() {
 # Print initial state
 print_workspaces
 
+# ============================================================================
+# 2. THE EVENT DEBOUNCER
 # Listen to Hyprland socket wrapped in an infinite loop
-# This ensures that if the socket crashes or restarts, the script recovers
+# ============================================================================
 while true; do
     socat -u UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock - | while read -r line; do
         case "$line" in
             workspace*|focusedmon*|activewindow*|createwindow*|closewindow*|movewindow*|destroyworkspace*)
+                
+                # -> THE FIX <-
+                # Hyprland emits HUNDREDS of events a second when you move/resize windows.
+                # This reads and discards all subsequent events arriving within a 50ms window.
+                # It bundles the storm into a single UI update, completely preventing CPU clogging!
+                while read -t 0.05 -r extra_line; do
+                    continue
+                done
+
                 print_workspaces
                 ;;
         esac

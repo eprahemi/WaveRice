@@ -18,13 +18,28 @@ TARGET="$2"
 SUBTARGET="$3"
 
 # -----------------------------------------------------------------------------
+# NEW HELPER: HIDE WIDGET PROPERLY (FULLY ASYNC)
+# -----------------------------------------------------------------------------
+# We run the hyprctl move entirely in the background. The 0.15s sleep allows
+# the QML fade-out animation to finish smoothly before the window is yanked
+# away, while returning control to bash in 0.000 seconds.
+hide_widget_async() {
+    echo "close" > "$IPC_FILE"
+    (
+        sleep 0.15
+        hyprctl dispatch movetoworkspacesilent special:qs-hidden,title:^qs-master$ >/dev/null 2>&1
+    ) &
+}
+
+# -----------------------------------------------------------------------------
 # FAST PATH: WORKSPACE SWITCHING
 # -----------------------------------------------------------------------------
 if [[ "$ACTION" =~ ^[0-9]+$ ]]; then
     WORKSPACE_NUM="$ACTION"
     MOVE_OPT="$2"
     
-    echo "close" > "$IPC_FILE"
+    # Fire the async hide function so it doesn't block this script AT ALL
+    hide_widget_async
     
     CMD="workspace $WORKSPACE_NUM"
     [[ "$MOVE_OPT" == "move" ]] && CMD="movetoworkspace $WORKSPACE_NUM"
@@ -32,9 +47,9 @@ if [[ "$ACTION" =~ ^[0-9]+$ ]]; then
     TARGET_ADDR=$(hyprctl clients -j | jq -r ".[] | select(.workspace.id == $WORKSPACE_NUM and .class != \"qs-master\") | .address" | head -n 1)
 
     if [[ -n "$TARGET_ADDR" && "$TARGET_ADDR" != "null" ]]; then
-        hyprctl --batch "dispatch $CMD ; keyword cursor:no_warps true ; dispatch focuswindow address:$TARGET_ADDR ; keyword cursor:no_warps false"
+        hyprctl --batch "dispatch $CMD ; keyword cursor:no_warps true ; dispatch focuswindow address:$TARGET_ADDR ; keyword cursor:no_warps false" >/dev/null 2>&1
     else
-        hyprctl --batch "dispatch $CMD ; keyword cursor:no_warps true ; dispatch focuswindow qs-master ; keyword cursor:no_warps false"
+        hyprctl --batch "dispatch $CMD" >/dev/null 2>&1
     fi
 
     exit 0
@@ -168,7 +183,7 @@ save_and_focus_widget() {
     # Dispatch focus without warping the cursor (run async with a tiny delay to allow QML to move the window first)
     (
         sleep 0.05
-        # FOOLPROOF FIX: Move the qs-master window to the currently active workspace silently, THEN focus it.
+        # FOOLPROOF FIX: Pull the widget back from the hidden workspace to the active one silently, THEN focus it.
         hyprctl --batch "keyword cursor:no_warps true ; dispatch movetoworkspacesilent $active_ws,title:^qs-master$ ; dispatch focuswindow title:^qs-master$ ; keyword cursor:no_warps false" >/dev/null 2>&1
     ) &
 }
@@ -188,14 +203,15 @@ restore_focus() {
 # REMAINING ACTIONS (OPEN / CLOSE / TOGGLE)
 # -----------------------------------------------------------------------------
 if [[ "$ACTION" == "close" ]]; then
-    echo "close" > "$IPC_FILE"
+    hide_widget_async
     restore_focus
     if [[ "$TARGET" == "network" || "$TARGET" == "all" || -z "$TARGET" ]]; then
         if [ -f "$BT_PID_FILE" ]; then
             kill $(cat "$BT_PID_FILE") 2>/dev/null
             rm -f "$BT_PID_FILE"
         fi
-        bluetoothctl scan off > /dev/null 2>&1
+        # Backgrounded to prevent DBus from hanging the script for 1s
+        (bluetoothctl scan off > /dev/null 2>&1) &
     fi
     exit 0
 fi
@@ -217,14 +233,14 @@ if [[ "$ACTION" == "open" || "$ACTION" == "toggle" ]]; then
         if [[ "$ACTION" == "toggle" && "$ACTIVE_WIDGET" == "network" ]]; then
             if [[ -n "$SUBTARGET" ]]; then
                 if [[ "$CURRENT_MODE" == "$SUBTARGET" ]]; then
-                    echo "close" > "$IPC_FILE"
+                    hide_widget_async
                     restore_focus
                 else
                     echo "$SUBTARGET" > "$NETWORK_MODE_FILE"
                     save_and_focus_widget
                 fi
             else
-                echo "close" > "$IPC_FILE"
+                hide_widget_async
                 restore_focus
             fi
         else
@@ -240,7 +256,7 @@ if [[ "$ACTION" == "open" || "$ACTION" == "toggle" ]]; then
 
     # Intercept toggle logic for all other widgets so we can restore focus properly
     if [[ "$ACTION" == "toggle" && "$ACTIVE_WIDGET" == "$TARGET" ]]; then
-        echo "close" > "$IPC_FILE"
+        hide_widget_async
         restore_focus
         exit 0
     fi
