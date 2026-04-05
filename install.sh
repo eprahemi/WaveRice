@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.0.6"
+DOTS_VERSION="1.0.7"
 VERSION_FILE="$HOME/.local/state/imperative-dots-version"
 
 mkdir -p "$(dirname "$VERSION_FILE")"
@@ -43,7 +43,7 @@ INSTALL_SDDM=false
 REPLACE_DM=false
 SETUP_SDDM_THEME=false
 
-DRIVER_CHOICE="Not Set"
+DRIVER_CHOICE="None (Skipped)"
 DRIVER_PKGS=()
 HAS_NVIDIA_PROPRIETARY=false
 
@@ -612,11 +612,11 @@ clear
 while true; do
     draw_header
     
-    # Progress checkmarks for strictly required submenus
-    S_PKG=$( [ "$VISITED_PKGS" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_RED}[ ]${RESET}" )
+    # Progress checkmarks for strictly required submenus vs optional ones
+    S_PKG=$( [ "$VISITED_PKGS" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_YELLOW}[-]${RESET}" )
     S_OVW=$( [ "$VISITED_OVERVIEW" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_RED}[ ]${RESET}" )
     S_WTH=$( [ "$VISITED_WEATHER" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_RED}[ ]${RESET}" )
-    S_DRV=$( [ "$VISITED_DRIVERS" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_RED}[ ]${RESET}" )
+    S_DRV=$( [ "$VISITED_DRIVERS" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_YELLOW}[-]${RESET}" )
     S_KBD=$( [ "$VISITED_KEYBOARD" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_RED}[ ]${RESET}" )
 
     if [[ -z "$WEATHER_API_KEY" ]]; then API_DISPLAY="Not Set"
@@ -624,7 +624,7 @@ while true; do
     else API_DISPLAY="Set ($WEATHER_UNIT, ID: $WEATHER_CITY_ID)"; fi
 
     # Build the color-coded menu string
-    MENU_ITEMS="1. $S_PKG ${C_GREEN}Manage Packages${RESET} [${#PKGS[@]} queued]\n"
+    MENU_ITEMS="1. $S_PKG ${C_GREEN}Manage Packages${RESET} [${#PKGS[@]} queued, Optional]\n"
     MENU_ITEMS+="2. $S_OVW ${C_CYAN}Overview & Keybinds${RESET}\n"
     MENU_ITEMS+="3. $S_WTH ${C_YELLOW}Set Weather API Key${RESET} [${API_DISPLAY}]\n"
     MENU_ITEMS+="4. $S_DRV ${C_RED}[ DRIVERS ] Setup${RESET} [${DRIVER_CHOICE}]\n"
@@ -650,8 +650,8 @@ while true; do
         *"4"*) manage_drivers ;;
         *"5"*) manage_keyboard ;;
         *"6"*) 
-            if [ "$VISITED_PKGS" = false ] || [ "$VISITED_OVERVIEW" = false ] || [ "$VISITED_WEATHER" = false ] || [ "$VISITED_DRIVERS" = false ] || [ "$VISITED_KEYBOARD" = false ]; then
-                echo -e "\n${C_RED}[!] You must visit and configure (or explicitly skip) all submenus before starting.${RESET}"
+            if [ "$VISITED_OVERVIEW" = false ] || [ "$VISITED_WEATHER" = false ] || [ "$VISITED_KEYBOARD" = false ]; then
+                echo -e "\n${C_RED}[!] You must visit and configure Overview, Weather, and Keyboard submenus before starting.${RESET}"
                 sleep 2.5
                 continue
             fi
@@ -992,23 +992,22 @@ if [ -f "$HYPR_CONF" ]; then
     if [ "$HAS_NVIDIA_PROPRIETARY" = true ]; then
         sed -i '/^env = NIXOS_OZONE_WL,1/a env = LIBVA_DRIVER_NAME,nvidia\nenv = XDG_SESSION_TYPE,wayland\nenv = GBM_BACKEND,nvidia-drm\nenv = __GLX_VENDOR_LIBRARY_NAME,nvidia\nenv = WLR_NO_HARDWARE_CURSORS,1\ncursor {\n    no_hardware_cursors = true\n}' "$HYPR_CONF"
     fi
-
 else
     echo -e "${C_RED}Warning: hyprland.conf not found at $HYPR_CONF${RESET}"
 fi
 
-# 5. Patch WallpaperPicker.qml dynamically
+# 4. Patch WallpaperPicker.qml dynamically
 if [ -f "$WP_QML" ]; then
     # Injecting the properly evaluated bash variable straight into the QML instead of the hardcoded Quickshell.env string
     sed -i "s|Quickshell.env(\"HOME\") + \"/Pictures/Wallpapers\"|\"$WALLPAPER_DIR\"|g" "$WP_QML"
 fi
 
-# 6. Rename all instances of swww to awww in quickshell/wallpaper files
+# 5. Rename all instances of swww to awww in quickshell/wallpaper files
 if [ -d "$WP_DIR" ]; then
     find "$WP_DIR" -type f -exec sed -i 's/swww/awww/g' {} +
 fi
 
-# 7. Zsh Dynamism
+# 6. Zsh Dynamism
 if [ -f "$ZSH_RC" ]; then
     echo -e "\n# Dynamic System Paths" >> "$ZSH_RC"
     echo "export WALLPAPER_DIR=\"$WALLPAPER_DIR\"" >> "$ZSH_RC"
@@ -1024,7 +1023,7 @@ printf "  -> NetworkManager enabled %-20s ${C_GREEN}[ OK ]${RESET}\n" ""
 systemctl --user enable easyeffects.service --now 2>/dev/null || true
 printf "  -> EasyEffects user service enabled %-11s ${C_GREEN}[ OK ]${RESET}\n" ""
 
-# 8. Setup SDDM Theme and Config
+# 7. Setup SDDM Theme and Config
 if [[ "$SETUP_SDDM_THEME" == true ]]; then
     if [ -d "$REPO_DIR/.config/sddm/themes/matugen-minimal" ]; then
         sudo mkdir -p /usr/share/sddm/themes/matugen-minimal
@@ -1062,7 +1061,7 @@ EOF
     fi
 fi
 
-# --- 9. Finalize Version Marker ---
+# --- 8. Finalize Version Marker ---
 echo "$DOTS_VERSION" > "$VERSION_FILE"
 printf "  -> Version marker updated (v%s) %-7s ${C_GREEN}[ OK ]${RESET}\n" "$DOTS_VERSION" ""
 
