@@ -64,8 +64,8 @@ Item {
     // STATE MANAGEMENT & FAST ANIMATIONS
     // -------------------------------------------------------------------------
     property int currentTab: 0
-    property var tabNames: ["System", "Modules", "Keybinds", "Matugen"]
-    property var tabIcons: ["", "󰣆", "󰌌", "󰏘"]
+    property var tabNames: ["System", "Modules", "Keybinds", "Matugen", "Weather"]
+    property var tabIcons: ["", "󰣆", "󰌌", "󰏘", "󰖐"]
 
     property real introBase: 0.0
     property real introSidebar: 0.0
@@ -805,6 +805,154 @@ Item {
                                     Text { text: modelData.f; font.family: "JetBrains Mono"; font.weight: Font.Medium; font.pixelSize: 12; color: root.text; Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter }
                                 }
                                 MouseArea { id: tplMa; anchors.fill: parent; hoverEnabled: true }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ------------------------------------------
+            // TAB 4: WEATHER API & SETTINGS
+            // ------------------------------------------
+            Item {
+                id: weatherTab
+                anchors.fill: parent
+                visible: root.currentTab === 4
+                opacity: visible ? 1.0 : 0.0
+                property real slideY: visible ? 0 : 10
+                Behavior on slideY { NumberAnimation { duration: 250; easing.type: Easing.OutQuart } }
+                transform: Translate { y: slideY }
+                Behavior on opacity { NumberAnimation { duration: 250 } }
+
+                property string selectedUnit: "metric"
+
+                function saveWeatherConfig() {
+                    var file = Quickshell.env("HOME") + "/.config/hypr/scripts/quickshell/calendar/.env";
+                    var cmds = [
+                        "mkdir -p $(dirname " + file + ")",
+                        "echo 'OPENWEATHER_KEY=" + apiKeyInput.text + "' > " + file,
+                        "echo 'OPENWEATHER_UNIT=" + weatherTab.selectedUnit + "' >> " + file,
+                        "echo 'OPENWEATHER_LAT=" + latInput.text + "' >> " + file,
+                        "echo 'OPENWEATHER_LON=" + lonInput.text + "' >> " + file,
+                        "echo 'OPENWEATHER_CITY_ID=' >> " + file,
+                        "notify-send 'Weather' 'API configuration saved successfully!'"
+                    ];
+                    
+                    var finalCmd = cmds.join(" && ");
+                    Quickshell.execDetached(["bash", "-c", finalCmd]);
+                }
+
+                ColumnLayout {
+                    anchors.fill: parent; anchors.margins: 20; spacing: 15
+
+                    Text { text: "Weather Configuration"; font.family: "JetBrains Mono"; font.weight: Font.Black; font.pixelSize: 28; color: root.text; Layout.alignment: Qt.AlignVCenter }
+                    
+                    Text { 
+                        text: "To use the weather widget, please enter your OpenWeatherMap API Key.\nThen, search for your city's exact Latitude and Longitude on Google and enter them below."
+                        font.family: "JetBrains Mono"; font.pixelSize: 13; color: root.subtext0
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; Layout.alignment: Qt.AlignVCenter 
+                    }
+                    
+                    // 1. API Key Input
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.preferredHeight: 46; radius: 8
+                        color: root.surface0; border.color: apiKeyInput.activeFocus ? root.blue : root.surface2; border.width: 1
+                        Behavior on border.color { ColorAnimation { duration: 150 } }
+                        
+                        RowLayout {
+                            anchors.fill: parent; anchors.margins: 10; spacing: 10
+                            Text { text: "󰌆"; font.family: "Iosevka Nerd Font"; font.pixelSize: 18; color: root.subtext0 }
+                            TextInput {
+                                id: apiKeyInput
+                                Layout.fillWidth: true; Layout.fillHeight: true
+                                verticalAlignment: TextInput.AlignVCenter
+                                font.family: "JetBrains Mono"; font.pixelSize: 13; color: root.text
+                                clip: true; selectByMouse: true
+                                Text { text: "Enter OpenWeather API Key..."; color: root.subtext0; visible: !parent.text && !parent.activeFocus; font: parent.font; anchors.verticalCenter: parent.verticalCenter }
+                            }
+                        }
+                    }
+
+                    // 2. Manual Coordinates Inputs
+                    RowLayout {
+                        Layout.fillWidth: true; spacing: 15; Layout.topMargin: 10
+                        Rectangle {
+                            Layout.fillWidth: true; Layout.preferredHeight: 46; radius: 8
+                            color: root.surface0; border.color: latInput.activeFocus ? root.peach : root.surface2; border.width: 1
+                            Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                            TextInput {
+                                id: latInput
+                                anchors.fill: parent; anchors.margins: 10; verticalAlignment: TextInput.AlignVCenter
+                                font.family: "JetBrains Mono"; font.pixelSize: 13; color: root.text; clip: true; selectByMouse: true
+                                Text { text: "Latitude (e.g. 51.5074)"; color: root.subtext0; visible: !parent.text && !parent.activeFocus; font: parent.font; anchors.verticalCenter: parent.verticalCenter }
+                            }
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true; Layout.preferredHeight: 46; radius: 8
+                            color: root.surface0; border.color: lonInput.activeFocus ? root.peach : root.surface2; border.width: 1
+                            Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                            TextInput {
+                                id: lonInput
+                                anchors.fill: parent; anchors.margins: 10; verticalAlignment: TextInput.AlignVCenter
+                                font.family: "JetBrains Mono"; font.pixelSize: 13; color: root.text; clip: true; selectByMouse: true
+                                Text { text: "Longitude (e.g. -0.1278)"; color: root.subtext0; visible: !parent.text && !parent.activeFocus; font: parent.font; anchors.verticalCenter: parent.verticalCenter }
+                            }
+                        }
+                    }
+
+                    // 3. Units 
+                    RowLayout {
+                        Layout.fillWidth: true; spacing: 15; Layout.topMargin: 10
+                        
+                        Text { text: "Units:"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: 13; color: root.text }
+                        
+                        RowLayout {
+                            spacing: 5
+                            Repeater {
+                                model: ["metric", "imperial", "standard"]
+                                Rectangle {
+                                    Layout.preferredWidth: 80; Layout.preferredHeight: 32; radius: 6
+                                    color: weatherTab.selectedUnit === modelData ? Qt.alpha(root.mauve, 0.2) : "transparent"
+                                    border.color: weatherTab.selectedUnit === modelData ? root.mauve : root.surface1; border.width: 1
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                                    Text { 
+                                        anchors.centerIn: parent; text: modelData
+                                        font.family: "JetBrains Mono"; font.pixelSize: 11; font.capitalization: Font.Capitalize
+                                        color: weatherTab.selectedUnit === modelData ? root.mauve : root.subtext0 
+                                    }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: weatherTab.selectedUnit = modelData }
+                                }
+                            }
+                        }
+                    }
+
+                    // 4. Push elements to top, and place button at Bottom Right
+                    Item { Layout.fillHeight: true; Layout.fillWidth: true } // Fills remaining vertical space
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Item { Layout.fillWidth: true } // Fills remaining horizontal space on the left to push the button right
+
+                        Rectangle {
+                            Layout.preferredWidth: 160; Layout.preferredHeight: 46; radius: 8
+                            color: saveMa.containsMouse ? Qt.alpha(root.green, 0.8) : root.green
+                            scale: saveMa.pressed ? 0.95 : (saveMa.containsMouse ? 1.02 : 1.0)
+                            
+                            Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            RowLayout {
+                                anchors.centerIn: parent; spacing: 8
+                                Text { text: "󰆓"; font.family: "Iosevka Nerd Font"; font.pixelSize: 18; color: root.base }
+                                Text { text: "Save Config"; font.family: "JetBrains Mono"; font.weight: Font.Black; font.pixelSize: 14; color: root.base }
+                            }
+                            MouseArea { 
+                                id: saveMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; 
+                                onClicked: weatherTab.saveWeatherConfig() 
                             }
                         }
                     }
