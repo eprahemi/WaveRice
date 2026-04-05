@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.0.5"
+DOTS_VERSION="1.0.6"
 VERSION_FILE="$HOME/.local/state/imperative-dots-version"
 
 mkdir -p "$(dirname "$VERSION_FILE")"
@@ -45,6 +45,17 @@ SETUP_SDDM_THEME=false
 DRIVER_CHOICE="Not Set"
 DRIVER_PKGS=()
 HAS_NVIDIA_PROPRIETARY=false
+
+# Submenu Completion Tracking
+VISITED_PKGS=false
+VISITED_OVERVIEW=false
+VISITED_WEATHER=false
+VISITED_DRIVERS=false
+VISITED_KEYBOARD=false
+
+# Keyboard State
+KB_LAYOUTS="us"
+KB_OPTIONS="grp:alt_shift_toggle"
 
 # ==============================================================================
 # Package Arrays
@@ -121,16 +132,11 @@ USER_NAME=$USER
 OS_NAME=$(grep '^PRETTY_NAME=' /etc/os-release | cut -d= -f2 | tr -d '"')
 CPU_INFO=$(grep -m 1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs)
 
-# Robust generic GPU extraction
-GPU_RAW=$(lspci -nnk | grep -i -A2 "VGA compatible controller" | head -n 1)
-if [[ -z "$GPU_RAW" ]]; then
-    GPU_RAW=$(lspci -nnk | grep -i -A2 "3D controller" | head -n 1)
-fi
-if [[ -z "$GPU_RAW" ]]; then
-    GPU_RAW=$(lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -n 1)
-fi
+# Detect ALL GPUs (VGA, 3D, and Display controllers) instead of just the first one
+GPU_RAW=$(lspci -nn | grep -iE 'vga|3d|display')
 
-GPU_INFO=$(echo "$GPU_RAW" | cut -d: -f3 | xargs)
+# Flatten multi-line output into a single string and strip revision info for a cleaner TUI
+GPU_INFO=$(echo "$GPU_RAW" | cut -d: -f3 | sed -E 's/ \(rev [0-9a-f]+\)//g' | xargs)
 [[ -z "$GPU_INFO" ]] && GPU_INFO="Unknown / Virtual Machine"
 
 # Categorize GPU for the driver menu
@@ -209,8 +215,8 @@ manage_packages() {
                     sleep 1
                 fi
                 ;;
-            *"3"*) break ;;
-            *) break ;;
+            *"3"*) VISITED_PKGS=true; break ;;
+            *) VISITED_PKGS=true; break ;;
         esac
     done
 }
@@ -326,6 +332,60 @@ manage_drivers() {
 
         echo -e "\n${C_GREEN}Driver configuration saved!${RESET}"
         sleep 1.2
+        VISITED_DRIVERS=true
+        break
+    done
+}
+
+manage_keyboard() {
+    while true; do
+        draw_header
+        echo -e "${BOLD}${C_CYAN}=== Keyboard Layout Configuration ===${RESET}\n"
+        echo -e "Enter the keyboard layouts you want to use, separated by commas."
+        echo -e "Examples: ${C_GREEN}us${RESET}, ${C_GREEN}us,ru${RESET}, ${C_GREEN}us,de,fr${RESET}\n"
+
+        read -p "Keyboard Layouts (default 'us'): " input_layouts
+        [[ -z "$input_layouts" ]] && input_layouts="us"
+
+        echo -e "\n${C_CYAN}Choose a key combination to switch between layouts:${RESET}"
+        
+        local options="1. Alt + Shift (grp:alt_shift_toggle)\n"
+        options+="2. Win + Space (grp:win_space_toggle)\n"
+        options+="3. Caps Lock (grp:caps_toggle)\n"
+        options+="4. Ctrl + Shift (grp:ctrl_shift_toggle)\n"
+        options+="5. Ctrl + Alt (grp:ctrl_alt_toggle)\n"
+        options+="6. Right Alt (grp:toggle)\n"
+        options+="7. No Toggle (Single Layout)"
+
+        local choice
+        choice=$(echo -e "$options" | fzf \
+            --ansi \
+            --layout=reverse \
+            --border=rounded \
+            --margin=1,2 \
+            --height=15 \
+            --prompt=" Toggle Keybind > " \
+            --pointer=">" \
+            --header=" Select layout switching method ")
+
+        local kb_opt=""
+        case "$choice" in
+            *"1"*) kb_opt="grp:alt_shift_toggle" ;;
+            *"2"*) kb_opt="grp:win_space_toggle" ;;
+            *"3"*) kb_opt="grp:caps_toggle" ;;
+            *"4"*) kb_opt="grp:ctrl_shift_toggle" ;;
+            *"5"*) kb_opt="grp:ctrl_alt_toggle" ;;
+            *"6"*) kb_opt="grp:toggle" ;;
+            *"7"*) kb_opt="" ;;
+            *) kb_opt="grp:alt_shift_toggle" ;;
+        esac
+
+        KB_LAYOUTS="$input_layouts"
+        KB_OPTIONS="$kb_opt"
+
+        echo -e "\n${C_GREEN}Keyboard configured: Layouts = $KB_LAYOUTS | Switch = ${KB_OPTIONS:-None}${RESET}"
+        sleep 1.5
+        VISITED_KEYBOARD=true
         break
     done
 }
@@ -378,6 +438,7 @@ show_overview() {
 
     echo -e "${BOLD}${C_GREEN}Press ENTER to return to the Main Menu...${RESET}"
     read -r
+    VISITED_OVERVIEW=true
 }
 
 set_weather_api() {
@@ -403,6 +464,7 @@ set_weather_api() {
                 WEATHER_API_KEY="Skipped"
                 WEATHER_CITY_ID=""
                 WEATHER_UNIT=""
+                VISITED_WEATHER=true
                 break
             fi
             continue
@@ -410,56 +472,47 @@ set_weather_api() {
         
         WEATHER_API_KEY="$input_key"
         
-        echo -e "\n${C_CYAN}Let's find your exact City ID.${RESET}"
-        read -p "Enter your city name (e.g., London, New York): " input_city
+        echo -e "\n${C_CYAN}Let's set your location using coordinates.${RESET}"
+        echo -e "Please Google your city (e.g., 'London coordinates') and copy the latitude and longitude."
+        echo -e "Use decimal format (e.g., Lat: 51.5072, Lon: -0.1276)."
+        echo -e "${C_YELLOW}Make sure to include the negative sign (-) if applicable!${RESET}\n"
         
-        if [[ -n "$input_city" ]]; then
-            echo -e "Searching for '${input_city}'..."
-            
-            # Use echo -n to prevent jq from encoding a newline character which breaks the API call
-            encoded_city=$(echo -n "$input_city" | jq -sRr @uri)
-            api_response=$(curl -s "http://api.openweathermap.org/data/2.5/find?q=${encoded_city}&appid=${WEATHER_API_KEY}")
-            
-            # Validate API Key & Response
-            status_code=$(echo "$api_response" | jq -r '.cod | tostring')
-            if [[ "$status_code" != "200" ]]; then
-                error_msg=$(echo "$api_response" | jq -r '.message')
-                echo -e "\n${C_RED}API Error: ${error_msg}${RESET}"
-                echo -e "Please check your API key and try again.\n"
-                read -p "Press Enter to retry..."
-                continue
-            fi
-            
-            # Check if any cities matched
-            count=$(echo "$api_response" | jq -r '.count')
-            if [[ "$count" == "0" ]]; then
-                echo -e "\n${C_RED}No cities found matching '${input_city}'.${RESET}"
-                read -p "Press Enter to retry..."
-                continue
-            fi
-            
-            # Create a selection menu of matched cities
-            selected_city=$(echo "$api_response" | jq -r '.list[] | "\(.id) | \(.name), \(.sys.country) (Lat: \(.coord.lat), Lon: \(.coord.lon))"' | fzf \
-                --layout=reverse \
-                --border=rounded \
-                --margin=1,2 \
-                --height=20 \
-                --prompt=" Select your exact city > " \
-                --pointer=">" \
-                --header=" Use ARROWS to navigate. ENTER to confirm. ")
-            
-            if [[ -n "$selected_city" ]]; then
-                WEATHER_CITY_ID=$(echo "$selected_city" | awk '{print $1}')
-                city_display=$(echo "$selected_city" | cut -d'|' -f2 | xargs)
-                echo -e "${C_GREEN}Selected: ${city_display} (ID: ${WEATHER_CITY_ID})${RESET}"
-            else
-                echo -e "${C_RED}City selection cancelled.${RESET}"
-                continue
-            fi
-        else
-            echo -e "${C_RED}City name cannot be empty.${RESET}"
+        read -p "Enter Latitude: " input_lat
+        read -p "Enter Longitude: " input_lon
+
+        if [[ -z "$input_lat" || -z "$input_lon" ]]; then
+            echo -e "${C_RED}Coordinates cannot be empty.${RESET}"
+            sleep 1.5
             continue
         fi
+
+        echo -e "\n${C_CYAN}Searching for the closest city ID based on coordinates...${RESET}"
+        
+        # Use the standard weather endpoint which returns the city ID directly based on coordinates
+        api_response=$(curl -s "https://api.openweathermap.org/data/2.5/weather?lat=${input_lat}&lon=${input_lon}&appid=${WEATHER_API_KEY}")
+        
+        # Validate API Key & Response
+        status_code=$(echo "$api_response" | jq -r '.cod | tostring')
+        if [[ "$status_code" != "200" ]]; then
+            error_msg=$(echo "$api_response" | jq -r '.message')
+            echo -e "${C_RED}API Error: ${error_msg}${RESET}"
+            echo -e "Please check your API key and coordinates, then try again.\n"
+            read -p "Press Enter to retry..."
+            continue
+        fi
+        
+        # Extract the ID and name
+        extracted_id=$(echo "$api_response" | jq -r '.id')
+        extracted_name=$(echo "$api_response" | jq -r '.name')
+        
+        if [[ "$extracted_id" == "null" || -z "$extracted_id" || "$extracted_id" == "0" ]]; then
+            echo -e "${C_RED}Could not find a valid City ID for those coordinates.${RESET}"
+            read -p "Press Enter to retry..."
+            continue
+        fi
+
+        WEATHER_CITY_ID="$extracted_id"
+        echo -e "${C_GREEN}Matched Location: ${extracted_name} (ID: ${WEATHER_CITY_ID})${RESET}\n"
         
         # Ask for standard units
         unit_choice=$(echo -e "metric (Celsius)\nimperial (Fahrenheit)\nstandard (Kelvin)" | fzf \
@@ -476,6 +529,7 @@ set_weather_api() {
         
         echo -e "\n${C_GREEN}Weather configuration complete!${RESET}"
         sleep 1.5
+        VISITED_WEATHER=true
         break
     done
 }
@@ -557,17 +611,25 @@ clear
 while true; do
     draw_header
     
+    # Progress checkmarks for strictly required submenus
+    S_PKG=$( [ "$VISITED_PKGS" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_RED}[ ]${RESET}" )
+    S_OVW=$( [ "$VISITED_OVERVIEW" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_RED}[ ]${RESET}" )
+    S_WTH=$( [ "$VISITED_WEATHER" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_RED}[ ]${RESET}" )
+    S_DRV=$( [ "$VISITED_DRIVERS" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_RED}[ ]${RESET}" )
+    S_KBD=$( [ "$VISITED_KEYBOARD" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_RED}[ ]${RESET}" )
+
     if [[ -z "$WEATHER_API_KEY" ]]; then API_DISPLAY="Not Set"
     elif [[ "$WEATHER_API_KEY" == "Skipped" ]]; then API_DISPLAY="Skipped"
     else API_DISPLAY="Set ($WEATHER_UNIT, ID: $WEATHER_CITY_ID)"; fi
 
     # Build the color-coded menu string
-    MENU_ITEMS="1. ${C_GREEN}Manage Packages${RESET} [${#PKGS[@]} queued]\n"
-    MENU_ITEMS+="2. ${C_CYAN}Overview & Keybinds${RESET}\n"
-    MENU_ITEMS+="3. ${C_YELLOW}Set Weather API Key${RESET} [${API_DISPLAY}]\n"
-    MENU_ITEMS+="4. ${C_RED}[ DRIVERS ] Setup${RESET} [${DRIVER_CHOICE}]\n"
-    MENU_ITEMS+="5. ${BOLD}${C_MAGENTA}START INSTALLATION${RESET}\n"
-    MENU_ITEMS+="6. ${DIM}Exit${RESET}"
+    MENU_ITEMS="1. $S_PKG ${C_GREEN}Manage Packages${RESET} [${#PKGS[@]} queued]\n"
+    MENU_ITEMS+="2. $S_OVW ${C_CYAN}Overview & Keybinds${RESET}\n"
+    MENU_ITEMS+="3. $S_WTH ${C_YELLOW}Set Weather API Key${RESET} [${API_DISPLAY}]\n"
+    MENU_ITEMS+="4. $S_DRV ${C_RED}[ DRIVERS ] Setup${RESET} [${DRIVER_CHOICE}]\n"
+    MENU_ITEMS+="5. $S_KBD ${C_BLUE}Keyboard Layout Setup${RESET} [${KB_LAYOUTS}]\n"
+    MENU_ITEMS+="6. ${BOLD}${C_MAGENTA}START INSTALLATION${RESET}\n"
+    MENU_ITEMS+="7. ${DIM}Exit${RESET}"
 
     # We use --ansi flag in fzf so the color codes render properly inside the menu list
     MENU_OPTION=$(echo -e "$MENU_ITEMS" | fzf \
@@ -575,7 +637,7 @@ while true; do
         --layout=reverse \
         --border=rounded \
         --margin=1,2 \
-        --height=15 \
+        --height=16 \
         --prompt=" Main Menu > " \
         --pointer=">" \
         --header=" Navigate with ARROWS. Select with ENTER. ")
@@ -585,8 +647,17 @@ while true; do
         *"2"*) show_overview ;;
         *"3"*) set_weather_api ;;
         *"4"*) manage_drivers ;;
-        *"5"*) prompt_optional_features; break ;;
-        *"6"*) clear; exit 0 ;;
+        *"5"*) manage_keyboard ;;
+        *"6"*) 
+            if [ "$VISITED_PKGS" = false ] || [ "$VISITED_OVERVIEW" = false ] || [ "$VISITED_WEATHER" = false ] || [ "$VISITED_DRIVERS" = false ] || [ "$VISITED_KEYBOARD" = false ]; then
+                echo -e "\n${C_RED}[!] You must visit and configure (or explicitly skip) all submenus before starting.${RESET}"
+                sleep 2.5
+                continue
+            fi
+            prompt_optional_features
+            break 
+            ;;
+        *"7"*) clear; exit 0 ;;
         *) exit 0 ;;
     esac
 done
@@ -900,6 +971,16 @@ fi
 
 
 if [ -f "$HYPR_CONF" ]; then
+    
+    # 0. Inject Keyboard Layout Configurations dynamically
+    echo -e "  -> Applying Keyboard configuration..."
+    sed -i "s/^ *kb_layout =.*/    kb_layout = $KB_LAYOUTS/" "$HYPR_CONF"
+    if [ -n "$KB_OPTIONS" ]; then
+        sed -i "s/^ *kb_options =.*/    kb_options = $KB_OPTIONS/" "$HYPR_CONF"
+    else
+        sed -i "s/^ *kb_options =.*/    kb_options = /" "$HYPR_CONF"
+    fi
+
     # 1. Inject SwayOSD Autostart (Looking for the new 'awww-daemon' entry)
     sed -i '/^exec-once = awww-daemon/a exec-once = swayosd-server --top-margin 0.9 --style ~/.config/swayosd/style.css' "$HYPR_CONF"
 
