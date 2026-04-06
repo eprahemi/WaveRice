@@ -176,10 +176,10 @@ EOF
     printf "${RESET}\n"
 
     # OSC 8 Escape Sequences for Clickable Hyperlinks
-    local OSC8_GH="\e]8;;https://github.com/ilyamiro/imperative-dots.git\e\\"
-    local OSC8_TW="\e]8;;https://twitter.com/ilyamirox\e\\"
-    local OSC8_RD="\e]8;;https://reddit.com/r/ilyamiro1\e\\"
-    local OSC8_END="\e]8;;\e\\"
+    local OSC8_GH="\e]8;;https://github.com/ilyamiro/imperative-dots.git\a"
+    local OSC8_TW="\e]8;;https://twitter.com/ilyamirox\a"
+    local OSC8_RD="\e]8;;https://reddit.com/r/ilyamiro1\a"
+    local OSC8_END="\e]8;;\a"
 
     printf "\033[K${C_BLUE} -----------------------------------------------------------------${RESET}\n"
     printf "\033[K${BOLD}${C_GREEN} GitHub:${RESET}  ${OSC8_GH}https://github.com/ilyamiro/imperative-dots.git${OSC8_END}\n"
