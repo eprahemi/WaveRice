@@ -924,6 +924,7 @@ fi
 # Enable Pipewire natively for the user environment
 # Using --global prevents silent failures when testers run this script from a TTY (without an active DBUS session)
 sudo systemctl --global enable pipewire wireplumber pipewire-pulse 2>/dev/null || true
+sudo systemctl enable --now swayosd-libinput-backend.service
 # Attempt to start it locally if DBUS is available (fails silently in TTY, which is fine since --global catches the next login)
 systemctl --user start pipewire wireplumber pipewire-pulse 2>/dev/null || true
 
