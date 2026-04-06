@@ -436,7 +436,7 @@ Item {
     readonly property string homeDir: "file://" + Quickshell.env("HOME")
     readonly property string thumbDir: homeDir + "/.cache/wallpaper_picker/thumbs"
     readonly property string searchDir: homeDir + "/.cache/wallpaper_picker/search_thumbs"
-    readonly property string srcDir: Quickshell.env("HOME") + "/Images/Wallpapers"
+    readonly property string srcDir: Quickshell.env("HOME") + "/Pictures/Wallpapers"
 
     readonly property var transitions: ["grow", "outer", "any", "wipe", "wave", "pixel", "center"]
 

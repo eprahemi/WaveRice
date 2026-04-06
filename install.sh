@@ -763,13 +763,11 @@ if [[ "$INSTALL_SDDM" == true ]]; then
     sudo systemctl enable sddm.service -f
     printf "  -> SDDM enabled successfully %-14s ${C_GREEN}[ OK ]${RESET}\n" ""
     
-    # Fix for SDDM black screen on logout (forces dangling wayland session processes and IPC to close)
+    # Fix for SDDM black screen on logout (forces dangling wayland session processes to close)
     echo "  -> Applying systemd logind workaround for Wayland logout black screens..."
     sudo sed -i 's/^#*KillUserProcesses=.*/KillUserProcesses=yes/' /etc/systemd/logind.conf
-    sudo sed -i 's/^#*RemoveIPC=.*/RemoveIPC=yes/' /etc/systemd/logind.conf
     sudo systemctl restart systemd-logind 2>/dev/null || true
 fi
-
 
 # --- 3. Repository Cloning & Wallpapers ---
 echo -e "\n${C_CYAN}[ INFO ]${RESET} Setting up Dotfiles Repository..."
