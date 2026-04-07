@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.0.11"
+DOTS_VERSION="1.0.12"
 VERSION_FILE="$HOME/.local/state/imperative-dots-version"
 
 # Global Variables & Initial States (Defaults)
@@ -816,11 +816,6 @@ fi
 if [[ "$INSTALL_SDDM" == true ]]; then
     sudo systemctl enable sddm.service -f
     printf "  -> SDDM enabled successfully %-14s ${C_GREEN}[ OK ]${RESET}\n" ""
-    
-    # Fix for SDDM black screen on logout (forces dangling wayland session processes to close)
-    echo "  -> Applying systemd logind workaround for Wayland logout black screens..."
-    sudo sed -i 's/^#*KillUserProcesses=.*/KillUserProcesses=yes/' /etc/systemd/logind.conf
-    sudo systemctl restart systemd-logind 2>/dev/null || true
 fi
 
 # --- 3. Repository Cloning & Wallpapers ---
@@ -1131,10 +1126,16 @@ QtObject {
 EOF
         sudo chown $USER:$USER /usr/share/sddm/themes/matugen-minimal/Colors.qml
         
-        # FIX 2: Use a drop-in file for the theme instead of overwriting all of /etc/sddm.conf
-        # This preserves the distro's default Wayland/X11 configuration.
+        # FIX 2: Use a drop-in file for the theme and force SDDM to run as a Wayland greeter
         sudo mkdir -p /etc/sddm.conf.d
-        echo -e "[Theme]\nCurrent=matugen-minimal" | sudo tee /etc/sddm.conf.d/10-matugen-theme.conf > /dev/null
+        cat <<EOF | sudo tee /etc/sddm.conf.d/10-wayland-matugen.conf > /dev/null
+[Theme]
+Current=matugen-minimal
+
+[General]
+DisplayServer=wayland
+GreeterEnvironment=QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+EOF
         
         printf "  -> SDDM Theme configured %-17s ${C_GREEN}[ OK ]${RESET}\n" ""
     fi
