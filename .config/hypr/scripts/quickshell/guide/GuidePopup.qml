@@ -843,11 +843,10 @@ Item {
                     var file = Quickshell.env("HOME") + "/.config/hypr/scripts/quickshell/calendar/.env";
                     var cmds = [
                         "mkdir -p $(dirname " + file + ")",
-                        "echo 'OPENWEATHER_KEY=" + apiKeyInput.text + "' > " + file,
+                        "echo '# OpenWeather API Configuration (OVERWRITE, not add)' > " + file,
+                        "echo 'OPENWEATHER_KEY=" + apiKeyInput.text + "' >> " + file,
+                        "echo 'OPENWEATHER_CITY_ID=" + cityIdInput.text + "' >> " + file,
                         "echo 'OPENWEATHER_UNIT=" + weatherTab.selectedUnit + "' >> " + file,
-                        "echo 'OPENWEATHER_LAT=" + latInput.text + "' >> " + file,
-                        "echo 'OPENWEATHER_LON=" + lonInput.text + "' >> " + file,
-                        "echo 'OPENWEATHER_CITY_ID=' >> " + file,
                         "notify-send 'Weather' 'API configuration saved successfully!'"
                     ];
                     
@@ -861,7 +860,7 @@ Item {
                     Text { text: "Weather Configuration"; font.family: "JetBrains Mono"; font.weight: Font.Black; font.pixelSize: root.s(28); color: root.text; Layout.alignment: Qt.AlignVCenter }
                     
                     Text { 
-                        text: "To use the weather widget, please enter your OpenWeatherMap API Key.\nThen, search for your city's exact Latitude and Longitude on Google and enter them below."
+                        text: "To use the weather widget, please enter your OpenWeatherMap API Key.\nThen, search for your city's exact City ID on OpenWeatherMap and enter it below."
                         font.family: "JetBrains Mono"; font.pixelSize: root.s(13); color: root.subtext0
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; Layout.alignment: Qt.AlignVCenter 
                     }
@@ -886,32 +885,17 @@ Item {
                         }
                     }
 
-                    // 2. Manual Coordinates Inputs
-                    RowLayout {
-                        Layout.fillWidth: true; spacing: root.s(15); Layout.topMargin: root.s(10)
-                        Rectangle {
-                            Layout.fillWidth: true; Layout.preferredHeight: root.s(46); radius: root.s(8)
-                            color: root.surface0; border.color: latInput.activeFocus ? root.peach : root.surface2; border.width: 1
-                            Behavior on border.color { ColorAnimation { duration: 150 } }
+                    // 2. City ID Input
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.preferredHeight: root.s(46); radius: root.s(8); Layout.topMargin: root.s(10)
+                        color: root.surface0; border.color: cityIdInput.activeFocus ? root.peach : root.surface2; border.width: 1
+                        Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                            TextInput {
-                                id: latInput
-                                anchors.fill: parent; anchors.margins: root.s(10); verticalAlignment: TextInput.AlignVCenter
-                                font.family: "JetBrains Mono"; font.pixelSize: root.s(13); color: root.text; clip: true; selectByMouse: true
-                                Text { text: "Latitude (e.g. 51.5074)"; color: root.subtext0; visible: !parent.text && !parent.activeFocus; font: parent.font; anchors.verticalCenter: parent.verticalCenter }
-                            }
-                        }
-                        Rectangle {
-                            Layout.fillWidth: true; Layout.preferredHeight: root.s(46); radius: root.s(8)
-                            color: root.surface0; border.color: lonInput.activeFocus ? root.peach : root.surface2; border.width: 1
-                            Behavior on border.color { ColorAnimation { duration: 150 } }
-
-                            TextInput {
-                                id: lonInput
-                                anchors.fill: parent; anchors.margins: root.s(10); verticalAlignment: TextInput.AlignVCenter
-                                font.family: "JetBrains Mono"; font.pixelSize: root.s(13); color: root.text; clip: true; selectByMouse: true
-                                Text { text: "Longitude (e.g. -0.1278)"; color: root.subtext0; visible: !parent.text && !parent.activeFocus; font: parent.font; anchors.verticalCenter: parent.verticalCenter }
-                            }
+                        TextInput {
+                            id: cityIdInput
+                            anchors.fill: parent; anchors.margins: root.s(10); verticalAlignment: TextInput.AlignVCenter
+                            font.family: "JetBrains Mono"; font.pixelSize: root.s(13); color: root.text; clip: true; selectByMouse: true
+                            Text { text: "City ID (e.g. 2624652)"; color: root.subtext0; visible: !parent.text && !parent.activeFocus; font: parent.font; anchors.verticalCenter: parent.verticalCenter }
                         }
                     }
 
