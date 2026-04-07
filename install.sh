@@ -1220,9 +1220,8 @@ if [ -f "$WP_QML" ]; then
     sed -i 's/matugen image "[^"]*"/& --source-color-index 0/g' "$WP_QML"
 fi
 
-# 5. Rename all instances of swww to awww in quickshell/wallpaper files
-if [ -d "$WP_DIR" ]; then
-    find "$WP_DIR" -type f -exec sed -i 's/swww/awww/g' {} +
+if [ -d "$TARGET_CONFIG_DIR/hypr/scripts" ]; then
+    find "$TARGET_CONFIG_DIR/hypr/scripts" -type f -exec sed -i 's/swww/awww/g' {} +
 fi
 
 # 6. Zsh Dynamism
