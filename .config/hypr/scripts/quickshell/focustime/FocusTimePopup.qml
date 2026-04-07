@@ -476,8 +476,8 @@ Item {
     // -------------------------------------------------------------------------
     // KEYBOARD SHORTCUTS
     // -------------------------------------------------------------------------
-    Shortcut { sequence: "Left"; onActivated: changeDay(-1) }
-    Shortcut { sequence: "Right"; onActivated: changeDay(1) }
+    Shortcut { sequence: "Left"; onActivated: changeDay(window.isWeekView ? -7 : -1) }
+    Shortcut { sequence: "Right"; onActivated: changeDay(window.isWeekView ? 7 : 1) }
     Shortcut { sequence: "Home"; onActivated: changeDay(-7) }
     Shortcut { sequence: "End"; onActivated: changeDay(7) }
     
@@ -607,9 +607,9 @@ Item {
                             color: prevWeekMa.containsMouse ? window.surface0 : "transparent"
                             Behavior on color { ColorAnimation { duration: 150 } }
                             Text { anchors.centerIn: parent; font.family: "Iosevka Nerd Font"; text: "󰅁"; color: window.text; font.pixelSize: window.s(18) }
-                            MouseArea { id: prevWeekMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: changeDay(-1) }
+                            MouseArea { id: prevWeekMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: changeDay(window.isWeekView ? -7 : -1) }
                         }
-                    }                    
+                    }                   
                     // Title Area
                     RowLayout {
                         Layout.fillWidth: true
@@ -656,7 +656,7 @@ Item {
                         color: nextWeekMa.containsMouse ? window.surface0 : "transparent"
                         Behavior on color { ColorAnimation { duration: 150 } }
                         Text { anchors.centerIn: parent; font.family: "Iosevka Nerd Font"; text: "󰅂"; color: window.text; font.pixelSize: window.s(18) }
-                        MouseArea { id: nextWeekMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: changeDay(1) }
+                        MouseArea { id: nextWeekMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: changeDay(window.isWeekView ? 7 : 1) }
                     }
                 }
 

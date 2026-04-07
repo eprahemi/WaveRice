@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.0.12"
+DOTS_VERSION="1.0.13"
 VERSION_FILE="$HOME/.local/state/imperative-dots-version"
 
 # Global Variables & Initial States (Defaults)
