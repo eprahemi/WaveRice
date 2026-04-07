@@ -1076,11 +1076,18 @@ Item {
 
                         if (monitorsModel.count === 0) return;
 
+                        // Delete command to remove old monitor rules dynamically
+                        let confCmd = "sed -i '/^monitor[[:space:]]*=/d' ~/.config/hypr/hyprland.conf";
+
                         if (monitorsModel.count === 1) {
                             let mon = monitorsModel.get(0);
                             let monitorStr = mon.name + "," + mon.resW + "x" + mon.resH + "@" + mon.rate + ",0x0," + mon.sysScale;
-                            Quickshell.execDetached(["notify-send", "Display Update", "Applied: " + mon.resW + "x" + mon.resH + " @ " + mon.rate + "Hz"]);
-                            Quickshell.execDetached(["sh", "-c", "hyprctl keyword monitor " + monitorStr]);
+                            
+                            // Combine deletion and file appending
+                            let saveCmd = confCmd + " && echo 'monitor=" + monitorStr + "' >> ~/.config/hypr/hyprland.conf";
+                            
+                            Quickshell.execDetached(["notify-send", "Display Update", "Applied & Saved: " + mon.resW + "x" + mon.resH + " @ " + mon.rate + "Hz"]);
+                            Quickshell.execDetached(["sh", "-c", "hyprctl keyword monitor " + monitorStr + " ; " + saveCmd]);
                         } else {
                             let rects = [];
                             for (let i = 0; i < monitorsModel.count; i++) {
@@ -1146,6 +1153,8 @@ Item {
                             
                             let batchCmds = [];
                             let summaryString = "";
+                            let saveCmd = confCmd; // Start string with the sed delete command
+
                             for (let i = 0; i < rects.length; i++) {
                                 let r = rects[i];
                                 
@@ -1156,14 +1165,17 @@ Item {
                                 let monitorStr = r.name + "," + r.resW + "x" + r.resH + "@" + r.rate + "," + r.x + "x" + r.y + "," + r.sysScale;
                                 batchCmds.push("keyword monitor " + monitorStr);
                                 summaryString += r.name + " ";
+                                
+                                // Append each monitor configuration string to hyprland.conf
+                                saveCmd += " && echo 'monitor=" + monitorStr + "' >> ~/.config/hypr/hyprland.conf";
                             }
                             
                             let fullCommand = "hyprctl --batch '" + batchCmds.join(" ; ") + "'";
                             
                             let postReloadCmd = "swww kill ; sleep 0.2 ; swww-daemon &";
                             
-                            Quickshell.execDetached(["sh", "-c", fullCommand + " ; " + postReloadCmd]);
-                            Quickshell.execDetached(["notify-send", "Display Update", "Applied layout for: " + summaryString]);
+                            Quickshell.execDetached(["sh", "-c", fullCommand + " ; " + saveCmd + " ; " + postReloadCmd]);
+                            Quickshell.execDetached(["notify-send", "Display Update", "Applied & Saved layout for: " + summaryString]);
                         }
                     }
                 }
