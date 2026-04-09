@@ -9,8 +9,6 @@ import "../"
 
 Item {
     id: window
-    // Removed `width: Screen.width` to allow the widget to properly fit its container
-    // and prevent center-anchored items from being pushed off-screen.
     focus: true
 
     // --- Responsive Scaling Logic ---
@@ -23,48 +21,14 @@ Item {
         return scaler.s(val); 
     }
 
-    Shortcut {
-        sequence: "Tab"
-        onActivated: {
-            window.playSfx("switch.wav");
-            window.activeMode = window.activeMode === "eth" ? "audio" : "eth";
-        }
-    }
-
     Settings {
         id: cache
         category: "QS_DesktopNetworkWidget"
         property string lastEthJson: ""
-        property string lastAudioJson: ""
-    }
-
-    property bool ignoreNextModeFileUpdate: false
-    Process {
-        id: modeReader
-        command: ["bash", "-c", "cat /tmp/qs_desktop_mode 2>/dev/null"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let mode = this.text.trim();
-                if ((mode === "eth" || mode === "audio") && window.activeMode !== mode) {
-                    window.ignoreNextModeFileUpdate = true;
-                    window.activeMode = mode;
-                }
-            }
-        }
-    }
-
-    Timer {
-        interval: 100
-        running: true
-        repeat: true
-        onTriggered: modeReader.running = true
     }
 
     Component.onCompleted: {
-        Quickshell.execDetached(["bash", "-c", "if [ ! -f /tmp/qs_desktop_mode ]; then echo '" + activeMode + "' > /tmp/qs_desktop_mode; fi"]);
-
         if (cache.lastEthJson !== "") processEthJson(cache.lastEthJson);
-        if (cache.lastAudioJson !== "") processAudioJson(cache.lastAudioJson);
         introState = 1.0;
     }
 
@@ -102,10 +66,7 @@ Item {
     readonly property string scriptsDir: Quickshell.env("HOME") + "/.config/hypr/scripts/quickshell/network"
     
     readonly property color ethAccent: Qt.lighter(window.sapphire, 1.15) 
-    readonly property color audioAccent: window.mauve
-
-    property string activeMode: "eth"
-    readonly property color activeColor: activeMode === "eth" ? window.ethAccent : window.audioAccent
+    readonly property color activeColor: window.ethAccent
     readonly property color activeGradientSecondary: Qt.darker(window.activeColor, 1.25)
 
     // Simplified connection logic
@@ -115,33 +76,17 @@ Item {
     property var ethConnected: null
     readonly property bool isEthConn: !!window.ethConnected
 
-    property bool audioPowerPending: false
-    property string expectedAudioPower: ""
-    property string audioPower: "off"
-    property var audioConnected: null
-    readonly property bool isAudioConn: !!window.audioConnected
-
-    readonly property bool currentPower: activeMode === "eth" ? window.ethPower === "on" : window.audioPower === "on"
-    readonly property bool currentPowerPending: activeMode === "eth" ? window.ethPowerPending : window.audioPowerPending
-    readonly property bool currentConn: activeMode === "eth" ? window.isEthConn : window.isAudioConn
+    readonly property bool currentPower: window.ethPower === "on"
+    readonly property bool currentPowerPending: window.ethPowerPending
+    readonly property bool currentConn: window.isEthConn
     
-    // Core synchronization (Only 1 primary core on a desktop widget)
-    property var currentCore: activeMode === "eth" ? window.ethConnected : window.audioConnected
+    // Core synchronization 
+    property var currentCore: window.ethConnected
     property real activeCoreCount: currentConn ? 1 : 0
     property real smoothedActiveCoreCount: activeCoreCount
     Behavior on smoothedActiveCoreCount { NumberAnimation { duration: 1000; easing.type: Easing.InOutExpo } }
 
     Timer { id: ethPendingReset; interval: 8000; onTriggered: { window.ethPowerPending = false; window.expectedEthPower = ""; } }
-    Timer { id: audioPendingReset; interval: 8000; onTriggered: { window.audioPowerPending = false; window.expectedAudioPower = ""; } }
-
-    onActiveModeChanged: {
-        if (!window.ignoreNextModeFileUpdate) {
-            Quickshell.execDetached(["bash", "-c", "echo '" + window.activeMode + "' > /tmp/qs_desktop_mode"]);
-        }
-        window.ignoreNextModeFileUpdate = false;
-        infoListModel.clear();
-        updateInfoNodes();
-    }
 
     onCurrentConnChanged: updateInfoNodes()
 
@@ -188,14 +133,9 @@ Item {
         let obj = window.currentCore;
         
         if (window.currentConn && obj) {
-            if (window.activeMode === "eth") {
-                nodes.push({ id: "ip", name: obj.ip || "No IP", icon: "󰩟", action: "IP Address", isInfoNode: true });
-                nodes.push({ id: "spd", name: obj.speed || "Unknown", icon: "󰓅", action: "Link Speed", isInfoNode: true });
-                nodes.push({ id: "mac", name: obj.mac || "Unknown", icon: "󰒋", action: "MAC Address", isInfoNode: true });
-            } else {
-                nodes.push({ id: "vol", name: obj.volume || "0%", icon: obj.muted ? "󰝟" : "󰕾", action: "Volume", isInfoNode: true });
-                nodes.push({ id: "port", name: obj.port || "Unknown", icon: "󰋎", action: "Active Port", isInfoNode: true });
-            }
+            nodes.push({ id: "ip", name: obj.ip || "No IP", icon: "󰩟", action: "IP Address", isInfoNode: true });
+            nodes.push({ id: "spd", name: obj.speed || "Unknown", icon: "󰓅", action: "Link Speed", isInfoNode: true });
+            nodes.push({ id: "mac", name: obj.mac || "Unknown", icon: "󰒋", action: "MAC Address", isInfoNode: true });
         }
         window.syncModel(infoListModel, nodes);
     }
@@ -226,31 +166,6 @@ Item {
         } catch(e) {}
     }
 
-    function processAudioJson(textData) {
-        if (textData === "") return;
-        try {
-            let data = JSON.parse(textData);
-            let fetchedPower = data.power || "off";
-            
-            if (window.audioPowerPending) {
-                window.audioPower = window.expectedAudioPower; 
-                if (fetchedPower === window.expectedAudioPower) {
-                    window.audioPowerPending = false; 
-                    audioPendingReset.stop();
-                }
-            } else {
-                window.audioPower = fetchedPower;
-                window.expectedAudioPower = "";
-            }
-
-            let newConnected = data.connected;
-            if (JSON.stringify(window.audioConnected) !== JSON.stringify(newConnected)) {
-                window.audioConnected = newConnected;
-                updateInfoNodes();
-            }
-        } catch(e) {}
-    }
-
     Process {
         id: ethPoller
         command: ["bash", window.scriptsDir + "/eth_panel_logic.sh"]
@@ -262,25 +177,12 @@ Item {
             }
         }
     }
-
-    Process {
-        id: audioPoller
-        command: ["bash", window.scriptsDir + "/audio_panel_logic.sh", "--status"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                cache.lastAudioJson = this.text.trim();
-                processAudioJson(cache.lastAudioJson);
-            }
-        }
-    }
     
     Timer {
         interval: 3000
         running: true; repeat: true
         onTriggered: { 
             if (!ethPoller.running) ethPoller.running = true; 
-            if (!audioPoller.running) audioPoller.running = true; 
         }
     }
 
@@ -326,7 +228,7 @@ Item {
             Item {
                 id: radarItem
                 anchors.fill: parent
-                anchors.bottomMargin: window.s(80) 
+                anchors.bottomMargin: window.s(40) 
                 opacity: window.currentPower ? 1.0 : 0.0
                 scale: window.currentPower ? 1.0 : 1.05
                 Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.InOutQuad } }
@@ -353,7 +255,7 @@ Item {
             Canvas {
                 id: nodeLinesCanvas
                 anchors.fill: parent
-                anchors.bottomMargin: window.s(80)
+                anchors.bottomMargin: window.s(40)
                 z: 0 
                 opacity: (window.currentConn && window.currentPower) ? 1.0 : 0.0
                 Behavior on opacity { NumberAnimation { duration: 500 } }
@@ -469,7 +371,7 @@ Item {
             Item {
                 id: orbitContainer
                 anchors.fill: parent
-                anchors.bottomMargin: window.s(80) 
+                anchors.bottomMargin: window.s(40) 
                 z: 1
 
                 // =========================================================
@@ -674,7 +576,7 @@ Item {
                                 font.family: "Iosevka Nerd Font"
                                 font.pixelSize: window.s(48)
                                 color: window.currentPower ? window.overlay0 : window.surface2
-                                text: window.activeMode === "eth" ? "󰈂" : "󰖁"
+                                text: "󰈂"
                             }
                             Text {
                                 Layout.alignment: Qt.AlignHCenter
@@ -682,7 +584,7 @@ Item {
                                 font.pixelSize: window.s(14)
                                 color: window.overlay0
                                 text: window.currentPowerPending 
-                                    ? ((window.activeMode === "eth" ? window.expectedEthPower : window.expectedAudioPower) === "on" ? "Powering On..." : "Powering Off...") 
+                                    ? (window.expectedEthPower === "on" ? "Powering On..." : "Powering Off...") 
                                     : (!window.currentPower ? "Device Offline" : "Disconnected")
                             }
                         }
@@ -704,7 +606,7 @@ Item {
                                     font.family: "Iosevka Nerd Font"
                                     font.pixelSize: window.s(48)
                                     color: window.crust
-                                    text: coreMa.containsMouse ? (window.activeMode === "eth" ? "󰈂" : "󰖁") : (window.currentCore ? window.currentCore.icon : "")
+                                    text: coreMa.containsMouse ? "󰈂" : (window.currentCore ? window.currentCore.icon : "")
                                     Behavior on color { ColorAnimation { duration: 200 } }
                                 }
                                 Text {
@@ -747,7 +649,7 @@ Item {
                                         font.family: "Iosevka Nerd Font"
                                         font.pixelSize: window.s(48)
                                         color: window.text
-                                        text: coreMa.containsMouse ? (window.activeMode === "eth" ? "󰈂" : "󰖁") : (window.currentCore ? window.currentCore.icon : "")
+                                        text: coreMa.containsMouse ? "󰈂" : (window.currentCore ? window.currentCore.icon : "")
                                     }
                                     Text {
                                         Layout.alignment: Qt.AlignHCenter
@@ -804,15 +706,13 @@ Item {
                                 
                                 window.playSfx("disconnect.wav");
                                 
-                                let cmd = window.activeMode === "eth" 
-                                    ? "nmcli device disconnect '" + window.currentCore.id + "'"
-                                    : "bash " + window.scriptsDir + "/audio_panel_logic.sh --toggle-mute"
+                                let cmd = "nmcli device disconnect '" + window.currentCore.id + "'";
                                 Quickshell.execDetached(["sh", "-c", cmd])
                                 
                                 centralCore.disconnectFill = 0.0;
                                 centralCore.disconnectTriggered = false;
                                 
-                                if (window.activeMode === "eth") ethPoller.running = true; else audioPoller.running = true;
+                                ethPoller.running = true;
                             }
                         }
                         
@@ -1013,100 +913,7 @@ Item {
                 }
             }
 
-            // =========================================================
-            // BOTTOM DOCK (Mode Switcher & Power)
-            // =========================================================
-            Rectangle {
-                anchors.bottom: parent.bottom
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottomMargin: window.s(25)
-                width: window.s(360)
-                height: window.s(54)
-                radius: window.s(14)
-                color: "#1affffff" 
-                border.color: "#1affffff"
-                border.width: 1
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: window.s(6)
-                    spacing: window.s(6)
-
-                    // Ethernet Mode Button
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        radius: window.s(10)
-                        color: window.activeMode === "eth" ? "transparent" : (ethTabMa.containsMouse ? window.surface1 : "transparent")
-                        Behavior on color { ColorAnimation { duration: 200 } }
-
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: window.s(10)
-                            opacity: window.activeMode === "eth" ? 1.0 : 0.0
-                            Behavior on opacity { NumberAnimation { duration: 300 } }
-                            gradient: Gradient {
-                                orientation: Gradient.Horizontal
-                                GradientStop { position: 0.0; color: Qt.lighter(window.ethAccent, 1.15) }
-                                GradientStop { position: 1.0; color: window.ethAccent }
-                            }
-                        }
-
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: window.s(8)
-                            Text { font.family: "Iosevka Nerd Font"; font.pixelSize: window.s(18); color: window.activeMode === "eth" ? window.crust : window.text; text: "󰈀"; Behavior on color { ColorAnimation{duration:200} } }
-                            Text { font.family: "JetBrains Mono"; font.weight: Font.Black; font.pixelSize: window.s(13); color: window.activeMode === "eth" ? window.crust : window.text; text: "Ethernet"; Behavior on color { ColorAnimation{duration:200} } }
-                        }
-                        MouseArea {
-                            id: ethTabMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (window.activeMode !== "eth") window.playSfx("switch.wav");
-                                window.activeMode = "eth";
-                            }
-                        }
-                    }
-
-                    Rectangle { width: 1; Layout.fillHeight: true; Layout.margins: window.s(5); color: "#33ffffff" }
-
-                    // Audio Mode Button
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        radius: window.s(10)
-                        color: window.activeMode === "audio" ? "transparent" : (audioTabMa.containsMouse ? window.surface1 : "transparent")
-                        Behavior on color { ColorAnimation { duration: 200 } }
-
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: window.s(10)
-                            opacity: window.activeMode === "audio" ? 1.0 : 0.0
-                            Behavior on opacity { NumberAnimation { duration: 300 } }
-                            gradient: Gradient {
-                                orientation: Gradient.Horizontal
-                                GradientStop { position: 0.0; color: Qt.lighter(window.audioAccent, 1.15) }
-                                GradientStop { position: 1.0; color: window.audioAccent }
-                            }
-                        }
-
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: window.s(8)
-                            Text { font.family: "Iosevka Nerd Font"; font.pixelSize: window.s(18); color: window.activeMode === "audio" ? window.crust : window.text; text: "󰋋"; Behavior on color { ColorAnimation{duration:200} } }
-                            Text { font.family: "JetBrains Mono"; font.weight: Font.Black; font.pixelSize: window.s(13); color: window.activeMode === "audio" ? window.crust : window.text; text: "Audio Jack"; Behavior on color { ColorAnimation{duration:200} } }
-                        }
-                        MouseArea {
-                            id: audioTabMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (window.activeMode !== "audio") window.playSfx("switch.wav");
-                                window.activeMode = "audio";
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Power/Mute Toggle 
+            // Power Toggle 
             Rectangle {
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
@@ -1161,35 +968,21 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (window.activeMode === "eth") {
-                            if (window.ethPowerPending) return;
-                            window.expectedEthPower = window.ethPower === "on" ? "off" : "on";
-                            window.ethPowerPending = true;
-                            
-                            if (window.expectedEthPower === "on") window.playSfx("power_on.wav"); else window.playSfx("power_off.wav");
-                            
-                            ethPendingReset.restart();
-                            window.ethPower = window.expectedEthPower; 
-                            
-                            // Disconnect/Connect the active connection natively to simulate power toggling without killing the network daemon
-                            if (window.expectedEthPower === "on") {
-                                Quickshell.execDetached(["nmcli", "device", "connect", window.ethConnected ? window.ethConnected.id : "eth0"]);
-                            } else {
-                                Quickshell.execDetached(["nmcli", "device", "disconnect", window.ethConnected ? window.ethConnected.id : "eth0"]);
-                            }
-                            ethPoller.running = true;
+                        if (window.ethPowerPending) return;
+                        window.expectedEthPower = window.ethPower === "on" ? "off" : "on";
+                        window.ethPowerPending = true;
+                        
+                        if (window.expectedEthPower === "on") window.playSfx("power_on.wav"); else window.playSfx("power_off.wav");
+                        
+                        ethPendingReset.restart();
+                        window.ethPower = window.expectedEthPower; 
+                        
+                        if (window.expectedEthPower === "on") {
+                            Quickshell.execDetached(["nmcli", "device", "connect", window.ethConnected ? window.ethConnected.id : "eth0"]);
                         } else {
-                            if (window.audioPowerPending) return;
-                            window.expectedAudioPower = window.audioPower === "on" ? "off" : "on";
-                            window.audioPowerPending = true;
-                            
-                            if (window.expectedAudioPower === "on") window.playSfx("power_on.wav"); else window.playSfx("power_off.wav");
-                            
-                            audioPendingReset.restart();
-                            window.audioPower = window.expectedAudioPower;
-                            Quickshell.execDetached(["bash", window.scriptsDir + "/audio_panel_logic.sh", "--toggle-mute"]);
-                            audioPoller.running = true;
+                            Quickshell.execDetached(["nmcli", "device", "disconnect", window.ethConnected ? window.ethConnected.id : "eth0"]);
                         }
+                        ethPoller.running = true;
                     }
                 }
             }

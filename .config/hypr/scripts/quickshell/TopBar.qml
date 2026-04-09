@@ -54,6 +54,37 @@ Variants {
 
             // --- State Variables ---
             
+            // Desktop Chassis Detection
+            property bool isDesktop: false
+            property string ethStatus: "Ethernet"
+
+            Process {
+                id: chassisDetector
+                running: true
+                command: ["bash", "-c", "if ls /sys/class/power_supply/BAT* 1> /dev/null 2>&1; then echo 'laptop'; else echo 'desktop'; fi"]
+                stdout: StdioCollector {
+                    onStreamFinished: {
+                        barWindow.isDesktop = (this.text.trim() === "desktop");
+                    }
+                }
+            }
+
+            Process {
+                id: ethStatusPoller
+                running: barWindow.isDesktop
+                command: ["bash", "-c", "nmcli -t -f TYPE,STATE dev | grep 'ethernet' | grep -q 'connected' && echo 'Connected' || echo 'Disconnected'"]
+                stdout: StdioCollector {
+                    onStreamFinished: {
+                        let status = this.text.trim();
+                        if (status !== "") barWindow.ethStatus = status;
+                    }
+                }
+            }
+            Timer {
+                interval: 3000; running: barWindow.isDesktop; repeat: true
+                onTriggered: ethStatusPoller.running = true
+            }
+
             // Triggers layout animations immediately to feel fast
             property bool isStartupReady: false
             Timer { interval: 10; running: true; onTriggered: barWindow.isStartupReady = true }
@@ -872,12 +903,10 @@ Variants {
                                     Text { anchors.verticalCenter: parent.verticalCenter; text: "󰌌"; font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(16); color: parent.parent.isHovered ? mocha.text : mocha.overlay2 }
                                     Text { anchors.verticalCenter: parent.verticalCenter; text: barWindow.kbLayout; font.family: "JetBrains Mono"; font.pixelSize: barWindow.s(13); font.weight: Font.Black; color: mocha.text }
                                 }
-                                
- 				MouseArea { id: kbMouse; anchors.fill: parent; hoverEnabled: true; onClicked: Quickshell.execDetached(["hyprctl", "switchxkblayout", "main", "next"]) }
-
+                                MouseArea { id: kbMouse; anchors.fill: parent; hoverEnabled: true; onClicked: Quickshell.execDetached(["hyprctl", "switchxkblayout", "main", "next"]) }
                             }
 
-                            // WiFi 
+                            // WiFi / Ethernet (Desktop Mode)
                             Rectangle {
                                 id: wifiPill
                                 property bool isHovered: wifiMouse.containsMouse
@@ -888,7 +917,7 @@ Variants {
                                 Rectangle {
                                     anchors.fill: parent
                                     radius: barWindow.s(10)
-                                    opacity: barWindow.isWifiOn ? 1.0 : 0.0
+                                    opacity: barWindow.isDesktop ? (barWindow.ethStatus === "Connected" ? 1.0 : 0.0) : (barWindow.isWifiOn ? 1.0 : 0.0)
                                     Behavior on opacity { NumberAnimation { duration: 300 } }
                                     gradient: Gradient {
                                         orientation: Gradient.Horizontal
@@ -913,21 +942,26 @@ Variants {
 
                                 Row { 
                                     id: wifiLayoutRow; anchors.centerIn: parent; spacing: barWindow.s(8)
-                                    Text { anchors.verticalCenter: parent.verticalCenter; text: barWindow.wifiIcon; font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(16); color: barWindow.isWifiOn ? mocha.base : mocha.subtext0 }
+                                    Text { 
+                                        anchors.verticalCenter: parent.verticalCenter; 
+                                        text: barWindow.isDesktop ? "󰈀" : barWindow.wifiIcon; 
+                                        font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(16); 
+                                        color: barWindow.isDesktop ? (barWindow.ethStatus === "Connected" ? mocha.base : mocha.subtext0) : (barWindow.isWifiOn ? mocha.base : mocha.subtext0) 
+                                    }
                                     Text { 
                                         id: wifiText
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: barWindow.sysPollerLoaded ? (barWindow.isWifiOn ? (barWindow.wifiSsid !== "" ? barWindow.wifiSsid : "On") : "Off") : ""
+                                        text: barWindow.isDesktop ? barWindow.ethStatus : (barWindow.sysPollerLoaded ? (barWindow.isWifiOn ? (barWindow.wifiSsid !== "" ? barWindow.wifiSsid : "On") : "Off") : "")
                                         visible: text !== ""
                                         font.family: "JetBrains Mono"; font.pixelSize: barWindow.s(13); font.weight: Font.Black; 
-                                        color: barWindow.isWifiOn ? mocha.base : mocha.text; 
+                                        color: barWindow.isDesktop ? (barWindow.ethStatus === "Connected" ? mocha.base : mocha.text) : (barWindow.isWifiOn ? mocha.base : mocha.text); 
                                         width: Math.min(implicitWidth, barWindow.s(100)); elide: Text.ElideRight 
                                     }
                                 }
                                 MouseArea { id: wifiMouse; hoverEnabled: true; anchors.fill: parent; onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/qs_manager.sh toggle network wifi"]) }
                             }
 
-                            // Bluetooth 
+                            // Bluetooth (Collapsed on Desktop)
                             Rectangle {
                                 id: btPill
                                 property bool isHovered: btMouse.containsMouse
@@ -947,8 +981,9 @@ Variants {
                                     }
                                 }
 
-                                property real targetWidth: btLayoutRow.width + barWindow.s(24)
+                                property real targetWidth: barWindow.isDesktop ? 0 : btLayoutRow.width + barWindow.s(24)
                                 width: targetWidth
+                                visible: targetWidth > 0
                                 Behavior on width { NumberAnimation { duration: 500; easing.type: Easing.OutQuint } }
 
                                 scale: isHovered ? 1.05 : 1.0
@@ -1027,17 +1062,19 @@ Variants {
                                 MouseArea { id: volMouse; hoverEnabled: true; anchors.fill: parent; onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/qs_manager.sh toggle volume"]) }
                             }
 
-                            // Battery
+                            // Battery (or Power button for Desktop)
                             Rectangle {
                                 property bool isHovered: batMouse.containsMouse
-                                color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : Qt.rgba(mocha.surface0.r, mocha.surface0.g, mocha.surface0.b, 0.4); 
+                                color: barWindow.isDesktop 
+                                        ? (isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : Qt.rgba(mocha.surface0.r, mocha.surface0.g, mocha.surface0.b, 0.4)) 
+                                        : (isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : Qt.rgba(mocha.surface0.r, mocha.surface0.g, mocha.surface0.b, 0.4)); 
                                 radius: barWindow.s(10); height: sysLayout.pillHeight;
                                 clip: true
 
                                 Rectangle {
                                     anchors.fill: parent
                                     radius: barWindow.s(10)
-                                    opacity: (barWindow.isCharging || barWindow.batCap <= 20) ? 1.0 : 0.0
+                                    opacity: barWindow.isDesktop ? 0.0 : ((barWindow.isCharging || barWindow.batCap <= 20) ? 1.0 : 0.0)
                                     Behavior on opacity { NumberAnimation { duration: 300 } }
                                     gradient: Gradient {
                                         orientation: Gradient.Horizontal
@@ -1046,7 +1083,7 @@ Variants {
                                     }
                                 }
                                 
-                                property real targetWidth: batLayoutRow.width + barWindow.s(24)
+                                property real targetWidth: barWindow.isDesktop ? barWindow.s(34) : batLayoutRow.width + barWindow.s(24)
                                 width: targetWidth
                                 Behavior on width { NumberAnimation { duration: 500; easing.type: Easing.OutQuint } }
                                 
@@ -1064,12 +1101,14 @@ Variants {
                                     id: batLayoutRow; anchors.centerIn: parent; spacing: barWindow.s(8)
                                     Text { 
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: barWindow.batIcon; font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(16); 
-                                        color: (barWindow.isCharging || barWindow.batCap <= 20) ? mocha.base : barWindow.batDynamicColor
+                                        text: barWindow.isDesktop ? "" : barWindow.batIcon; 
+                                        font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.isDesktop ? barWindow.s(18) : barWindow.s(16); 
+                                        color: barWindow.isDesktop ? mocha.red : ((barWindow.isCharging || barWindow.batCap <= 20) ? mocha.base : barWindow.batDynamicColor)
                                         Behavior on color { ColorAnimation { duration: 300 } }
                                     }
                                     Text { 
                                         anchors.verticalCenter: parent.verticalCenter
+                                        visible: !barWindow.isDesktop
                                         text: barWindow.batPercent; font.family: "JetBrains Mono"; font.pixelSize: barWindow.s(13); font.weight: Font.Black; 
                                         color: (barWindow.isCharging || barWindow.batCap <= 20) ? mocha.base : barWindow.batDynamicColor
                                         Behavior on color { ColorAnimation { duration: 300 } }
