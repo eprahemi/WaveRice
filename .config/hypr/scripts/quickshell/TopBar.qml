@@ -1077,12 +1077,12 @@ Variants {
                                 Rectangle {
                                     anchors.fill: parent
                                     radius: barWindow.s(10)
-                                    opacity: barWindow.isDesktop ? 0.0 : ((barWindow.isCharging || barWindow.batCap <= 20) ? 1.0 : 0.0)
+                                    opacity: barWindow.isDesktop ? 1.0 : ((barWindow.isCharging || barWindow.batCap <= 20) ? 1.0 : 0.0)
                                     Behavior on opacity { NumberAnimation { duration: 300 } }
                                     gradient: Gradient {
                                         orientation: Gradient.Horizontal
-                                        GradientStop { position: 0.0; color: barWindow.batDynamicColor; Behavior on color { ColorAnimation { duration: 300 } } }
-                                        GradientStop { position: 1.0; color: Qt.lighter(barWindow.batDynamicColor, 1.3); Behavior on color { ColorAnimation { duration: 300 } } }
+                                        GradientStop { position: 0.0; color: barWindow.isDesktop ? mocha.red : barWindow.batDynamicColor; Behavior on color { ColorAnimation { duration: 300 } } }
+                                        GradientStop { position: 1.0; color: barWindow.isDesktop ? Qt.lighter(mocha.red, 1.3) : Qt.lighter(barWindow.batDynamicColor, 1.3); Behavior on color { ColorAnimation { duration: 300 } } }
                                     }
                                 }
                                 
@@ -1106,7 +1106,7 @@ Variants {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: barWindow.isDesktop ? "" : barWindow.batIcon; 
                                         font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.isDesktop ? barWindow.s(18) : barWindow.s(16); 
-                                        color: barWindow.isDesktop ? mocha.red : ((barWindow.isCharging || barWindow.batCap <= 20) ? mocha.base : barWindow.batDynamicColor)
+                                        color: barWindow.isDesktop ? mocha.base : ((barWindow.isCharging || barWindow.batCap <= 20) ? mocha.base : barWindow.batDynamicColor)
                                         Behavior on color { ColorAnimation { duration: 300 } }
                                     }
                                     Text { 
