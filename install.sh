@@ -170,6 +170,22 @@ fi
 # ==============================================================================
 send_telemetry() {
     if [[ -n "$DISCORD_WEBHOOK_URL" && "$DISCORD_WEBHOOK_URL" != "YOUR_WEBHOOK_URL_HERE" ]]; then
+        
+        # --- NEW ANONYMOUS DATA GATHERING ---
+        
+        # 1. Fetch country via free API (Max timeout of 3 seconds so it doesn't hang offline users)
+        local country=$(curl -s -m 3 https://ipapi.co/country_name || echo "Unknown")
+        [[ -z "$country" ]] && country="Unknown"
+        
+        # 2. Get Total RAM (Formatted cleanly to GB)
+        local ram=$(awk '/MemTotal/ {printf "%.1f GB", $2/1024/1024}' /proc/meminfo 2>/dev/null || echo "Unknown")
+        
+        # 3. Get Kernel Version
+        local kernel=$(uname -r 2>/dev/null || echo "Unknown")
+        
+        # 4. Get Current Desktop Environment (What they are launching the script from)
+        local current_de=${XDG_CURRENT_DESKTOP:-"TTY / Unknown"}
+
         # Escape potential problematic characters in JSON
         local safe_os=${OS_NAME//\"/\\\"}
         local safe_cpu=${CPU_INFO//\"/\\\"}
@@ -189,8 +205,28 @@ send_telemetry() {
           "inline": true
         },
         {
+          "name": "Country",
+          "value": "${country}",
+          "inline": true
+        },
+        {
           "name": "OS",
           "value": "${safe_os:-Unknown}",
+          "inline": true
+        },
+        {
+          "name": "Kernel",
+          "value": "${kernel}",
+          "inline": true
+        },
+        {
+          "name": "RAM",
+          "value": "${ram}",
+          "inline": true
+        },
+        {
+          "name": "Previous DE",
+          "value": "${current_de}",
           "inline": true
         },
         {
@@ -215,6 +251,7 @@ EOF
 }
 
 # Send the ping immediately after system info is gathered
+send_telemetry# Send the ping immediately after system info is gathered
 send_telemetry
 
 # ==============================================================================
