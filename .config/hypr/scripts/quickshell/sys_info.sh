@@ -2,7 +2,6 @@
 
 ## NETWORK
 get_wifi_status() {
-    # Instant kernel read. Bypasses NetworkManager completely.
     if grep -q "up" /sys/class/net/wl*/operstate 2>/dev/null; then echo "enabled"; else echo "disabled"; fi
 }
 
@@ -46,10 +45,9 @@ toggle_wifi() {
     fi
 }
 
-## BLUETOOTH
+## BLUETOOTH (Wrapped in timeouts to prevent desktop hanging)
 get_bt_status() {
-    # Ask the bluez daemon directly. Accurate for both hardware blocks and software power-offs.
-    if bluetoothctl show 2>/dev/null | grep -q "Powered: yes"; then 
+    if timeout 0.5 bluetoothctl show 2>/dev/null | grep -q "Powered: yes"; then 
         echo "on"
     else 
         echo "off"
@@ -58,8 +56,7 @@ get_bt_status() {
 
 get_bt_connected_device() {
     if [ "$(get_bt_status)" = "on" ]; then
-        # Gets the alias of the first actively connected device
-        local device=$(bluetoothctl devices Connected 2>/dev/null | head -n1 | cut -d' ' -f3-)
+        local device=$(timeout 0.5 bluetoothctl devices Connected 2>/dev/null | head -n1 | cut -d' ' -f3-)
         if [ -n "$device" ]; then
             echo "$device"
         else
@@ -72,7 +69,7 @@ get_bt_connected_device() {
 
 get_bt_icon() {
     if [ "$(get_bt_status)" = "on" ]; then
-        if bluetoothctl devices Connected 2>/dev/null | grep -q "^Device"; then 
+        if timeout 0.5 bluetoothctl devices Connected 2>/dev/null | grep -q "^Device"; then 
             echo "󰂱"
         else 
             echo "󰂯"
@@ -84,20 +81,21 @@ get_bt_icon() {
 
 toggle_bt() {
     if [ "$(get_bt_status)" = "on" ]; then
-        bluetoothctl power off 2>/dev/null
+        timeout 0.5 bluetoothctl power off 2>/dev/null
         notify-send -u low -i bluetooth-disabled "Bluetooth" "Disabled"
     else
-        bluetoothctl power on 2>/dev/null
+        timeout 0.5 bluetoothctl power on 2>/dev/null
         notify-send -u low -i bluetooth-active "Bluetooth" "Enabled"
     fi
 }
 
-## AUDIO
+## AUDIO (Bulletproof Pipewire Regex)
 get_volume() {
     local vol=""
     if command -v wpctl &> /dev/null; then 
-        vol=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk '{print int($2*100)}')
-    elif command -v pamixer &> /dev/null; then 
+        vol=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | grep -oP '\d+\.\d+' | awk '{print int($1*100)}')
+    fi
+    if [[ -z "$vol" ]] && command -v pamixer &> /dev/null; then 
         vol=$(pamixer --get-volume 2>/dev/null)
     fi
     echo "${vol:-0}"
@@ -105,10 +103,12 @@ get_volume() {
 
 is_muted() {
     if command -v wpctl &> /dev/null; then
-        wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | grep -q "MUTED" && echo "true" || echo "false"
+        if wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | grep -q "MUTED"; then echo "true"; else echo "false"; fi
     elif command -v pamixer &> /dev/null; then
-        pamixer --get-mute 2>/dev/null | grep -q "true" && echo "true" || echo "false"
-    else echo "false"; fi
+        if pamixer --get-mute 2>/dev/null | grep -q "true"; then echo "true"; else echo "false"; fi
+    else 
+        echo "false"
+    fi
 }
 
 toggle_mute() {
@@ -164,9 +164,9 @@ get_battery_icon() {
     fi
 }
 
-## SYSTEM
+## SYSTEM (Fallback to first indexed keyboard if 'main' isn't flagged)
 get_kb_layout() {
-    local layout=$(hyprctl devices -j 2>/dev/null | jq -r '.keyboards[]? | select(.main == true) | .active_keymap' | head -n1)
+    local layout=$(hyprctl devices -j 2>/dev/null | jq -r '(.keyboards[] | select(.main == true) | .active_keymap) // .keyboards[0].active_keymap // empty' | head -n1)
     [[ -z "$layout" || "$layout" == "null" ]] && layout="US"
     echo "${layout:0:2}" | tr '[:lower:]' '[:upper:]'
 }
