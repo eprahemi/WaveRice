@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.0.23-4"
+DOTS_VERSION="1.0.23-5"
 VERSION_FILE="$HOME/.local/state/imperative-dots-version"
 
 # Global Variables & Initial States (Defaults)
@@ -1317,8 +1317,8 @@ if [ -f "$HYPR_CONF" ]; then
     sed -i '/env = WALLPAPER_DIR,/d' "$HYPR_CONF"
     sed -i '/env = SCRIPT_DIR,/d' "$HYPR_CONF"
     
-    # Inject directly under the ENVIRONMENT VARIABLES header box
-    sed -i "/◈ ENVIRONMENT VARIABLES/{N;a env = WALLPAPER_DIR,$WALLPAPER_DIR\nenv = SCRIPT_DIR,$HOME/.config/hypr/scripts" -e "}" "$HYPR_CONF"
+    # Inject safely right under NIXOS_OZONE_WL instead of matching the unicode block
+    sed -i "/env = NIXOS_OZONE_WL,1/a env = WALLPAPER_DIR,$WALLPAPER_DIR\nenv = SCRIPT_DIR,$HOME/.config/hypr/scripts" "$HYPR_CONF"
     
     # 2. Inject Advanced Nvidia specific configurations based on HARDWARE (Not driver choice)
     if [ "$GPU_VENDOR" == "NVIDIA" ]; then
@@ -1336,8 +1336,8 @@ if [ -f "$HYPR_CONF" ]; then
         sed -i '/env = __GL_SHADER_DISK_CACHE_SIZE,1073741824/d' "$HYPR_CONF"
         sed -i '/^cursor {/,/^}/d' "$HYPR_CONF"
         
-        # Now inject the full block natively under the header box
-        sed -i "/◈ ENVIRONMENT VARIABLES/{N;a env = LIBVA_DRIVER_NAME,nvidia\nenv = XDG_SESSION_TYPE,wayland\nenv = GBM_BACKEND,nvidia-drm\nenv = __GLX_VENDOR_LIBRARY_NAME,nvidia\nenv = WLR_NO_HARDWARE_CURSORS,1\nenv = QSG_RHI_BACKEND,vulkan\nenv = QSG_RENDER_LOOP,basic\nenv = __GL_SHADER_DISK_CACHE_SKIP_CLEANUP,1\nenv = __GL_SHADER_DISK_CACHE_SIZE,1073741824\ncursor {\n    no_hardware_cursors = true\n}" -e "}" "$HYPR_CONF"
+        # Now inject the full block natively
+        sed -i "/env = NIXOS_OZONE_WL,1/a env = LIBVA_DRIVER_NAME,nvidia\nenv = XDG_SESSION_TYPE,wayland\nenv = GBM_BACKEND,nvidia-drm\nenv = __GLX_VENDOR_LIBRARY_NAME,nvidia\nenv = WLR_NO_HARDWARE_CURSORS,1\nenv = QSG_RHI_BACKEND,vulkan\nenv = QSG_RENDER_LOOP,basic\nenv = __GL_SHADER_DISK_CACHE_SKIP_CLEANUP,1\nenv = __GL_SHADER_DISK_CACHE_SIZE,1073741824\ncursor {\n    no_hardware_cursors = true\n}" "$HYPR_CONF"
     fi
 else
     echo -e "${C_RED}Warning: hyprland.conf not found at $HYPR_CONF${RESET}"
