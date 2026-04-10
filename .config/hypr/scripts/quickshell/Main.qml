@@ -37,11 +37,12 @@ PanelWindow {
         onClicked: switchWidget("hidden", "")
     }
 
-    property string currentActive: "hidden" 
-    onCurrentActiveChanged: {
+    // Initialize state on boot
+    Component.onCompleted: {
         Quickshell.execDetached(["bash", "-c", "echo '" + currentActive + "' > /tmp/qs_active_widget"]);
     }
 
+    property string currentActive: "hidden" 
     property bool isVisible: false
     property string activeArg: ""
     property bool disableMorph: false 
@@ -139,6 +140,10 @@ PanelWindow {
     }
 
     function switchWidget(newWidget, arg) {
+        // FIX 1: Immediately update the system state file so the bash manager 
+        // doesn't read stale data during the 250ms morph animations.
+        Quickshell.execDetached(["bash", "-c", "echo '" + newWidget + "' > /tmp/qs_active_widget"]);
+
         prepTimer.stop();
         teleportFadeOutTimer.stop();
         teleportFadeInTimer.stop();
@@ -267,7 +272,9 @@ PanelWindow {
 
     Process {
         id: ipcPoller
-        command: ["bash", "-c", "if [ -f /tmp/qs_widget_state ]; then cat /tmp/qs_widget_state; rm /tmp/qs_widget_state; fi"]
+        // FIX 2: Use `mv` to make the file read/delete atomic. This prevents 
+        // wiping out rapid subsequent commands that happen during execution.
+        command: ["bash", "-c", "if [ -f /tmp/qs_widget_state ]; then mv /tmp/qs_widget_state /tmp/qs_widget_state_read 2>/dev/null && cat /tmp/qs_widget_state_read && rm /tmp/qs_widget_state_read; fi"]
         stdout: StdioCollector {
             onStreamFinished: {
                 let rawCmd = this.text.trim();
@@ -281,13 +288,12 @@ PanelWindow {
                     switchWidget("hidden", "");
                 } else if (getLayout(cmd)) {
                     delayedClear.stop();
-                    // Removed the redundant toggle check. 
-                    // qs_manager.sh is now the absolute source of truth.
                     switchWidget(cmd, arg);
                 }
             }
         }
     }
+
     Timer {
         id: delayedClear
         interval: masterWindow.isWallpaperTransition ? 150 : masterWindow.morphDuration 
