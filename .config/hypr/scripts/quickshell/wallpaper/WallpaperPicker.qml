@@ -98,13 +98,21 @@ Item {
 
         const escapeBash = (str) => String(str).replace(/(["\\$`])/g, '\\$1');
         
+        // 2. HARDWARE ADAPTATION: Keep 144Hz, but avoid NVIDIA segfault shaders
+        const isNvidia = Quickshell.env("__GLX_VENDOR_LIBRARY_NAME") === "nvidia";
+        const safeTransitions = ["fade", "simple", "any"];
+        const activeTransitions = isNvidia ? safeTransitions : window.transitions;
+        const randomTransition = activeTransitions[Math.floor(Math.random() * activeTransitions.length)];
+        
+        // 3. AUTO-REVIVE COMMAND: Ensure daemon is alive before sending IPC commands
+        const ensureDaemonCmd = `if ! pgrep -x "swww-daemon" > /dev/null; then awww-daemon >/dev/null 2>&1 & sleep 0.2; fi`;
+        
         if (window.currentFilter === "Search" && window.hasSearched) {
             let alreadyExists = window.isDownloaded(safeFileName);
             let destFile = window.srcDir + "/" + safeFileName;
             let finalThumb = decodeURIComponent(window.thumbDir.replace("file://", "")) + "/" + safeFileName;
             let tempThumb = decodeURIComponent(window.searchDir.replace("file://", "")) + "/" + safeFileName;
             let mapFile = Quickshell.env("HOME") + "/.cache/wallpaper_picker/search_map.txt";
-            const randomTransition = window.transitions[Math.floor(Math.random() * window.transitions.length)];
 
             if (alreadyExists) {
                 const applyScript = `
@@ -119,12 +127,13 @@ Item {
                         cp "$DEST_FILE" /tmp/lock_bg.png || true
                         pkill mpvpaper || true
                         
+                        ${ensureDaemonCmd}
+                        
                         # Run matugen completely detached so it doesn't block swww execution
-                        ( matugen image "$FINAL_THUMB" || true; bash "$RELOAD_SCRIPT" || true ) &
+                        ( matugen image "$FINAL_THUMB" --source-color-index 0 || true; bash "$RELOAD_SCRIPT" || true ) &
                         MATUGEN_PID=$!
                         
-                        # DETERMINISTIC LOOP: Force swww to succeed.
-                        # It will poll every 50ms up to 20 times until the compositor accepts the frame.
+                        # DETERMINISTIC LOOP
                         for i in {1..20}; do
                             if swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
                                 break
@@ -168,7 +177,9 @@ Item {
                             cp "$DEST_FILE" /tmp/lock_bg.png || true
                             pkill mpvpaper || true
                             
-                            ( matugen image "$FINAL_THUMB" || true; bash "$RELOAD_SCRIPT" || true ) &
+                            ${ensureDaemonCmd}
+                            
+                            ( matugen image "$FINAL_THUMB" --source-color-index 0 || true; bash "$RELOAD_SCRIPT" || true ) &
                             MATUGEN_PID=$!
                             
                             # DETERMINISTIC LOOP
@@ -202,9 +213,8 @@ Item {
             wallpaperCmd = `mpvpaper -o 'loop --no-audio --hwdec=auto --profile=high-quality --video-sync=display-resample --interpolation --tscale=oversample' '*' "$WALL_FILE"`
             lockBgCmd = `cp "$THUMB_FILE" /tmp/lock_bg.png`
         } else {
-            const randomTransition = window.transitions[Math.floor(Math.random() * window.transitions.length)]
-            // Inject the deterministic loop directly into the standard command variable
             wallpaperCmd = `
+                ${ensureDaemonCmd}
                 for i in {1..20}; do
                     if swww img "$WALL_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
                         break
@@ -226,7 +236,7 @@ Item {
                 ${lockBgCmd} || true
                 pkill mpvpaper || true
                 
-                ( matugen image "$THUMB_FILE" || true; bash "$RELOAD_SCRIPT" || true ) &
+                ( matugen image "$THUMB_FILE" --source-color-index 0 || true; bash "$RELOAD_SCRIPT" || true ) &
                 MATUGEN_PID=$!
                 
                 ${wallpaperCmd}
@@ -236,7 +246,6 @@ Item {
         `
         Quickshell.execDetached(["bash", "-c", fullScript])
     }
-
     // -------------------------------------------------------------------------
     // PERSISTENT SETTINGS
     // -------------------------------------------------------------------------
