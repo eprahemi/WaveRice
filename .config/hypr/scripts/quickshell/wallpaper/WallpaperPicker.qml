@@ -79,7 +79,7 @@ Item {
         { name: "Search", hex: "", label: "Search" } 
     ]
 
-    // -------------------------------------------------------------------------
+    /// -------------------------------------------------------------------------
     // GLOBAL ACTION: APPLY WALLPAPER
     // -------------------------------------------------------------------------
     function applyWallpaper(safeFileName, isVideo) {
@@ -98,11 +98,10 @@ Item {
 
         const escapeBash = (str) => String(str).replace(/(["\\$`])/g, '\\$1');
         
-        // 2. HARDWARE ADAPTATION: Keep 144Hz, but avoid NVIDIA segfault shaders
+        // 2. HARDWARE ADAPTATION: Force Vulkan rendering on NVIDIA to prevent shader segfaults
         const isNvidia = Quickshell.env("__GLX_VENDOR_LIBRARY_NAME") === "nvidia";
-        const safeTransitions = ["fade", "simple", "any"];
-        const activeTransitions = isNvidia ? safeTransitions : window.transitions;
-        const randomTransition = activeTransitions[Math.floor(Math.random() * activeTransitions.length)];
+        const renderOverride = isNvidia ? "env WGPU_BACKEND=vulkan " : "";
+        const randomTransition = window.transitions[Math.floor(Math.random() * window.transitions.length)];
         
         // 3. AUTO-REVIVE COMMAND: Ensure daemon is alive before sending IPC commands
         const ensureDaemonCmd = `if ! pgrep -x "swww-daemon" > /dev/null; then awww-daemon >/dev/null 2>&1 & sleep 0.2; fi`;
@@ -135,7 +134,7 @@ Item {
                         
                         # DETERMINISTIC LOOP
                         for i in {1..20}; do
-                            if swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
+                            if ${renderOverride}swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
                                 break
                             fi
                             sleep 0.05
@@ -184,7 +183,7 @@ Item {
                             
                             # DETERMINISTIC LOOP
                             for i in {1..20}; do
-                                if swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
+                                if ${renderOverride}swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
                                     break
                                 fi
                                 sleep 0.05
@@ -216,7 +215,7 @@ Item {
             wallpaperCmd = `
                 ${ensureDaemonCmd}
                 for i in {1..20}; do
-                    if swww img "$WALL_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
+                    if ${renderOverride}swww img "$WALL_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
                         break
                     fi
                     sleep 0.05
@@ -245,7 +244,8 @@ Item {
             ) </dev/null >/dev/null 2>&1 & disown
         `
         Quickshell.execDetached(["bash", "-c", fullScript])
-    }
+    }    
+
     // -------------------------------------------------------------------------
     // PERSISTENT SETTINGS
     // -------------------------------------------------------------------------
