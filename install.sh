@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.0.24"
+DOTS_VERSION="1.0.24-1"
 VERSION_FILE="$HOME/.local/state/imperative-dots-version"
 
 # Global Variables & Initial States (Defaults)
@@ -109,7 +109,7 @@ fi
 case $OS in
     arch|endeavouros|manjaro|cachyos)
         PKGS=("${ARCH_PKGS[@]}")
-        
+
         # 1. Ensure basic pacman tools are present
         if ! command -v fzf &> /dev/null || ! command -v lspci &> /dev/null || ! command -v jq &> /dev/null || ! command -v curl &> /dev/null; then
             echo -e "${C_CYAN}Bootstrapping TUI dependencies (fzf, pciutils, jq, curl)...${RESET}"
@@ -122,7 +122,7 @@ case $OS in
             sudo sed -i '/^#\[multilib\]/{s/^#//;n;s/^#//}' /etc/pacman.conf
             sudo pacman -Sy --noconfirm > /dev/null 2>&1
         fi
-        
+
         # 3. Automatically install 'yay' if no AUR helper is found on a clean system
         if ! command -v yay &> /dev/null && ! command -v paru &> /dev/null; then
             echo -e "${C_CYAN}Installing 'yay' (AUR helper) to fetch custom packages...${RESET}"
@@ -131,7 +131,7 @@ case $OS in
             (cd /tmp/yay-bin && makepkg -si --noconfirm > /dev/null 2>&1)
             rm -rf /tmp/yay-bin
         fi
-        
+
         # 4. Set the correct package manager
         if command -v yay &> /dev/null; then
             PKG_MANAGER="yay -S --noconfirm --needed"
@@ -181,7 +181,7 @@ WORKER_URL="https://dots-telemetry.ilyamiro-work.workers.dev"
 send_telemetry() {
     local mode=$1
     if [[ -n "$WORKER_URL" && "$WORKER_URL" != *"YOUR_USERNAME"* ]]; then
-        
+
         # Mode 1: Just opened the script (No PII/Hardware info)
         if [[ "$mode" == "init" ]]; then
             local payload=$(cat <<EOF
@@ -193,7 +193,7 @@ send_telemetry() {
 EOF
 )
             curl -X POST -H "Content-Type: application/json" -d "$payload" "$WORKER_URL" -s -o /dev/null &
-        
+
         # Mode 2: Started Installation with Telemetry Enabled
         elif [[ "$mode" == "full" && "$ENABLE_TELEMETRY" == true ]]; then
             local ram=$(awk '/MemTotal/ {printf "%.1f GB", $2/1024/1024}' /proc/meminfo 2>/dev/null || echo "Unknown")
@@ -386,7 +386,7 @@ manage_drivers() {
             DRIVER_CHOICE="NVIDIA Proprietary"
             HAS_NVIDIA_PROPRIETARY=true
             DRIVER_PKGS+=("nvidia-dkms" "nvidia-utils" "lib32-nvidia-utils" "linux-headers" "egl-wayland")
-        
+
         elif [[ "$choice" == *"Nouveau"* ]]; then
             DRIVER_CHOICE="NVIDIA Nouveau"
             DRIVER_PKGS+=("mesa" "vulkan-nouveau" "lib32-mesa")
@@ -449,7 +449,7 @@ manage_keyboard() {
     while true; do
         draw_header
         echo -e "${BOLD}${C_CYAN}=== Keyboard Layout Configuration ===${RESET}\n"
-        
+
         if [ ${#selected_codes[@]} -gt 0 ]; then
             echo -e "Currently added: ${C_GREEN}$(IFS=', '; echo "${selected_names[*]}")${RESET}\n"
         fi
@@ -485,7 +485,7 @@ manage_keyboard() {
         echo -e "${BOLD}${C_CYAN}=== Keyboard Layout Configuration ===${RESET}\n"
         echo -e "Currently added: ${C_GREEN}$(IFS=', '; echo "${selected_names[*]}")${RESET}\n"
         echo -e "${C_CYAN}Choose a key combination to switch between layouts:${RESET}"
-        
+
         local options="1. Alt + Shift (grp:alt_shift_toggle)\n"
         options+="2. Win + Space (grp:win_space_toggle)\n"
         options+="3. Caps Lock (grp:caps_toggle)\n"
@@ -583,9 +583,9 @@ set_weather_api() {
     while true; do
         draw_header
         echo -e "${BOLD}${C_CYAN}=== OpenWeatherMap Interactive Setup ===${RESET}"
-        
+
         ENV_FILE="$HOME/.config/hypr/scripts/quickshell/calendar/.env"
-        
+
         if [ -f "$ENV_FILE" ] || [[ -n "$WEATHER_API_KEY" && "$WEATHER_API_KEY" != "Skipped" ]]; then
             echo -e "${C_GREEN}An existing Weather configuration (.env) was detected.${RESET}"
             echo -e "${BOLD}${C_YELLOW}Press ENTER without typing anything to KEEP your existing configuration.${RESET}\n"
@@ -598,9 +598,9 @@ set_weather_api() {
             echo -e "  4. Generate a new key and paste it below."
             echo -e "  ${BOLD}${C_YELLOW}Note: New API keys may take a couple of hours to activate. This installer will NOT block you from using a fresh key.${RESET}\n"
         fi
-        
+
         read -p "Enter your OpenWeather API Key (or press Enter to skip/keep): " input_key
-        
+
         if [[ -z "$input_key" ]]; then
             if [ -f "$ENV_FILE" ] || [[ -n "$WEATHER_API_KEY" && "$WEATHER_API_KEY" != "Skipped" ]]; then
                 echo -e "\n${C_GREEN}Keeping existing weather configuration.${RESET}"
@@ -635,15 +635,15 @@ set_weather_api() {
                 continue
             fi
         fi
-        
+
         WEATHER_API_KEY="$input_key"
-        
+
         echo -e "\n${C_CYAN}Let's set your location using your City ID.${RESET}"
         echo -e "1. Go to ${C_BLUE}https://openweathermap.org/${RESET} and search for your city."
         echo -e "2. Look at the URL in your browser. It will look something like this:"
         echo -e "   ${DIM}https://openweathermap.org/city/${RESET}${BOLD}2643743${RESET}"
         echo -e "3. Copy that number at the end (the City ID) and paste it below.\n"
-        
+
         read -p "Enter City ID: " input_id
 
         if [[ -z "$input_id" || ! "$input_id" =~ ^[0-9]+$ ]]; then
@@ -653,7 +653,7 @@ set_weather_api() {
         fi
 
         WEATHER_CITY_ID="$input_id"
-        
+
         # Ask for standard units
         echo ""
         unit_choice=$(echo -e "metric (Celsius)\nimperial (Fahrenheit)\nstandard (Kelvin)" | fzf \
@@ -664,10 +664,10 @@ set_weather_api() {
             --prompt=" Select Temperature Unit > " \
             --pointer=">" \
             --header=" Choose your preferred unit format ")
-        
+
         WEATHER_UNIT=$(echo "$unit_choice" | awk '{print $1}')
         [[ -z "$WEATHER_UNIT" ]] && WEATHER_UNIT="metric"
-        
+
         KEEP_OLD_ENV=false
         echo -e "\n${C_GREEN}Weather configuration complete! Widget will update once your key is activated by OpenWeather.${RESET}"
         sleep 2.5
@@ -682,7 +682,7 @@ manage_telemetry() {
         echo -e "${BOLD}${C_CYAN}=== Telemetry Configuration ===${RESET}\n"
         echo -e "To help improve this dotfile environment, this script can send"
         echo -e "anonymous hardware statistics when you start the installation.\n"
-        
+
         echo -e "${BOLD}What is sent if enabled:${RESET}"
         echo -e "  - Script Version (${DOTS_VERSION})"
         echo -e "  - OS Name (${OS_NAME})"
@@ -691,7 +691,7 @@ manage_telemetry() {
         echo -e "  - Previous Desktop Environment"
         echo -e "  - CPU Model"
         echo -e "  - GPU Model\n"
-        
+
         echo -e "${BOLD}${C_YELLOW}Absolutely NO personal data, IP addresses, or usernames are collected.${RESET}\n"
 
         local current_status="${DIM}OFF${RESET}"
@@ -743,7 +743,7 @@ prompt_optional_features() {
     echo -e "${BOLD}${C_CYAN}=== Optional Component Setup ===${RESET}\n"
 
     echo -e "${BOLD}1. Display Manager Integration${RESET}"
-    
+
     # Detect current display manager
     DM_SERVICES=("gdm" "gdm3" "lightdm" "sddm" "lxdm" "lxdm-gtk3" "ly")
     CURRENT_DM=""
@@ -814,7 +814,7 @@ clear
 
 while true; do
     draw_header
-    
+
     # Progress checkmarks for submenus
     S_PKG=$( [ "$VISITED_PKGS" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_YELLOW}[-]${RESET}" )
     S_OVW=$( [ "$VISITED_OVERVIEW" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${C_YELLOW}[-]${RESET}" )
@@ -898,7 +898,7 @@ for cpkg in "${CONFLICTING_PKGS[@]}"; do
         # Stop potential running services to prevent file locks
         systemctl --user stop "$cpkg" 2>/dev/null || true
         sudo systemctl stop "$cpkg" 2>/dev/null || true
-        
+
         # Attempt safe removal first, fallback to forcing if dependency locked
         if ! sudo pacman -Rns --noconfirm "$cpkg" > /dev/null 2>&1; then
             echo -e "  -> ${DIM}Dependencies blocking clean removal, forcing removal of '$cpkg'...${RESET}"
@@ -935,7 +935,7 @@ else
         echo -e "\n${C_CYAN}=================================================================${RESET}"
         echo -e "${C_BLUE}::${RESET} ${BOLD}Installing ${pkg}...${RESET}"
         echo -e "${C_CYAN}=================================================================${RESET}"
-        
+
         # Arch: Pipe 'yes ""' (Enter keystrokes) to automatically choose the default provider (1)
         # Limit CARGO_BUILD_JOBS to prevent OOM errors during heavy Rust compilations (like swayosd)
         if yes "" | env CARGO_BUILD_JOBS=2 $PKG_MANAGER "$pkg"; then
@@ -951,11 +951,11 @@ fi
 # --- 1.5. Advanced Proprietary NVIDIA Setup (Only if explicitly selected) ---
 if [ "$HAS_NVIDIA_PROPRIETARY" = true ]; then
     echo -e "\n${C_CYAN}[ INFO ]${RESET} Performing Precise NVIDIA Initialization for Wayland..."
-    
+
     # 1. Enable modeset and fbdev via modprobe (safer than hacking bootloaders)
     echo -e "  -> Injecting kernel parameters via modprobe (nvidia-drm.modeset=1 nvidia-drm.fbdev=1)..."
     echo -e "options nvidia-drm modeset=1 fbdev=1" | sudo tee /etc/modprobe.d/nvidia.conf > /dev/null
-    
+
     # 2. Rebuild initramfs safely
     if command -v mkinitcpio &> /dev/null; then
         echo -e "  -> Rebuilding initramfs (mkinitcpio)..."
@@ -1001,9 +1001,10 @@ CLONE_DIR="$HOME/.hyprland-dots"
 OLD_COMMIT=""
 NEW_COMMIT=""
 
-if [ -f "$(pwd)/install.sh" ] && [ -d "$(pwd)/.config" ]; then
+# Only treat it as a local dev repo if they are NOT inside the default clone directory
+if [ -f "$(pwd)/install.sh" ] && [ -d "$(pwd)/.config" ] && [ "$(pwd)" != "$CLONE_DIR" ]; then
     REPO_DIR="$(pwd)"
-    echo "  -> Running from local repository at $REPO_DIR"
+    echo "  -> Running from local development repository at $REPO_DIR"
     NEW_COMMIT=$(git -C "$REPO_DIR" rev-parse HEAD 2>/dev/null)
     OLD_COMMIT="$LAST_COMMIT"
 else
@@ -1011,7 +1012,11 @@ else
         # STRICTLY use LAST_COMMIT from the version file.
         # If it's empty, OLD_COMMIT remains empty, triggering a full overwrite.
         OLD_COMMIT="$LAST_COMMIT"
-        git -C "$CLONE_DIR" pull > /dev/null 2>&1
+        
+        # Bulletproof update: discard any accidental local changes that would block a pull
+        git -C "$CLONE_DIR" fetch --all > /dev/null 2>&1
+        git -C "$CLONE_DIR" reset --hard @{u} > /dev/null 2>&1 || git -C "$CLONE_DIR" pull --force > /dev/null 2>&1
+        
         NEW_COMMIT=$(git -C "$CLONE_DIR" rev-parse HEAD 2>/dev/null)
     else
         OLD_COMMIT="$LAST_COMMIT"
@@ -1104,12 +1109,12 @@ else
     if [ "$OLD_COMMIT" != "$NEW_COMMIT" ]; then
         CHANGED_FILES=$(git -C "$REPO_DIR" diff --name-only --diff-filter=AM "$OLD_COMMIT" "$NEW_COMMIT" | grep "^\.config/")
     fi
-    
+
     if [ -n "$CHANGED_FILES" ]; then
         echo -e "  -> Performing ${C_GREEN}Partial Update${RESET} based on upstream changes..."
         echo "$CHANGED_FILES" | while IFS= read -r file; do
             FOLDER_NAME=$(echo "$file" | cut -d'/' -f2)
-            
+
             # Check if this changed file belongs to the folders we actually manage
             valid_folder=false
             for f in "${CONFIG_FOLDERS[@]}"; do
@@ -1118,18 +1123,18 @@ else
                     break
                 fi
             done
-            
+
             if [ "$valid_folder" = true ]; then
                 SOURCE_FILE="$REPO_DIR/$file"
                 TARGET_FILE="$HOME/$file"
                 REL_PATH="${file#\.config/}"
-                
+
                 if [ -f "$TARGET_FILE" ]; then
                     # Backup specifically modified files retaining the folder structure
                     mkdir -p "$(dirname "$BACKUP_DIR/$REL_PATH")"
                     cp "$TARGET_FILE" "$BACKUP_DIR/$REL_PATH"
                 fi
-                
+
                 mkdir -p "$(dirname "$TARGET_FILE")"
                 cp "$SOURCE_FILE" "$TARGET_FILE"
                 echo "    -> Updated: $file"
@@ -1310,7 +1315,7 @@ else
 fi
 
 if [ -f "$HYPR_CONF" ]; then
-    
+
     # 0. Inject Keyboard Layout Configurations dynamically
     echo -e "  -> Applying Keyboard configuration..."
     sed -i "s/^ *kb_layout =.*/    kb_layout = $KB_LAYOUTS/" "$HYPR_CONF"
@@ -1324,11 +1329,11 @@ if [ -f "$HYPR_CONF" ]; then
     # BULLETPROOF HYPRLAND ENV INJECTION
     # ========================================================================
     echo -e "  -> Applying Environment Variables safely..."
-    
+
     # 1. Clean up ANY previous injections using our marker block.
     # This guarantees we never duplicate variables and never eat other config lines.
     sed -i '/^# === DOTFILES AUTO-INJECTED ENV ===/,/^# === END DOTFILES ENV ===/d' "$HYPR_CONF"
-    
+
     # Also clean up legacy sed attempts just to be safe so they don't linger
     sed -i '/env = WALLPAPER_DIR/d' "$HYPR_CONF"
     sed -i '/env = SCRIPT_DIR/d' "$HYPR_CONF"
@@ -1361,7 +1366,7 @@ EOF
 
     # 4. Close the marker block
     echo "# === END DOTFILES ENV ===" >> "$HYPR_CONF"
-    
+
     # 5. Restore cursor block if a previous bad script deleted it
     if ! grep -q "cursor {" "$HYPR_CONF"; then
         echo -e "  -> Restoring deleted cursor block..."
@@ -1379,7 +1384,7 @@ fi
 
 # 4. Patch WallpaperPicker.qml dynamically
 if [ -f "$WP_QML" ]; then
-    
+
     # 2. Fix the focus bug: Strip absolute directory paths and quotes so tryFocus() correctly matches the base filename
     sed -i "s|let clean = String(name);|let clean = String(name).replace(/['\"]/g, \"\"); clean = clean.substring(clean.lastIndexOf('/') + 1);|g" "$WP_QML"
 
@@ -1404,7 +1409,7 @@ if [ -f "$ZSH_RC" ]; then
     echo -e "\n# Dynamic System Paths" >> "$ZSH_RC"
     echo "export WALLPAPER_DIR=\"$WALLPAPER_DIR\"" >> "$ZSH_RC"
     echo "export SCRIPT_DIR=\"$HOME/.config/hypr/scripts\"" >> "$ZSH_RC"
-    
+
     sed -i "s/OS_LOGO_PLACEHOLDER/${OS}_small/g" "$ZSH_RC"
 fi
 
@@ -1417,7 +1422,7 @@ if [[ "$SETUP_SDDM_THEME" == true ]]; then
     if [ -d "$REPO_DIR/.config/sddm/themes/matugen-minimal" ]; then
         sudo mkdir -p /usr/share/sddm/themes/matugen-minimal
         sudo cp -r "$REPO_DIR/.config/sddm/themes/matugen-minimal/"* /usr/share/sddm/themes/matugen-minimal/
-        
+
         # FIX 1: Provide a valid fallback QML file. 
         # If this file is empty, SDDM can crash before Matugen even gets to run.
         cat <<EOF | sudo tee /usr/share/sddm/themes/matugen-minimal/Colors.qml > /dev/null
@@ -1440,7 +1445,7 @@ QtObject {
 }
 EOF
         sudo chown $USER:$USER /usr/share/sddm/themes/matugen-minimal/Colors.qml
-        
+
         # FIX 2: Use a drop-in file for the theme and force SDDM to run as a Wayland greeter
         sudo mkdir -p /etc/sddm.conf.d
         cat <<EOF | sudo tee /etc/sddm.conf.d/10-wayland-matugen.conf > /dev/null
@@ -1451,7 +1456,7 @@ Current=matugen-minimal
 DisplayServer=wayland
 GreeterEnvironment=QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 EOF
-        
+
         printf "  -> SDDM Theme configured %-17s ${C_GREEN}[ OK ]${RESET}\n" ""
     fi
 fi
