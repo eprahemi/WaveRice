@@ -204,21 +204,7 @@ Variants {
             }
 
             // Music -------------------------------------
-            // 1. Fast cache reader to smoothly update the UI 
-            Process {
-                id: musicPoller
-                command: ["cat", "/tmp/music_info.json"]
-                stdout: StdioCollector {
-                    onStreamFinished: {
-                        let txt = this.text.trim();
-                        if (txt !== "") {
-                            try { barWindow.musicData = JSON.parse(txt); } catch(e) {}
-                        }
-                    }
-                }
-            }
-
-            // 2. Direct executor for zero-latency UI state changes (play/pause skips)
+            // 1. Direct executor for heavy DBus fetching and downloading art (only runs on actual song changes)
             Process {
                 id: musicForceRefresh
                 running: true
@@ -233,15 +219,71 @@ Variants {
                 }
             }
 
-            // 3. Lightweight timer to update the progress clock without freezing
+            // 2. Lightweight JS Timer ONLY for clock progress (Zero CPU/Zero DBus cost)
+            // It parses the current time string and increments it locally while playing.
             Timer {
                 interval: 1000
                 running: true
                 repeat: true
-                triggeredOnStart: true
-                onTriggered: musicPoller.running = true
+                onTriggered: {
+                    if (!barWindow.musicData || barWindow.musicData.status !== "Playing") return;
+                    if (!barWindow.musicData.timeStr || barWindow.musicData.timeStr === "") return;
+
+                    let parts = barWindow.musicData.timeStr.split(" / ");
+                    if (parts.length !== 2) return;
+
+                    let posParts = parts[0].split(":").map(Number);
+                    let lenParts = parts[1].split(":").map(Number);
+
+                    // Handle mm:ss or hh:mm:ss formats automatically
+                    let posSecs = (posParts.length === 3) 
+                        ? (posParts[0] * 3600 + posParts[1] * 60 + posParts[2]) 
+                        : (posParts[0] * 60 + posParts[1]);
+
+                    let lenSecs = (lenParts.length === 3) 
+                        ? (lenParts[0] * 3600 + lenParts[1] * 60 + lenParts[2]) 
+                        : (lenParts[0] * 60 + lenParts[1]);
+
+                    if (isNaN(posSecs) || isNaN(lenSecs)) return;
+
+                    posSecs++;
+                    if (posSecs > lenSecs) posSecs = lenSecs;
+
+                    let newPosStr = "";
+                    if (posParts.length === 3) {
+                        let h = Math.floor(posSecs / 3600);
+                        let m = Math.floor((posSecs % 3600) / 60);
+                        let s = posSecs % 60;
+                        newPosStr = h + ":" + (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+                    } else {
+                        let m = Math.floor(posSecs / 60);
+                        let s = posSecs % 60;
+                        newPosStr = (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+                    }
+
+                    // Reassign to trigger UI bindings
+                    let newData = Object.assign({}, barWindow.musicData);
+                    newData.timeStr = newPosStr + " / " + parts[1];
+                    // Also update absolute strings to sync smoothly
+                    newData.positionStr = newPosStr;
+                    if (lenSecs > 0) newData.percent = (posSecs / lenSecs) * 100;
+                    
+                    barWindow.musicData = newData;
+                }
             }
 
+            // 3. INSTANT Zero-CPU Event Watcher for MPRIS (Play/Pause/Skip/Seek)
+            Process {
+                id: mprisWatcher
+                running: true
+                // Hooks directly into raw DBus signals for Metadata changes AND track Scrubbing/Seeking.
+                // grep -m 1 'member=' catches the signal instantly and self-destructs to trigger the refresh.
+                command: ["bash", "-c", "dbus-monitor --session \"type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',arg0='org.mpris.MediaPlayer2.Player'\" \"type='signal',interface='org.mpris.MediaPlayer2.Player',member='Seeked'\" 2>/dev/null | grep -m 1 'member=' > /dev/null || sleep 2"]
+                onExited: {
+                    musicForceRefresh.running = true;
+                    running = true;
+                }
+            }
             // Unified System Info ------------------------
             Process {
                 id: sysPoller
@@ -281,8 +323,9 @@ Variants {
                                 barWindow.fastPollerLoaded = true;
                             } catch(e) {}
                         }
-                        // When the system/music waiter finishes, instantly refresh the music state
-                        musicForceRefresh.running = true; 
+                        
+                        // THE FIX: Removed `musicForceRefresh.running = true;` from here
+                        // This completely severs the DBus spam loop during music playback.
                         sysWaiter.running = true;
                     }
                 }
@@ -293,9 +336,7 @@ Variants {
                 command: ["bash", "-c", "~/.config/hypr/scripts/quickshell/sys_waiter.sh"]
                 // Strictly use onExited. Quickshell will no longer hook into stdout, preventing pipe deadlocks.
                 onExited: sysPoller.running = true 
-            }
-
-            // Weather remains a slow poll since it fetches from web
+            }            // Weather remains a slow poll since it fetches from web
             Process {
                 id: weatherPoller
                 command: ["bash", "-c", `
