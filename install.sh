@@ -3,8 +3,12 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.1.1"
+DOTS_VERSION="1.1.2"
 VERSION_FILE="$HOME/.local/state/imperative-dots-version"
+
+# Prevent the TTY/Console from falling asleep (black screen) during long package builds
+setterm -blank 0 -powerdown 0 2>/dev/null || true
+printf '\033[9;0]' 2>/dev/null || true
 
 # Global Variables & Initial States (Defaults)
 WALLPAPER_DIR="$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")/Wallpapers"
@@ -936,8 +940,13 @@ else
         echo -e "${C_CYAN}=================================================================${RESET}"
 
         # Arch: Pipe 'yes ""' (Enter keystrokes) to automatically choose the default provider (1)
-        # Limit CARGO_BUILD_JOBS to prevent OOM errors during heavy Rust compilations (like swayosd)
-        if yes "" | env CARGO_BUILD_JOBS=2 $PKG_MANAGER "$pkg"; then
+        # Limit CARGO_BUILD_JOBS and MAKEFLAGS to prevent OOM errors during heavy compilations
+        # Calculate safe thread limits (half of total cores, minimum 1, max 4)
+        SAFE_JOBS=$(( $(nproc) / 2 ))
+        [[ $SAFE_JOBS -lt 1 ]] && SAFE_JOBS=1
+        [[ $SAFE_JOBS -gt 4 ]] && SAFE_JOBS=4
+
+        if yes "" | env CARGO_BUILD_JOBS="$SAFE_JOBS" MAKEFLAGS="-j$SAFE_JOBS" $PKG_MANAGER "$pkg"; then
             echo -e "\n${C_GREEN}[ OK ] Successfully installed ${pkg}${RESET}"
         else
             echo -e "\n${C_RED}[ FAILED ] Failed to install ${pkg}${RESET}"
@@ -980,7 +989,9 @@ if [[ "$REPLACE_DM" == true ]]; then
     for dm in "${DMS[@]}"; do
         if systemctl is-enabled "$dm.service" &>/dev/null || systemctl is-active "$dm.service" &>/dev/null; then
             echo "  -> Disabling conflicting Display Manager: $dm"
-            sudo systemctl disable "$dm.service" --now 2>/dev/null || true
+            
+            # CRITICAL FIX: Removed '--now' so it doesn't instantly kill the user's GUI session
+            sudo systemctl disable "$dm.service" 2>/dev/null || true
             sudo pacman -Rns --noconfirm "$dm" > /dev/null 2>&1 || true
         fi
     done
