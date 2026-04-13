@@ -6,23 +6,8 @@
 QS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BT_PID_FILE="$HOME/.cache/bt_scan_pid"
 BT_SCAN_LOG="$HOME/.cache/bt_scan.log"
+SRC_DIR="${WALLPAPER_DIR:-${srcdir:-$HOME/Pictures/Wallpapers}}"
 THUMB_DIR="$HOME/.cache/wallpaper_picker/thumbs"
-
-# DYNAMICALLY READ FROM SSOT (Hyprland env variables do not hot-reload)
-SETTINGS_FILE="$HOME/.config/hypr/settings.json"
-if [ -f "$SETTINGS_FILE" ]; then
-    JSON_DIR=$(jq -r '.wallpaperDir // empty' "$SETTINGS_FILE" 2>/dev/null)
-    if [ -n "$JSON_DIR" ]; then
-        # Expand tilde ~ to absolute path
-        JSON_DIR="${JSON_DIR/#\~/$HOME}"
-        # Strip any trailing slashes to prevent double-slash pathing issues
-        JSON_DIR="${JSON_DIR%/}"
-        SRC_DIR="$JSON_DIR"
-    fi
-fi
-
-# Fallback if json extraction fails
-SRC_DIR="${SRC_DIR:-${WALLPAPER_DIR:-$HOME/Pictures/Wallpapers}}"
 
 # User-specific cache directory matching the QML logic
 QS_NETWORK_CACHE="${XDG_RUNTIME_DIR:-$HOME/.cache}/qs_network"
@@ -40,7 +25,7 @@ SUBTARGET="$3"
 # -----------------------------------------------------------------------------
 if [[ "$ACTION" =~ ^[0-9]+$ ]]; then
     WORKSPACE_NUM="$ACTION"
-    echo "close" > "$IPC_FILE" # Tell QML to hide the widget natively
+    echo "close" > "$IPC_FILE"
     
     CMD="workspace $WORKSPACE_NUM"
     [[ "$2" == "move" ]] && CMD="movetoworkspace $WORKSPACE_NUM"
@@ -94,14 +79,12 @@ handle_wallpaper_prep() {
     CURRENT_SRC=""
 
     if pgrep -a "mpvpaper" > /dev/null; then
-        # More resilient extraction: grab any valid video path
-        CURRENT_SRC=$(pgrep -a mpvpaper | grep -oE "/[^' ]+" | grep -E "\.(mp4|mkv|mov|webm)$" | head -n1)
+        CURRENT_SRC=$(pgrep -a mpvpaper | grep -o "$SRC_DIR/[^' ]*" | head -n1)
         CURRENT_SRC=$(basename "$CURRENT_SRC")
     fi
 
     if [ -z "$CURRENT_SRC" ] && command -v swww >/dev/null; then
-        # Bulletproof extraction: Ignore the folder structure and strip exactly what comes after "image: "
-        CURRENT_SRC=$(swww query 2>/dev/null | sed -n 's/.*image: //p' | head -n1 | tr -d '"' | tr -d "'")
+        CURRENT_SRC=$(swww query 2>/dev/null | grep -o "$SRC_DIR/[^ ]*" | head -n1)
         CURRENT_SRC=$(basename "$CURRENT_SRC")
     fi
 
@@ -141,7 +124,7 @@ if ! pgrep -f "quickshell.*TopBar\.qml" >/dev/null; then
 fi
 
 # -----------------------------------------------------------------------------
-# IPC ROUTING (No hyprctl focus/move commands needed!)
+# IPC ROUTING
 # -----------------------------------------------------------------------------
 if [[ "$ACTION" == "close" ]]; then
     echo "close" > "$IPC_FILE"
@@ -156,10 +139,12 @@ if [[ "$ACTION" == "close" ]]; then
 fi
 
 if [[ "$ACTION" == "open" || "$ACTION" == "toggle" ]]; then
-    ACTIVE_WIDGET=$(cat /tmp/qs_active_widget 2>/dev/null)
     CURRENT_MODE=$(cat "$NETWORK_MODE_FILE" 2>/dev/null)
 
+    # Network widget: bash must still own the mode-file logic here,
+    # so we read qs_active_widget only for this specific case.
     if [[ "$TARGET" == "network" ]]; then
+        ACTIVE_WIDGET=$(cat /tmp/qs_active_widget 2>/dev/null)
         if [[ "$ACTION" == "toggle" && "$ACTIVE_WIDGET" == "network" ]]; then
             if [[ -n "$SUBTARGET" ]]; then
                 if [[ "$CURRENT_MODE" == "$SUBTARGET" ]]; then
@@ -179,11 +164,9 @@ if [[ "$ACTION" == "open" || "$ACTION" == "toggle" ]]; then
         exit 0
     fi
 
-    if [[ "$ACTION" == "toggle" && "$ACTIVE_WIDGET" == "$TARGET" ]]; then
-        echo "close" > "$IPC_FILE"
-        exit 0
-    fi
-
+    # All other widgets: just write the target.
+    # QML reads its own in-memory currentActive to decide open vs close —
+    # no stale qs_active_widget reads, no race condition.
     if [[ "$TARGET" == "wallpaper" ]]; then
         handle_wallpaper_prep
         echo "$TARGET:$WALLPAPER_THUMB" > "$IPC_FILE"

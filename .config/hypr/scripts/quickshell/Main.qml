@@ -28,7 +28,7 @@ PanelWindow {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 65 // Safely covers your TopBar height + margins
+        height: 65 
     }
 
     MouseArea {
@@ -37,7 +37,6 @@ PanelWindow {
         onClicked: switchWidget("hidden", "")
     }
 
-    // Initialize state on boot
     Component.onCompleted: {
         Quickshell.execDetached(["bash", "-c", "echo '" + currentActive + "' > /tmp/qs_active_widget"]);
     }
@@ -63,11 +62,10 @@ PanelWindow {
         handleNativeScreenChange();
     }
 
-    // --- Dynamic Settings Reader ---
     Process {
         id: settingsReader
         command: ["bash", "-c", "cat ~/.config/hypr/settings.json 2>/dev/null || echo '{}'"]
-        running: true // Run once at startup
+        running: true 
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -84,7 +82,6 @@ PanelWindow {
         }
     }
 
-    // EVENT-DRIVEN WATCHER
     Process {
         id: settingsWatcher
         command: ["bash", "-c", "while [ ! -f ~/.config/hypr/settings.json ]; do sleep 1; done; inotifywait -qq -e modify,close_write ~/.config/hypr/settings.json"]
@@ -99,7 +96,6 @@ PanelWindow {
             }
         }
     }
-    // -------------------------------
 
     function getLayout(name) {
         return Registry.getLayout(name, 0, 0, Screen.width, Screen.height, masterWindow.globalUiScale);
@@ -129,14 +125,13 @@ PanelWindow {
         if (isVisible) masterWindow.requestActivate();
     }
 
-    // --- THE WIDGET CONTAINER ---
     Item {
         x: masterWindow.animX
         y: masterWindow.animY
         width: masterWindow.animW
         height: masterWindow.animH
         clip: true 
-        layer.enabled: true // FIX: Forces hardware off-screen rendering to bypass the right-side clipping artifact
+        layer.enabled: true 
 
         Behavior on x { enabled: !masterWindow.disableMorph; NumberAnimation { duration: masterWindow.morphDuration; easing.type: Easing.InOutCubic } }
         Behavior on y { enabled: !masterWindow.disableMorph; NumberAnimation { duration: masterWindow.morphDuration; easing.type: Easing.InOutCubic } }
@@ -186,6 +181,7 @@ PanelWindow {
     }
 
     function switchWidget(newWidget, arg) {
+        // Keep writing qs_active_widget so external tools (bar, scripts) can still read state
         Quickshell.execDetached(["bash", "-c", "echo '" + newWidget + "' > /tmp/qs_active_widget"]);
 
         prepTimer.stop();
@@ -265,6 +261,7 @@ PanelWindow {
             masterWindow.targetH = t.h;
 
             let props = newWidget === "wallpaper" ? { "widgetArg": newArg } : {};
+
             widgetStack.replace(t.comp, props, StackView.Immediate);
 
             teleportFadeInTimer.newWidget = newWidget;
@@ -313,32 +310,48 @@ PanelWindow {
         masterWindow.isVisible = true;
     }
 
-    Timer {
-        interval: 50; running: true; repeat: true
-        onTriggered: { if (!ipcPoller.running) ipcPoller.running = true; }
-    }
-
+    // =========================================================
+    // --- IPC: EVENT-DRIVEN WATCHER (replaces 50ms polling)
+    // Blocks on inotifywait until qs_widget_state is written,
+    // then reads it instantly — zero missed events, no race window.
+    // =========================================================
     Process {
-        id: ipcPoller
-        command: ["bash", "-c", "if [ -f /tmp/qs_widget_state ]; then mv /tmp/qs_widget_state /tmp/qs_widget_state_read 2>/dev/null && cat /tmp/qs_widget_state_read && rm /tmp/qs_widget_state_read; fi"]
+        id: ipcWatcher
+        command: ["bash", "-c",
+            "inotifywait -qq -e close_write,moved_to --include 'qs_widget_state$' /tmp/ 2>/dev/null; " +
+            "if [ -f /tmp/qs_widget_state ]; then cat /tmp/qs_widget_state && rm -f /tmp/qs_widget_state; fi"
+        ]
+        running: true
         stdout: StdioCollector {
             onStreamFinished: {
                 let rawCmd = this.text.trim();
-                if (rawCmd === "") return;
 
-                let parts = rawCmd.split(":");
-                let cmd = parts[0];
-                let arg = parts.length > 1 ? parts[1] : "";
+                if (rawCmd !== "") {
+                    let parts = rawCmd.split(":");
+                    let cmd   = parts[0];
+                    let arg   = parts.length > 1 ? parts[1] : "";
 
-                if (cmd === "close") {
-                    switchWidget("hidden", "");
-                } else if (getLayout(cmd)) {
-                    delayedClear.stop();
-                    switchWidget(cmd, arg);
+                    if (cmd === "close") {
+                        switchWidget("hidden", "");
+                    } else if (getLayout(cmd)) {
+                        delayedClear.stop();
+                        // QML owns the toggle decision using its own in-memory state —
+                        // no stale file reads from bash needed anymore.
+                        if (cmd === masterWindow.currentActive) {
+                            switchWidget("hidden", "");
+                        } else {
+                            switchWidget(cmd, arg);
+                        }
+                    }
                 }
+
+                // Re-arm immediately for the next event
+                ipcWatcher.running = false;
+                ipcWatcher.running = true;
             }
         }
     }
+    // =========================================================
 
     Timer {
         id: delayedClear
