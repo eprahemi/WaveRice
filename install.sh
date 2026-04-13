@@ -1412,14 +1412,24 @@ else
     echo -e "${C_RED}Warning: hyprland.conf not found at $HYPR_CONF${RESET}"
 fi
 
-# -> Inject Keyboard Layouts into settings.json <-
-echo -e "  -> Syncing Keyboard languages to settings.json..."
+# -> Inject Settings and Keyboard Layouts into settings.json <-
+echo -e "  -> Syncing Settings and Keyboard languages to settings.json..."
 if [ -f "$SETTINGS_FILE" ]; then
     tmp_json=$(mktemp)
-    jq --arg langs "$KB_LAYOUTS" '.languages = $langs' "$SETTINGS_FILE" > "$tmp_json" && mv "$tmp_json" "$SETTINGS_FILE"
+    # Update the existing file, ensuring 'language' (not 'languages') is set, along with wallpaperDir
+    jq --arg langs "$KB_LAYOUTS" --arg wpdir "$WALLPAPER_DIR" '.language = $langs | .wallpaperDir = $wpdir' "$SETTINGS_FILE" > "$tmp_json" && mv "$tmp_json" "$SETTINGS_FILE"
 else
     mkdir -p "$(dirname "$SETTINGS_FILE")"
-    echo "{\"languages\": \"$KB_LAYOUTS\"}" > "$SETTINGS_FILE"
+    # Generate the full expected default structure for the QML guide
+    cat <<EOF > "$SETTINGS_FILE"
+{
+  "uiScale": 1.0,
+  "openGuideAtStartup": true,
+  "topbarHelpIcon": true,
+  "wallpaperDir": "$WALLPAPER_DIR",
+  "language": "$KB_LAYOUTS"
+}
+EOF
 fi
 
 # 4. Patch WallpaperPicker.qml dynamically
