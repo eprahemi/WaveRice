@@ -111,6 +111,7 @@ Item {
     // -------------------------------------------------------------------------
     property real setUiScale: 1.0
     property bool setOpenGuideAtStartup: true
+    property bool setTopbarHelpIcon: true
     property string setWallpaperDir: {
         const dir = Quickshell.env("WALLPAPER_DIR")
         return (dir && dir !== "") 
@@ -118,11 +119,13 @@ Item {
         : Quickshell.env("HOME") + "/Pictures/Wallpapers"
     }
     property string setLanguage: ""
+    property string dotsVersion: "Loading..."
 
     function saveAppSettings() {
         let config = {
             "uiScale": root.setUiScale,
             "openGuideAtStartup": root.setOpenGuideAtStartup,
+            "topbarHelpIcon": root.setTopbarHelpIcon,
             "wallpaperDir": root.setWallpaperDir,
             "language": root.setLanguage
         };
@@ -133,6 +136,17 @@ Item {
         Quickshell.execDetached(["bash", "-c", cmd]);
     }
 
+    Process {
+        id: versionReader
+        command: ["bash", "-c", "source ~/.local/state/imperative-dots-version 2>/dev/null && echo $LOCAL_VERSION || echo 'Unknown'"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let out = this.text ? this.text.trim() : "";
+                if (out !== "") root.dotsVersion = out;
+            }
+        }
+    }
 
     Process {
         id: hyprLangReader
@@ -159,6 +173,7 @@ Item {
                         let parsed = JSON.parse(this.text);
                         if (parsed.uiScale !== undefined) root.setUiScale = parsed.uiScale;
                         if (parsed.openGuideAtStartup !== undefined) root.setOpenGuideAtStartup = parsed.openGuideAtStartup;
+                        if (parsed.topbarHelpIcon !== undefined) root.setTopbarHelpIcon = parsed.topbarHelpIcon;
                         if (parsed.wallpaperDir !== undefined) root.setWallpaperDir = parsed.wallpaperDir;
                         if (parsed.language !== undefined && parsed.language !== "") root.setLanguage = parsed.language;
                     } else {
@@ -381,8 +396,8 @@ Item {
     // -------------------------------------------------------------------------
     property int currentTab: 0
     property int selectedModuleIndex: 0
-    property var tabNames: ["System", "Settings", "Resources", "Modules", "Keybinds", "Matugen", "Weather"]
-    property var tabIcons: ["", "", "󰣖", "󰣆", "󰌌", "󰏘", "󰖐"]
+    property var tabNames: ["System", "Settings", "Resources", "Modules", "Keybinds", "Matugen", "Weather", "Greeter"]
+    property var tabIcons: ["", "", "󰣖", "󰣆", "󰌌", "󰏘", "󰖐", "󰍃"]
 
     property real introBase: 0.0
     property real introSidebar: 0.0
@@ -624,7 +639,7 @@ Item {
                                 Layout.alignment: Qt.AlignLeft 
                             }
                             Text { 
-                                text: "v1.0.25"
+                                text: "v" + (root.dotsVersion !== "Loading..." ? root.dotsVersion : "...")
                                 font.family: "JetBrains Mono"
                                 font.pixelSize: root.s(11)
                                 color: root.subtext0
@@ -1295,9 +1310,13 @@ Item {
                 }
 
                 ColumnLayout {
+                    id: settingsMainCol
                     anchors.fill: parent
                     anchors.margins: root.s(20)
                     spacing: root.s(15)
+
+                    property real iconColWidth: root.s(32)
+                    property real controlColWidth: root.s(240)
 
                     // --- HEADER & APPLY BUTTON ---
                     RowLayout {
@@ -1342,72 +1361,137 @@ Item {
                         }
                     }
 
-                    // --- SETTINGS LIST (STRICTLY ALIGNED) ---
-                    property real iconColWidth: root.s(32)
-                    property real controlColWidth: root.s(240)
-
-                    // Setting 1: Open Guide
+                    // --- SETTINGS LIST (VISUAL BOXES) ---
+                    
+                    // Setting Box 1: Startup & Topbar Icon
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: root.s(60)
+                        implicitHeight: root.s(121)
                         radius: root.s(8)
                         color: Qt.alpha(root.surface0, 0.4)
                         border.color: root.surface1
                         border.width: 1
                         
-                        RowLayout {
+                        ColumnLayout {
                             anchors.fill: parent
-                            anchors.margins: root.s(15)
-                            spacing: root.s(20)
+                            spacing: 0
                             
                             Item {
-                                Layout.preferredWidth: parent.parent.parent.iconColWidth
-                                Layout.alignment: Qt.AlignVCenter
-                                Text { anchors.centerIn: parent; text: ""; font.family: "Iosevka Nerd Font"; font.pixelSize: root.s(20); color: root.peach }
-                            }
-                            
-                            ColumnLayout {
                                 Layout.fillWidth: true
-                                spacing: root.s(4)
-                                Text { text: "Open Guide at Startup"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(13); color: root.text }
-                                Text { text: "Automatically launch this configuration guide when logging in."; font.family: "JetBrains Mono"; font.pixelSize: root.s(11); color: root.subtext0; elide: Text.ElideRight; Layout.fillWidth: true }
-                            }
-                            
-                            Item {
-                                Layout.preferredWidth: parent.parent.parent.controlColWidth
-                                Layout.fillHeight: true
+                                Layout.preferredHeight: root.s(60)
                                 
-                                Rectangle {
-                                    anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: root.s(46)
-                                    height: root.s(26)
-                                    radius: root.s(13)
-                                    color: root.setOpenGuideAtStartup ? root.peach : root.surface2
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: root.s(15)
+                                    spacing: root.s(20)
                                     
-                                    Behavior on color { ColorAnimation { duration: 200 } }
-                                    
-                                    Rectangle {
-                                        width: root.s(20)
-                                        height: root.s(20)
-                                        radius: root.s(10)
-                                        color: root.base
-                                        y: root.s(3)
-                                        x: root.setOpenGuideAtStartup ? root.s(23) : root.s(3)
-                                        Behavior on x { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
+                                    Item {
+                                        Layout.preferredWidth: settingsMainCol.iconColWidth
+                                        Layout.alignment: Qt.AlignVCenter
+                                        Text { anchors.centerIn: parent; text: ""; font.family: "Iosevka Nerd Font"; font.pixelSize: root.s(20); color: root.peach }
                                     }
                                     
-                                    MouseArea { 
-                                        anchors.fill: parent
-                                        onClicked: root.setOpenGuideAtStartup = !root.setOpenGuideAtStartup
-                                        cursorShape: Qt.PointingHandCursor 
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: root.s(4)
+                                        Text { text: "Open guide at startup"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(13); color: root.text }
+                                        Text { text: "Automatically launch this configuration guide when logging in."; font.family: "JetBrains Mono"; font.pixelSize: root.s(11); color: root.subtext0; elide: Text.ElideRight; Layout.fillWidth: true }
+                                    }
+                                    
+                                    Item {
+                                        Layout.preferredWidth: settingsMainCol.controlColWidth
+                                        Layout.fillHeight: true
+                                        
+                                        Rectangle {
+                                            anchors.right: parent.right
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: root.s(46)
+                                            height: root.s(26)
+                                            radius: root.s(13)
+                                            color: root.setOpenGuideAtStartup ? root.peach : root.surface2
+                                            
+                                            Behavior on color { ColorAnimation { duration: 200 } }
+                                            
+                                            Rectangle {
+                                                width: root.s(20)
+                                                height: root.s(20)
+                                                radius: root.s(10)
+                                                color: root.base
+                                                y: root.s(3)
+                                                x: root.setOpenGuideAtStartup ? root.s(23) : root.s(3)
+                                                Behavior on x { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
+                                            }
+                                            
+                                            MouseArea { 
+                                                anchors.fill: parent
+                                                onClicked: root.setOpenGuideAtStartup = !root.setOpenGuideAtStartup
+                                                cursorShape: Qt.PointingHandCursor 
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            Rectangle { Layout.fillWidth: true; height: 1; color: Qt.alpha(root.surface1, 0.5) }
+
+                            Item {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: root.s(60)
+                                
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: root.s(15)
+                                    spacing: root.s(20)
+                                    
+                                    Item {
+                                        Layout.preferredWidth: settingsMainCol.iconColWidth
+                                        Layout.alignment: Qt.AlignVCenter
+                                        Text { anchors.centerIn: parent; text: "󰋖"; font.family: "Iosevka Nerd Font"; font.pixelSize: root.s(20); color: root.blue }
+                                    }
+                                    
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: root.s(4)
+                                        Text { text: "Show a help icon button on the very left of the topbar to toggle a guide popup"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(13); color: root.text; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                                    }
+                                    
+                                    Item {
+                                        Layout.preferredWidth: settingsMainCol.controlColWidth
+                                        Layout.fillHeight: true
+                                        
+                                        Rectangle {
+                                            anchors.right: parent.right
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: root.s(46)
+                                            height: root.s(26)
+                                            radius: root.s(13)
+                                            color: root.setTopbarHelpIcon ? root.peach : root.surface2
+                                            
+                                            Behavior on color { ColorAnimation { duration: 200 } }
+                                            
+                                            Rectangle {
+                                                width: root.s(20)
+                                                height: root.s(20)
+                                                radius: root.s(10)
+                                                color: root.base
+                                                y: root.s(3)
+                                                x: root.setTopbarHelpIcon ? root.s(23) : root.s(3)
+                                                Behavior on x { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
+                                            }
+                                            
+                                            MouseArea { 
+                                                anchors.fill: parent
+                                                onClicked: root.setTopbarHelpIcon = !root.setTopbarHelpIcon
+                                                cursorShape: Qt.PointingHandCursor 
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
 
-                    // Setting 2: UI Scale
+                    // Setting Box 2: UI Scale
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: root.s(60)
@@ -1422,7 +1506,7 @@ Item {
                             spacing: root.s(20)
                             
                             Item {
-                                Layout.preferredWidth: parent.parent.parent.iconColWidth
+                                Layout.preferredWidth: settingsMainCol.iconColWidth
                                 Layout.alignment: Qt.AlignVCenter
                                 Text { anchors.centerIn: parent; text: "󰁦"; font.family: "Iosevka Nerd Font"; font.pixelSize: root.s(20); color: root.blue }
                             }
@@ -1430,12 +1514,12 @@ Item {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: root.s(4)
-                                Text { text: "Global UI Scale Factor"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(13); color: root.text }
+                                Text { text: "Global UI scale factor"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(13); color: root.text }
                                 Text { text: "Adjust the base sizing scalar for all quickshell components."; font.family: "JetBrains Mono"; font.pixelSize: root.s(11); color: root.subtext0; elide: Text.ElideRight; Layout.fillWidth: true }
                             }
                             
                             Item {
-                                Layout.preferredWidth: parent.parent.parent.controlColWidth
+                                Layout.preferredWidth: settingsMainCol.controlColWidth
                                 Layout.fillHeight: true
                                 
                                 RowLayout {
@@ -1475,7 +1559,7 @@ Item {
                         }
                     }
 
-                    // Setting 3: Keyboard Language 
+                    // Setting Box 3: Keyboard Language 
                     Rectangle {
                         z: 10
                         Layout.fillWidth: true
@@ -1495,7 +1579,7 @@ Item {
                             spacing: root.s(20)
                             
                             Item {
-                                Layout.preferredWidth: parent.parent.parent.iconColWidth
+                                Layout.preferredWidth: settingsMainCol.iconColWidth
                                 Layout.alignment: Qt.AlignTop
                                 Layout.topMargin: root.s(5)
                                 Text { anchors.centerIn: parent; text: "󰌌"; font.family: "Iosevka Nerd Font"; font.pixelSize: root.s(20); color: root.green }
@@ -1505,7 +1589,7 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.alignment: Qt.AlignTop
                                 spacing: root.s(4)
-                                Text { text: "System Keyboard Layouts"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(13); color: root.text }
+                                Text { text: "System keyboard layouts"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(13); color: root.text }
                                 Text { text: "Active layouts matched directly to hyprland.conf. Click ✖ to remove."; font.family: "JetBrains Mono"; font.pixelSize: root.s(11); color: root.subtext0; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                                 
                                 Flow {
@@ -1563,7 +1647,7 @@ Item {
                             }
 
                             Item {
-                                Layout.preferredWidth: parent.parent.parent.controlColWidth
+                                Layout.preferredWidth: settingsMainCol.controlColWidth
                                 Layout.fillHeight: true
                                 Layout.alignment: Qt.AlignTop
                                 
@@ -1643,7 +1727,7 @@ Item {
                         }
                     }
 
-                    // Setting 4: Wallpaper Directory
+                    // Setting Box 4: Wallpaper Directory
                     Rectangle {
                         z: 5 
                         Layout.fillWidth: true
@@ -1660,7 +1744,7 @@ Item {
                             spacing: root.s(20)
                             
                             Item {
-                                Layout.preferredWidth: parent.parent.parent.iconColWidth
+                                Layout.preferredWidth: settingsMainCol.iconColWidth
                                 Layout.alignment: Qt.AlignVCenter
                                 Text { anchors.centerIn: parent; text: ""; font.family: "Iosevka Nerd Font"; font.pixelSize: root.s(20); color: root.mauve }
                             }
@@ -1668,12 +1752,12 @@ Item {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: root.s(4)
-                                Text { text: "Wallpaper Directory"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(13); color: root.text }
+                                Text { text: "Wallpaper directory"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(13); color: root.text }
                                 Text { text: "Set source path for the background engine. Use absolute paths."; font.family: "JetBrains Mono"; font.pixelSize: root.s(11); color: root.subtext0; elide: Text.ElideRight; Layout.fillWidth: true }
                             }
                             
                             Item {
-                                Layout.preferredWidth: parent.parent.parent.controlColWidth
+                                Layout.preferredWidth: settingsMainCol.controlColWidth
                                 Layout.fillHeight: true
                                 
                                 Rectangle {
@@ -2881,6 +2965,28 @@ Item {
                             }
                         }
                     }
+                }
+            }
+
+            // ------------------------------------------
+            // TAB 7: GREETER
+            // ------------------------------------------
+            Item {
+                anchors.fill: parent
+                visible: root.currentTab === 7
+                opacity: visible ? 1.0 : 0.0
+                property real slideY: visible ? 0 : root.s(10)
+                
+                Behavior on slideY { NumberAnimation { duration: 250; easing.type: Easing.OutQuart } }
+                transform: Translate { y: slideY }
+                Behavior on opacity { NumberAnimation { duration: 250 } }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "coming soon"
+                    font.family: "JetBrains Mono"
+                    font.pixelSize: root.s(24)
+                    color: root.subtext0
                 }
             }
         }

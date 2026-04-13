@@ -53,6 +53,40 @@ Variants {
             }
 
             // --- State Variables ---
+            property bool showHelpIcon: true
+            
+            Process {
+                id: settingsReader
+                command: ["bash", "-c", "cat ~/.config/hypr/settings.json 2>/dev/null || echo '{}'"]
+                running: true
+                stdout: StdioCollector {
+                    onStreamFinished: {
+                        try {
+                            if (this.text && this.text.trim().length > 0 && this.text.trim() !== "{}") {
+                                let parsed = JSON.parse(this.text);
+                                if (parsed.topbarHelpIcon !== undefined && barWindow.showHelpIcon !== parsed.topbarHelpIcon) {
+                                    barWindow.showHelpIcon = parsed.topbarHelpIcon;
+                                }
+                            }
+                        } catch (e) {}
+                    }
+                }
+            }
+
+            // EVENT-DRIVEN WATCHER FOR SETTINGS
+            Process {
+                id: settingsWatcher
+                command: ["bash", "-c", "while [ ! -f ~/.config/hypr/settings.json ]; do sleep 1; done; inotifywait -qq -e modify,close_write ~/.config/hypr/settings.json"]
+                running: true
+                stdout: StdioCollector {
+                    onStreamFinished: {
+                        settingsReader.running = false;
+                        settingsReader.running = true;
+                        settingsWatcher.running = false;
+                        settingsWatcher.running = true;
+                    }
+                }
+            }
             
             // Desktop Chassis Detection
             property bool isDesktop: false
@@ -492,7 +526,16 @@ Variants {
                         property bool isHovered: helpMouse.containsMouse
                         color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.95) : Qt.rgba(mocha.base.r, mocha.base.g, mocha.base.b, 0.75)
                         radius: barWindow.s(14); border.width: 1; border.color: Qt.rgba(mocha.text.r, mocha.text.g, mocha.text.b, isHovered ? 0.15 : 0.05)
-                        Layout.preferredHeight: parent.moduleHeight; Layout.preferredWidth: barWindow.barHeight
+                        
+                        property real targetWidth: barWindow.showHelpIcon ? barWindow.barHeight : 0
+                        Layout.preferredWidth: targetWidth
+                        Layout.preferredHeight: parent.moduleHeight
+                        visible: targetWidth > 0 || opacity > 0
+                        opacity: barWindow.showHelpIcon ? 1.0 : 0.0
+                        clip: true
+                        
+                        Behavior on targetWidth { NumberAnimation { duration: 400; easing.type: Easing.OutQuint } }
+                        Behavior on opacity { NumberAnimation { duration: 300 } }
                         
                         scale: isHovered ? 1.05 : 1.0
                         Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutExpo } }
