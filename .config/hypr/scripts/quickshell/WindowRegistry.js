@@ -12,6 +12,7 @@ function getScale(mw, userScale) {
         baseScale = Math.pow(r, 0.5);
     }
     
+    // Multiply the screen-calculated scale by the user's uiScale
     return baseScale * (userScale !== undefined ? userScale : 1.0);
 }
 
@@ -29,6 +30,7 @@ function getLayout(name, mx, my, mw, mh, userScale) {
         // Note on rx: The 500 represents the 480 base width + 20 margin. 
         "battery":   { w: s(480, scale), h: s(760, scale), rx: mw - s(500, scale), ry: s(70, scale), comp: "battery/BatteryPopup.qml" },
         "volume":    { w: s(480, scale), h: s(760, scale), rx: mw - s(500, scale), ry: s(70, scale), comp: "volume/VolumePopup.qml" },
+        "notifications": { w: s(480, scale), h: s(850, scale), rx: mw - s(500, scale), ry: s(70, scale), comp: "notifications/NotificationPopup.qml" },
         
         // Centered horizontally dynamically based on current screen width
         "calendar":  { w: s(1450, scale), h: s(750, scale), rx: Math.floor((mw/2)-(s(1450, scale)/2)), ry: s(70, scale), comp: "calendar/CalendarPopup.qml" },
