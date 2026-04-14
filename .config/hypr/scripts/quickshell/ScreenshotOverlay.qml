@@ -16,17 +16,19 @@ PanelWindow {
     
     exclusionMode: ExclusionMode.Ignore 
     focusable: true
-    width: Screen.width
-    height: Screen.height
+    screen: Quickshell.cursorScreen
+    width: screen.width
+    height: screen.height
 
-    Scaler { id: scaler; currentWidth: Screen.width }
+    Scaler { id: scaler; currentWidth: width }
     function s(val) { return scaler.s(val); }
     
     MatugenColors { id: _theme }
-    // Increased visibility by lowering the tint alpha significantly
-    property color dimColor: Qt.alpha(_theme.crust, 0.60)
+    // Edits 2: Greatly lowered dimming to improve visibility
+    property color dimColor: Qt.alpha(_theme.crust, 0.50)
     property color selectionTint: Qt.alpha(_theme.mauve, 0.05)
-    property color handleColor: _theme.base
+    // Edits 3: Handles base is text, no distinct red video border
+    property color handleColor: _theme.text
     property color accentColor: _theme.mauve
 
     property bool isEditMode: Quickshell.env("QS_SCREENSHOT_EDIT") === "true"
@@ -171,34 +173,28 @@ PanelWindow {
     Rectangle {
         visible: root.isSelecting || root.hasSelection
         x: root.selX; y: root.selY; width: root.selW; height: root.selH
-        
-        // Smooth transition for colors when switching modes
-        color: root.isVideoMode ? Qt.alpha(_theme.red, 0.05) : root.selectionTint
+        color: root.isVideoMode ? Qt.alpha(_theme.red, 0.15) : root.selectionTint
         border.color: root.isVideoMode ? _theme.red : root.accentColor
         border.width: s(4)
         z: 5
-        
-        Behavior on color { ColorAnimation { duration: 250; easing.type: Easing.InOutQuad } }
-        Behavior on border.color { ColorAnimation { duration: 250; easing.type: Easing.InOutQuad } }
     }
 
     // --- Visual Resize Handles (Z: 10) ---
     component Handle: Rectangle {
         width: s(20); height: s(20); radius: s(10)
         color: root.handleColor
-        border.color: root.isVideoMode ? _theme.red : root.accentColor
+        // Edits 3: Handles mauve border regardless of mode
+        border.color: root.accentColor
         border.width: s(4)
         visible: root.hasSelection || root.isSelecting
         z: 10
-        
-        Behavior on border.color { ColorAnimation { duration: 250; easing.type: Easing.InOutQuad } }
     }
 
-    // Handles moved inward by s(2) for a perfectly centered visual anchor on the border
-    Handle { x: root.selX - width / 2 + s(2); y: root.selY - height / 2 + s(2) } 
-    Handle { x: root.selX + root.selW - width / 2 - s(2); y: root.selY - height / 2 + s(2) } 
-    Handle { x: root.selX - width / 2 + s(2); y: root.selY + root.selH - height / 2 - s(2) } 
-    Handle { x: root.selX + root.selW - width / 2 - s(2); y: root.selY + root.selH - height / 2 - s(2) } 
+    // Centered exactly on the selection corners
+    Handle { x: root.selX - width / 2; y: root.selY - height / 2 } 
+    Handle { x: root.selX + root.selW - width / 2; y: root.selY - height / 2 } 
+    Handle { x: root.selX - width / 2; y: root.selY + root.selH - height / 2 } 
+    Handle { x: root.selX + root.selW - width / 2; y: root.selY + root.selH - height / 2 } 
 
     // --- Master Interaction Area ---
     MouseArea {
@@ -228,6 +224,7 @@ PanelWindow {
             if (onLeft) return 6;
             if (onRight) return 7;
 
+            // Edits 1: Ensure clicking inside always triggers move mode (2)
             if (inBox) return 2;
             return 1;
         }
@@ -320,139 +317,99 @@ PanelWindow {
         }
     }
 
-    // --- Wallpaper-Picker Style Mode Toolbar (Z: 30) ---
+    // --- GNOME-Style Mode Toolbar (Z: 30) ---
     Rectangle {
         id: toolbar
         z: 30 
         
+        // Smart Position Math
         property bool fitsOutsideBottom: (root.selY + root.selH + height + s(15)) <= root.height
         property bool fitsOutsideTop: (root.selY - height - s(15)) >= 0
         property bool fitsInside: root.selH >= (height + s(30)) && root.selW >= (width + s(20))
 
+        // Only visible if it mathematically fits somewhere (otherwise disappears)
         visible: root.hasSelection && !root.isSelecting && (fitsOutsideBottom || fitsOutsideTop || fitsInside)
 
+        // Center horizontally bounded by screen edges
         x: Math.max(s(10), Math.min(parent.width - width - s(10), root.selX + (root.selW / 2) - (width / 2)))
         
+        // Waterfall logic: Outside Bottom -> Outside Top -> Inside Bottom
         y: fitsOutsideBottom ? (root.selY + root.selH + s(15)) : 
           (fitsOutsideTop ? (root.selY - height - s(15)) : 
           (root.selY + root.selH - height - s(15)))
 
-        width: toolbarLayout.implicitWidth + s(24)
-        height: s(56)
-        radius: s(14)
+        width: toolbarLayout.width + s(16)
+        height: s(52)
+        radius: s(26)
         
-        color: Qt.rgba(_theme.mantle.r, _theme.mantle.g, _theme.mantle.b, 0.90)
-        border.color: Qt.rgba(_theme.surface2.r, _theme.surface2.g, _theme.surface2.b, 0.8)
-        border.width: 1
+        color: _theme.base
+        border.color: _theme.surface1
+        border.width: s(2)
 
         RowLayout {
             id: toolbarLayout
             anchors.centerIn: parent
-            spacing: s(12)
+            spacing: s(8)
 
-            // --- Photo Button ---
+            // --- Photo / Video Switcher ---
             Rectangle {
-                Layout.preferredWidth: s(44)
-                Layout.preferredHeight: s(36)
-                radius: s(10)
+                width: s(80); height: s(36); radius: s(18)
+                color: _theme.surface0
                 
-                color: !root.isVideoMode ? _theme.surface2 : "transparent"
-                border.color: !root.isVideoMode ? _theme.text : Qt.rgba(_theme.surface1.r, _theme.surface1.g, _theme.surface1.b, 0.6)
-                border.width: !root.isVideoMode ? s(2) : 1
-                scale: !root.isVideoMode ? 1.15 : (photoMa.containsMouse ? 1.08 : 1.0)
-                
-                Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-                Behavior on border.color { ColorAnimation { duration: 300 } }
-                Behavior on color { ColorAnimation { duration: 250 } }
-
-                Text { anchors.centerIn: parent; font.family: "Iosevka Nerd Font"; text: "󰄄"; color: !root.isVideoMode ? _theme.text : Qt.rgba(_theme.text.r, _theme.text.g, _theme.text.b, 0.7); font.pixelSize: s(16) }
-                MouseArea { id: photoMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.isVideoMode = false }
+                RowLayout {
+                    anchors.fill: parent; anchors.margins: s(4); spacing: 0
+                    
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.fillHeight: true; radius: s(14)
+                        color: !root.isVideoMode ? _theme.surface2 : "transparent"
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                        
+                        Text { anchors.centerIn: parent; font.family: "Iosevka Nerd Font"; text: "󰄄"; color: !root.isVideoMode ? _theme.text : _theme.subtext0; font.pixelSize: s(16) }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.isVideoMode = false }
+                    }
+                    
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.fillHeight: true; radius: s(14)
+                        color: root.isVideoMode ? _theme.surface2 : "transparent"
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                        
+                        Text { anchors.centerIn: parent; font.family: "Iosevka Nerd Font"; text: ""; color: root.isVideoMode ? _theme.text : _theme.subtext0; font.pixelSize: s(16) }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.isVideoMode = true }
+                    }
+                }
             }
 
-            // --- Video Button ---
-            Rectangle {
-                Layout.preferredWidth: s(44)
-                Layout.preferredHeight: s(36)
-                radius: s(10)
-                
-                color: root.isVideoMode ? _theme.surface2 : "transparent"
-                border.color: root.isVideoMode ? _theme.text : Qt.rgba(_theme.surface1.r, _theme.surface1.g, _theme.surface1.b, 0.6)
-                border.width: root.isVideoMode ? s(2) : 1
-                scale: root.isVideoMode ? 1.15 : (videoMa.containsMouse ? 1.08 : 1.0)
-                
-                Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-                Behavior on border.color { ColorAnimation { duration: 300 } }
-                Behavior on color { ColorAnimation { duration: 250 } }
+            Rectangle { width: s(2); Layout.fillHeight: true; Layout.topMargin: s(10); Layout.bottomMargin: s(10); color: _theme.surface0; radius: s(1) }
 
-                Text { anchors.centerIn: parent; font.family: "Iosevka Nerd Font"; text: ""; color: root.isVideoMode ? _theme.text : Qt.rgba(_theme.text.r, _theme.text.g, _theme.text.b, 0.7); font.pixelSize: s(16) }
-                MouseArea { id: videoMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.isVideoMode = true }
-            }
-
-            Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; Layout.topMargin: s(12); Layout.bottomMargin: s(12); color: Qt.rgba(_theme.surface1.r, _theme.surface1.g, _theme.surface1.b, 0.6) }
-
-            // Dynamic Toolbar Button Component
+            // Edits 4: Restyled Toolbar Button to ensure text and labels are not squashed
             component ToolbarBtn: Rectangle {
                 property string iconTxt: ""
                 property string label: ""
                 property bool isDanger: false
                 signal clicked()
 
-                // Calculate width properly to avoid squashing text (increased padding to s(36))
-                implicitWidth: label !== "" ? (txt.implicitWidth + iconText.implicitWidth + s(36)) : s(36)
-                implicitHeight: s(36)
-                radius: s(10)
-                
-                color: ma.containsMouse ? (isDanger ? Qt.rgba(_theme.red.r, _theme.red.g, _theme.red.b, 0.2) : _theme.surface2) : "transparent"
-                border.color: ma.containsMouse ? (isDanger ? _theme.red : _theme.text) : Qt.rgba(_theme.surface1.r, _theme.surface1.g, _theme.surface1.b, 0.6)
-                border.width: ma.containsMouse ? s(2) : 1
-                scale: ma.containsMouse ? 1.05 : 1.0
-
-                Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-                Behavior on border.color { ColorAnimation { duration: 300 } }
+                Layout.preferredHeight: s(36)
+                // Calculate width to accommodate text label if present, ensuring it is not squashed
+                Layout.preferredWidth: label !== "" ? (txt.implicitWidth + s(36)) : s(36)
+                radius: s(18)
+                color: ma.containsMouse ? (isDanger ? Qt.alpha(_theme.red, 0.2) : _theme.surface0) : "transparent"
                 Behavior on color { ColorAnimation { duration: 150 } }
 
-                Row {
+                RowLayout {
                     anchors.centerIn: parent
-                    spacing: s(8)
-                    Text { id: iconText; font.family: "Iosevka Nerd Font"; text: parent.parent.iconTxt; color: parent.parent.isDanger ? _theme.red : (ma.containsMouse ? _theme.text : Qt.rgba(_theme.text.r, _theme.text.g, _theme.text.b, 0.7)); font.pixelSize: s(16) }
-                    Text { id: txt; visible: parent.parent.label !== ""; font.family: "JetBrains Mono"; font.bold: true; text: parent.parent.label; color: parent.parent.isDanger ? _theme.red : (ma.containsMouse ? _theme.text : Qt.rgba(_theme.text.r, _theme.text.g, _theme.text.b, 0.7)); font.pixelSize: s(14) }
+                    spacing: s(6)
+                    Text { font.family: "Iosevka Nerd Font"; text: parent.parent.iconTxt; color: parent.parent.isDanger ? _theme.red : _theme.text; font.pixelSize: s(18) }
+                    Text { id: txt; visible: parent.parent.label !== ""; font.family: "JetBrains Mono"; font.weight: Font.DemiBold; text: parent.parent.label; color: parent.parent.isDanger ? _theme.red : _theme.text; font.pixelSize: s(13) }
                 }
                 MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: parent.clicked() }
             }
 
-            // Fixed-Width Crossfade Area
-            // This forces the toolbar to ALWAYS stay the exact same width, while Record automatically stretches to fill the space.
-            Item {
-                Layout.preferredWidth: captureEditRow.implicitWidth
-                Layout.preferredHeight: s(36)
+            // Controls
+            ToolbarBtn { visible: !root.isVideoMode; iconTxt: "󰄄"; label: "Capture"; onClicked: root.executeCapture(false, false) }
+            ToolbarBtn { visible: !root.isVideoMode; iconTxt: "󰏫"; label: "Edit"; onClicked: root.executeCapture(true, false) }
+            ToolbarBtn { visible: root.isVideoMode; iconTxt: "󰑊"; label: "Record"; isDanger: true; onClicked: root.executeCapture(false, true) }
 
-                Row {
-                    id: captureEditRow
-                    anchors.fill: parent
-                    spacing: s(12)
-                    opacity: !root.isVideoMode ? 1 : 0
-                    visible: opacity > 0
-                    Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.InOutQuad } }
-                    
-                    ToolbarBtn { iconTxt: "󰄄"; label: "Capture"; onClicked: root.executeCapture(false, false) }
-                    ToolbarBtn { iconTxt: "󰏫"; label: "Edit"; onClicked: root.executeCapture(true, false) }
-                }
-
-                ToolbarBtn {
-                    id: recordBtn
-                    anchors.fill: parent
-                    opacity: root.isVideoMode ? 1 : 0
-                    visible: opacity > 0
-                    Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.InOutQuad } }
-                    
-                    iconTxt: "󰑊"
-                    label: "Record"
-                    isDanger: true
-                    onClicked: root.executeCapture(false, true)
-                }
-            }
-
-            Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; Layout.topMargin: s(12); Layout.bottomMargin: s(12); color: Qt.rgba(_theme.surface1.r, _theme.surface1.g, _theme.surface1.b, 0.6) }
+            Rectangle { width: s(2); Layout.fillHeight: true; Layout.topMargin: s(10); Layout.bottomMargin: s(10); color: _theme.surface0; radius: s(1) }
             
             // Fullscreen / Window Toggle
             ToolbarBtn { iconTxt: root.isMaximized ? "" : ""; onClicked: root.toggleMaximize() }
