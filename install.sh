@@ -144,6 +144,11 @@ case $OS in
             PKG_MANAGER="sudo pacman -S --noconfirm --needed"
         fi
         ;;
+    fedora)
+        echo -e "${C_RED}Unsupported OS ($OS). This script strictly supports Arch Linux and its derivatives.${RESET}"
+        echo -e "${C_YELLOW}Fedora install scripts coming soon.${RESET}"
+        exit 1
+        ;;
     *)
         echo -e "${C_RED}Unsupported OS ($OS). This script strictly supports Arch Linux and its derivatives.${RESET}"
         exit 1
@@ -422,7 +427,7 @@ manage_drivers() {
 
 manage_keyboard() {
     local available_layouts=(
-        "us - English (US)" "gb - English (UK)" "au - English (Australia)"
+        "gb - English (UK)" "au - English (Australia)"
         "ca - English/French (Canada)" "ie - English (Ireland)"
         "nz - English (New Zealand)" "za - English (South Africa)"
         "fr - French" "be - Belgian" "ch - Swiss"
@@ -448,15 +453,15 @@ manage_keyboard() {
         "latam - Spanish (Latin America)"
         "al - Albanian" "fo - Faroese"
     )
-    local selected_codes=()
-    local selected_names=()
+    local selected_codes=("us")
+    local selected_names=("English (US)")
 
     while true; do
         draw_header
         echo -e "${BOLD}${C_CYAN}=== Keyboard Layout Configuration ===${RESET}\n"
 
         if [ ${#selected_codes[@]} -gt 0 ]; then
-            echo -e "Currently added: ${C_GREEN}$(IFS=', '; echo "${selected_names[*]}")${RESET}\n"
+            echo -e "Currently added (US is mandatory): ${C_GREEN}$(IFS=', '; echo "${selected_names[*]}")${RESET}\n"
         fi
 
         local choice
@@ -470,11 +475,6 @@ manage_keyboard() {
             --header=" Select a language to add, or select Done ")
 
         if [[ -z "$choice" || "$choice" == *"Done"* ]]; then
-            # Enforce at least one layout
-            if [ ${#selected_codes[@]} -eq 0 ]; then
-                selected_codes=("us")
-                selected_names=("English (US)")
-            fi
             break
         fi
 
@@ -837,6 +837,13 @@ while true; do
     elif [[ "$WEATHER_API_KEY" == "Skipped" ]]; then API_DISPLAY="Skipped"
     else API_DISPLAY="Set ($WEATHER_UNIT, ID: $WEATHER_CITY_ID)"; fi
 
+    # Determine label for the install button
+    if [ "$LOCAL_VERSION" != "Not Installed" ] && [ -n "$LOCAL_VERSION" ]; then
+        INSTALL_LABEL="UPDATE"
+    else
+        INSTALL_LABEL="START"
+    fi
+
     # Build the color-coded menu string
     MENU_ITEMS="1. $S_PKG ${C_GREEN}Manage Packages${RESET} [${#PKGS[@]} queued, Optional]\n"
     MENU_ITEMS+="2. $S_OVW ${C_CYAN}Overview & Keybinds${RESET} [Optional]\n"
@@ -844,7 +851,7 @@ while true; do
     MENU_ITEMS+="4. $S_DRV ${C_RED}[ DRIVERS ] Setup${RESET} [${DRIVER_CHOICE}, Optional]\n"
     MENU_ITEMS+="5. $S_KBD ${C_BLUE}Keyboard Layout Setup${RESET} [${KB_LAYOUTS_DISPLAY:-$KB_LAYOUTS}]\n"
     MENU_ITEMS+="6. $S_TEL ${C_CYAN}Telemetry Settings${RESET}\n"
-    MENU_ITEMS+="7. ${BOLD}${C_MAGENTA}START INSTALLATION${RESET}\n"
+    MENU_ITEMS+="7. ${BOLD}${C_MAGENTA}${INSTALL_LABEL}${RESET}\n"
     MENU_ITEMS+="8. ${DIM}Exit${RESET}"
 
     # We use --ansi flag in fzf so the color codes render properly inside the menu list
@@ -1037,7 +1044,16 @@ else
         NEW_COMMIT=$(git -C "$CLONE_DIR" rev-parse HEAD 2>/dev/null)
     else
         OLD_COMMIT="$LAST_COMMIT"
-        git clone "$REPO_URL" "$CLONE_DIR" > /dev/null 2>&1
+        # Clone with dynamic progress bar
+        git clone --progress "$REPO_URL" "$CLONE_DIR" 2>&1 | tr '\r' '\n' | while read -r line; do
+            if [[ "$line" =~ Receiving\ objects:\ *([0-9]+)% ]]; then
+                pc="${BASH_REMATCH[1]}"
+                fill=$(printf "%*s" $((pc / 2)) "" | tr ' ' '#')
+                empty=$(printf "%*s" $((50 - (pc / 2))) "" | tr ' ' '-')
+                printf "\r\033[K  -> Downloading repo: [%s%s] %3d%%" "$fill" "$empty" "$pc"
+            fi
+        done
+        echo "" # Ensure clean new line after the progress bar
         NEW_COMMIT=$(git -C "$CLONE_DIR" rev-parse HEAD 2>/dev/null)
     fi
     REPO_DIR="$CLONE_DIR"
@@ -1420,7 +1436,7 @@ if [ -f "$SETTINGS_FILE" ]; then
     tmp_json=$(mktemp)
     # Update the existing file, ensuring 'language', 'wallpaperDir', and 'kbOptions' are set
     jq --arg langs "$KB_LAYOUTS" --arg wpdir "$WALLPAPER_DIR" --arg kbopt "$KB_OPTIONS" \
-       '.language = $langs | .wallpaperDir = $wpdir | .kbOptions = $kbopt' "$SETTINGS_FILE" > "$tmp_json" && mv "$tmp_json" "$SETTINGS_FILE"
+        '.language = $langs | .wallpaperDir = $wpdir | .kbOptions = $kbopt' "$SETTINGS_FILE" > "$tmp_json" && mv "$tmp_json" "$SETTINGS_FILE"
 else
     mkdir -p "$(dirname "$SETTINGS_FILE")"
     # Generate the full expected default structure for the QML guide
