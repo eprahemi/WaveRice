@@ -176,9 +176,11 @@ PanelWindow {
                         cursorShape: Qt.PointingHandCursor
                         
                         onClicked: {
-                            // 1. Intercept custom scripts and open the file natively in QML
+                            // 1. Intercept custom scripts and open the FOLDER natively in QML
                             if ((model.appName === "Screenshot" || model.appName === "Screen Recorder") && model.iconPath !== "") {
-                                Quickshell.execDetached(["xdg-open", model.iconPath])
+                                // Extract the folder path by cutting off everything after the last '/'
+                                let folderPath = model.iconPath.substring(0, model.iconPath.lastIndexOf('/'))
+                                Quickshell.execDetached(["xdg-open", folderPath])
                             } 
                             // 2. Standard Freedesktop action for regular apps
                             else {
@@ -202,8 +204,6 @@ PanelWindow {
                             Behavior on opacity { NumberAnimation { duration: 250 } }
                         }
                     }
-
-
                     ColumnLayout {
                         id: contentCol
                         anchors.left: parent.left

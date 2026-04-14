@@ -40,7 +40,6 @@ if [ -f "$CACHE_DIR/wl_pid" ]; then
         fi
 
         if [ -f "$FINAL_FILE" ]; then
-            # Text restored to show paths. QML still intercepts using the -i path.
             notify-send -a "Screen Recorder" -i "$FINAL_FILE" "⏺ Recording Saved" "File: $(basename "$FINAL_FILE")\nFolder: $RECORD_DIR"
         fi
     else
