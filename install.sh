@@ -1104,7 +1104,7 @@ elif [ "$OLD_COMMIT" == "$NEW_COMMIT" ] && [ -n "$OLD_COMMIT" ]; then
     echo -e "  -> Repository is up to date (${C_YELLOW}${NEW_COMMIT::7}${RESET}). Only applying upstream changes (None found)."
 fi
 
-SETTINGS_FILE="$TARGET_CONFIG_DIR/hypr/scripts/quickshell/settings.json"
+SETTINGS_FILE="$TARGET_CONFIG_DIR/hypr/scripts/settings.json"
 
 if [ "$DO_FULL_INSTALL" = true ]; then
     echo "  -> Performing Full Install / Overwrite..."
