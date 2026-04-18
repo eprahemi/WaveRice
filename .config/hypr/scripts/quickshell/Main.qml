@@ -12,6 +12,14 @@ import "notifications" as Notifs
 PanelWindow {
     id: masterWindow
     color: "transparent"
+    
+    IpcHandler {
+        target: "main"
+    
+        function forceReload() {
+            Quickshell.reload(true) 
+        }
+    }
 
     WlrLayershell.namespace: "qs-master"
     WlrLayershell.layer: WlrLayer.Overlay

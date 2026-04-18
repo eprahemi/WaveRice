@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.5.1"
+DOTS_VERSION="1.5.2"
 VERSION_FILE="$HOME/.local/state/imperative-dots-version"
 
 # Prevent the TTY/Console from falling asleep (black screen) during long package builds
@@ -11,11 +11,33 @@ setterm -blank 0 -powerdown 0 2>/dev/null || true
 printf '\033[9;0]' 2>/dev/null || true
 
 # Global Variables & Initial States (Defaults)
-WALLPAPER_DIR="$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")/Wallpapers"
+USER_PICTURES_DIR="$(xdg-user-dir PICTURES 2>/dev/null)"
+[[ -z "$USER_PICTURES_DIR" || "$USER_PICTURES_DIR" == "$HOME" ]] && USER_PICTURES_DIR="$HOME/Pictures"
+USER_PICTURES_DIR="${USER_PICTURES_DIR%/}" # Strip trailing slash if present
+
+USER_VIDEOS_DIR="$(xdg-user-dir VIDEOS 2>/dev/null)"
+[[ -z "$USER_VIDEOS_DIR" || "$USER_VIDEOS_DIR" == "$HOME" ]] && USER_VIDEOS_DIR="$HOME/Videos"
+USER_VIDEOS_DIR="${USER_VIDEOS_DIR%/}" # Strip trailing slash if present
+
+WALLPAPER_DIR="$USER_PICTURES_DIR/Wallpapers"
 WEATHER_API_KEY=""
 WEATHER_CITY_ID=""
 WEATHER_UNIT=""
 FAILED_PKGS=()
+
+TARGET_BRANCH="master"
+
+# Check if the --dev flag was passed
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --dev) TARGET_BRANCH="dev"; shift ;;
+        *) shift ;;
+    esac
+done
+
+if [[ "$TARGET_BRANCH" == "dev" ]]; then
+    echo -e "${C_YELLOW}[!] RUNNING IN DEVELOPMENT MODE (Branch: dev)${RESET}"
+fi
 
 # Optional Component States
 OPT_SDDM=false
@@ -101,6 +123,7 @@ ARCH_PKGS=(
     "grim" "playerctl" "satty" "yq" "xdg-desktop-portal-gtk" "slurp" "mpvpaper"
     "wmctrl" "power-profiles-daemon" "easyeffects" "swayosd-git" "nautilus" "lsp-plugins" "hyprpolkitagent"
     "qt5-wayland" "qt5-quickcontrols" "qt5-quickcontrols2" "qt5-graphicaleffects" "qt6-wayland"
+    "qt5ct" "qt6ct" "gpu-screen-recorder" "adw-gtk-theme"
 )
 
 # ==============================================================================
@@ -184,6 +207,34 @@ elif echo "$GPU_INFO" | grep -qi "intel"; then
     GPU_VENDOR="INTEL"
 elif echo "$GPU_INFO" | grep -qi "vmware\|virtualbox\|qxl\|virtio\|bochs"; then
     GPU_VENDOR="VM"
+fi
+
+# ==============================================================================
+# Sync State from Existing settings.json (Prevents drift on updates)
+# ==============================================================================
+EXISTING_SETTINGS="$HOME/.config/hypr/scripts/settings.json"
+if [ -f "$EXISTING_SETTINGS" ] && command -v jq &>/dev/null; then
+    _sj_lang=$(jq -r 'if has("language") then (.language // "") else "IGNORE_ME" end' "$EXISTING_SETTINGS" 2>/dev/null)
+    _sj_kbopt=$(jq -r 'if has("kbOptions") then (.kbOptions // "") else "IGNORE_ME" end' "$EXISTING_SETTINGS" 2>/dev/null)
+    _sj_wpdir=$(jq -r 'if has("wallpaperDir") then (.wallpaperDir // "") else "IGNORE_ME" end' "$EXISTING_SETTINGS" 2>/dev/null)
+
+    if [[ "$_sj_lang" != "IGNORE_ME" ]]; then
+        KB_LAYOUTS="$_sj_lang"
+        if [ "$KB_LAYOUTS" != "$( (source "$VERSION_FILE" 2>/dev/null; echo "$KB_LAYOUTS") )" ] || [ -z "$KB_LAYOUTS_DISPLAY" ]; then
+            KB_LAYOUTS_DISPLAY="$_sj_lang"
+        fi
+        VISITED_KEYBOARD=true
+    fi
+
+    if [[ "$_sj_kbopt" != "IGNORE_ME" ]]; then
+        KB_OPTIONS="$_sj_kbopt"
+    fi
+
+    if [[ "$_sj_wpdir" != "IGNORE_ME" ]] && [[ -n "$_sj_wpdir" ]]; then
+        _sj_wpdir="${_sj_wpdir%/}" # Strip trailing slash from JSON load
+        WALLPAPER_DIR="$_sj_wpdir"
+        USER_PICTURES_DIR="$(dirname "$_sj_wpdir")"
+    fi
 fi
 
 # ==============================================================================
@@ -477,8 +528,28 @@ manage_keyboard() {
         "latam - Spanish (Latin America)"
         "al - Albanian" "fo - Faroese"
     )
-    local selected_codes=("us")
-    local selected_names=("English (US)")
+    
+    local selected_codes=()
+    local selected_names=()
+
+    # Seed the interactive menu arrays with your globally saved layouts
+    if [[ -n "$KB_LAYOUTS" ]]; then
+        IFS=',' read -ra tmp_codes <<< "$KB_LAYOUTS"
+        for code in "${tmp_codes[@]}"; do
+            selected_codes+=("$(echo "$code" | xargs)") # xargs cleanly trims any spaces
+        done
+    else
+        selected_codes=("us")
+    fi
+
+    if [[ -n "$KB_LAYOUTS_DISPLAY" ]]; then
+        IFS=',' read -ra tmp_names <<< "$KB_LAYOUTS_DISPLAY"
+        for name in "${tmp_names[@]}"; do
+            selected_names+=("$(echo "$name" | xargs)")
+        done
+    else
+        selected_names=("English (US)")
+    fi
 
     while true; do
         draw_header
@@ -489,7 +560,7 @@ manage_keyboard() {
         fi
 
         local choice
-        choice=$(printf "%s\n" "Done (Finish Selection)" "${available_layouts[@]}" | fzf \
+        choice=$(printf "%s\n" "Done (Finish Selection)" "Reset (Clear All Except US)" "${available_layouts[@]}" | fzf \
             --layout=reverse \
             --border=rounded \
             --margin=1,2 \
@@ -501,12 +572,29 @@ manage_keyboard() {
         if [[ -z "$choice" || "$choice" == *"Done"* ]]; then
             break
         fi
+        
+        if [[ "$choice" == *"Reset"* ]]; then
+            selected_codes=("us")
+            selected_names=("English (US)")
+            continue
+        fi
 
         local code=$(echo "$choice" | awk '{print $1}')
         local name=$(echo "$choice" | cut -d'-' -f2- | sed 's/^ //')
 
-        selected_codes+=("$code")
-        selected_names+=("$name")
+        # Prevent adding duplicates
+        local duplicate=false
+        for existing in "${selected_codes[@]}"; do
+            if [[ "$existing" == "$code" ]]; then
+                duplicate=true
+                break
+            fi
+        done
+
+        if [ "$duplicate" = false ]; then
+            selected_codes+=("$code")
+            selected_names+=("$name")
+        fi
     done
 
     while true; do
@@ -813,7 +901,6 @@ prompt_optional_features_menu() {
             --pointer=">" \
             --header=" SPACE or ENTER to toggle. Select Proceed when ready. ")
 
-        # FIXED: Added the dot and matched exactly against the list prefix
         case "$choice" in
             *"1."*) OPT_SDDM=$([ "$OPT_SDDM" = true ] && echo false || echo true) ;;
             *"2."*) OPT_NVIM=$([ "$OPT_NVIM" = true ] && echo false || echo true) ;;
@@ -905,7 +992,6 @@ while true; do
         --pointer=">" \
         --header=" Navigate with ARROWS. Select with ENTER. ")
 
-    # FIXED: Added the dot and matched exactly against the list prefix
     case "$MENU_OPTION" in
         *"1."*) manage_packages ;;
         *"2."*) show_overview ;;
@@ -1083,13 +1169,14 @@ else
         
         # Bulletproof update: discard any accidental local changes that would block a pull
         git -C "$CLONE_DIR" fetch --all > /dev/null 2>&1
-        git -C "$CLONE_DIR" reset --hard @{u} > /dev/null 2>&1 || git -C "$CLONE_DIR" pull --force > /dev/null 2>&1
+    git -C "$CLONE_DIR" checkout "$TARGET_BRANCH" > /dev/null 2>&1
+    git -C "$CLONE_DIR" reset --hard "origin/$TARGET_BRANCH" > /dev/null 2>&1
         
         NEW_COMMIT=$(git -C "$CLONE_DIR" rev-parse HEAD 2>/dev/null)
     else
         OLD_COMMIT="$LAST_COMMIT"
         # Clone with dynamic progress bar
-        git clone --progress "$REPO_URL" "$CLONE_DIR" 2>&1 | tr '\r' '\n' | while read -r line; do
+        git clone -b "$TARGET_BRANCH" --progress "$REPO_URL" "$CLONE_DIR" 2>&1 | tr '\r' '\n' | while read -r line; do
             if [[ "$line" =~ Receiving\ objects:\ *([0-9]+)% ]]; then
                 pc="${BASH_REMATCH[1]}"
                 fill=$(printf "%*s" $((pc / 2)) "" | tr ' ' '#')
@@ -1220,7 +1307,10 @@ if [ "$DO_FULL_INSTALL" = true ]; then
         fi
     done
     
-    # Safely restore settings.json if it existed prior to the copy loop
+    # Safely restore settings.json if it existed prior to the copy loop.
+    # This preserves all user-customized fields (uiScale, openGuideAtStartup, etc.)
+    # while the adaptability phase below will overwrite only the fields we control
+    # (language, kbOptions, wallpaperDir) with the authoritative values from this run.
     if [ -f "$BACKUP_DIR/settings.json.bak" ]; then
         mkdir -p "$(dirname "$SETTINGS_FILE")"
         cp "$BACKUP_DIR/settings.json.bak" "$SETTINGS_FILE"
@@ -1251,6 +1341,14 @@ else
                 SOURCE_FILE="$REPO_DIR/$file"
                 TARGET_FILE="$HOME/$file"
                 REL_PATH="${file#\.config/}"
+
+                # Never overwrite settings.json from upstream during a partial update —
+                # the adaptability phase at the end of the script is the sole writer for
+                # the fields it manages, and all other fields belong to the user.
+                if [[ "$file" == *"settings.json" ]]; then
+                    echo "    -> Skipped (user-owned): $file"
+                    continue
+                fi
 
                 if [ -f "$TARGET_FILE" ]; then
                     # Backup specifically modified files retaining the folder structure
@@ -1394,7 +1492,7 @@ if command -v fc-cache &> /dev/null; then
     printf "  -> Font cache updated %-21s ${C_GREEN}[ OK ]${RESET}\n" ""
 fi
 
-# --- 6. Adaptability Phase ---
+# --- 6. Adaptability Phase & Theming ---
 rm -f "$HOME/.cache/wallpaper_initialized" # if reinstalling
 echo -e "\n${C_CYAN}[ INFO ]${RESET} Adapting configurations to your specific system..."
 
@@ -1441,11 +1539,13 @@ if [ -f "$HYPR_CONF" ]; then
 
     # 0. Inject Keyboard Layout Configurations dynamically
     echo -e "  -> Applying Keyboard configuration to hyprland.conf..."
-    sed -i "s/^ *kb_layout =.*/    kb_layout = $KB_LAYOUTS/" "$HYPR_CONF"
+    # Using -E and [[:space:]]* to catch tabs, spaces, and missing spaces around the equals sign
+    sed -i -E "s/^[[:space:]]*kb_layout[[:space:]]*=.*/    kb_layout = $KB_LAYOUTS/" "$HYPR_CONF"
+    
     if [ -n "$KB_OPTIONS" ]; then
-        sed -i "s/^ *kb_options =.*/    kb_options = $KB_OPTIONS/" "$HYPR_CONF"
+        sed -i -E "s/^[[:space:]]*kb_options[[:space:]]*=.*/    kb_options = $KB_OPTIONS/" "$HYPR_CONF"
     else
-        sed -i "s/^ *kb_options =.*/    kb_options = /" "$HYPR_CONF"
+        sed -i -E "s/^[[:space:]]*kb_options[[:space:]]*=.*/    kb_options = /" "$HYPR_CONF"
     fi
 
     # ========================================================================
@@ -1460,13 +1560,19 @@ if [ -f "$HYPR_CONF" ]; then
     # Also clean up legacy sed attempts just to be safe so they don't linger
     sed -i '/env = WALLPAPER_DIR/d' "$HYPR_CONF"
     sed -i '/env = SCRIPT_DIR/d' "$HYPR_CONF"
+    sed -i '/env = QT_QPA_PLATFORMTHEME/d' "$HYPR_CONF"
+    sed -i '/env = XDG_PICTURES_DIR/d' "$HYPR_CONF"
+    sed -i '/env = XDG_VIDEOS_DIR/d' "$HYPR_CONF"
 
     # 2. Start the new injection block at the absolute end of the file
     cat <<EOF >> "$HYPR_CONF"
 
 # === DOTFILES AUTO-INJECTED ENV ===
+env = XDG_PICTURES_DIR,$USER_PICTURES_DIR
+env = XDG_VIDEOS_DIR,$USER_VIDEOS_DIR
 env = WALLPAPER_DIR,$WALLPAPER_DIR
 env = SCRIPT_DIR,$HOME/.config/hypr/scripts
+env = QT_QPA_PLATFORMTHEME,qt6ct
 EOF
 
     # 3. Inject NVIDIA specific config if detected
@@ -1505,16 +1611,22 @@ else
     echo -e "${C_RED}Warning: hyprland.conf not found at $HYPR_CONF${RESET}"
 fi
 
-# -> Inject Settings and Keyboard Layouts into settings.json <-
-echo -e "  -> Syncing Settings and Keyboard languages to settings.json..."
+# -> Sync settings.json: write only the fields the installer owns.
+# All other fields the user may have set (uiScale, openGuideAtStartup, etc.)
+# are preserved by jq's merging strategy (existing file is read first, then
+# only the three installer-owned keys are overwritten).
+echo -e "  -> Syncing installer-owned fields to settings.json..."
 if [ -f "$SETTINGS_FILE" ]; then
     tmp_json=$(mktemp)
-    # Update the existing file, ensuring 'language', 'wallpaperDir', and 'kbOptions' are set
-    jq --arg langs "$KB_LAYOUTS" --arg wpdir "$WALLPAPER_DIR" --arg kbopt "$KB_OPTIONS" \
-        '.language = $langs | .wallpaperDir = $wpdir | .kbOptions = $kbopt' "$SETTINGS_FILE" > "$tmp_json" && mv "$tmp_json" "$SETTINGS_FILE"
+    jq --arg langs "$KB_LAYOUTS" \
+       --arg wpdir "$WALLPAPER_DIR" \
+       --arg kbopt "$KB_OPTIONS" \
+       '.language = $langs | .wallpaperDir = $wpdir | .kbOptions = $kbopt' \
+       "$SETTINGS_FILE" > "$tmp_json" && mv "$tmp_json" "$SETTINGS_FILE"
+    printf "  -> settings.json updated (user fields preserved) %-3s ${C_GREEN}[ OK ]${RESET}\n" ""
 else
+    # File does not exist yet — generate the full default structure.
     mkdir -p "$(dirname "$SETTINGS_FILE")"
-    # Generate the full expected default structure for the QML guide
     cat <<EOF > "$SETTINGS_FILE"
 {
   "uiScale": 1.0,
@@ -1525,6 +1637,7 @@ else
   "kbOptions": "$KB_OPTIONS"
 }
 EOF
+    printf "  -> settings.json created with defaults %-13s ${C_GREEN}[ OK ]${RESET}\n" ""
 fi
 
 # 4. Patch WallpaperPicker.qml dynamically
@@ -1554,6 +1667,63 @@ if [ -f "$ZSH_RC" ]; then
 
     sed -i "s/OS_LOGO_PLACEHOLDER/${OS}_small/g" "$ZSH_RC"
 fi
+
+# --- 6.5 Config GTK and Qt Automated Setup ---
+echo -e "\n${C_CYAN}[ INFO ]${RESET} Configuring GTK and Qt Theming Engines..."
+
+# 1. Set GTK Base Theme via dconf (equivalent to dconf.settings in NixOS)
+gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' 2>/dev/null || true
+gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark' 2>/dev/null || true
+
+# 2. Configure GTK3 and GTK4 settings and Matugen CSS injection
+mkdir -p "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
+
+# Inject Matugen CSS imports for dynamic colors
+echo '@import url("file://'"$HOME"'/.cache/matugen/colors-gtk.css");' > "$HOME/.config/gtk-3.0/gtk.css"
+echo '@import url("file://'"$HOME"'/.cache/matugen/colors-gtk.css");' > "$HOME/.config/gtk-4.0/gtk.css"
+
+# Set GTK3 specific settings (Dark mode + adw-gtk3-dark theme)
+cat <<EOF > "$HOME/.config/gtk-3.0/settings.ini"
+[Settings]
+gtk-application-prefer-dark-theme=1
+gtk-theme-name=adw-gtk3-dark
+EOF
+
+# Set GTK4 specific settings (Just Dark mode preference)
+cat <<EOF > "$HOME/.config/gtk-4.0/settings.ini"
+[Settings]
+gtk-application-prefer-dark-theme=1
+EOF
+
+# 3. Configure Qt5ct and Qt6ct automatically
+mkdir -p "$HOME/.config/qt5ct/colors" "$HOME/.config/qt5ct/qss"
+mkdir -p "$HOME/.config/qt6ct/colors" "$HOME/.config/qt6ct/qss"
+
+cat <<EOF > "$HOME/.config/qt5ct/qt5ct.conf"
+[Appearance]
+color_scheme_path=$HOME/.config/qt5ct/colors/matugen.conf
+custom_palette=true
+standard_dialogs=default
+style=Fusion
+stylesheets=$HOME/.config/qt5ct/qss/matugen-style.qss
+
+[Interface]
+stylesheets=$HOME/.config/qt5ct/qss/matugen-style.qss
+EOF
+
+cat <<EOF > "$HOME/.config/qt6ct/qt6ct.conf"
+[Appearance]
+color_scheme_path=$HOME/.config/qt6ct/colors/matugen.conf
+custom_palette=true
+standard_dialogs=default
+style=Fusion
+stylesheets=$HOME/.config/qt6ct/qss/matugen-style.qss
+
+[Interface]
+stylesheets=$HOME/.config/qt6ct/qss/matugen-style.qss
+EOF
+
+printf "  -> Matugen GTK & Qt environment initialized %-4s ${C_GREEN}[ OK ]${RESET}\n" ""
 
 echo -e "\n${C_CYAN}[ INFO ]${RESET} Enabling Core System Services..."
 sudo systemctl enable NetworkManager.service
@@ -1604,6 +1774,10 @@ EOF
 fi
 
 # --- 8. Finalize Version Marker & User State Persistence ---
+# Write back all installer-owned state so the next run starts from a consistent baseline.
+# Note: KB_LAYOUTS and KB_OPTIONS here reflect the values the user confirmed in this
+# run's TUI (which were already seeded from settings.json at startup), so VERSION_FILE
+# and settings.json are guaranteed to agree after every install.
 cat <<EOF > "$VERSION_FILE"
 LOCAL_VERSION="$DOTS_VERSION"
 LAST_COMMIT="$NEW_COMMIT"
@@ -1625,7 +1799,7 @@ printf "  -> Configuration and version state saved %-7s ${C_GREEN}[ OK ]${RESET}
 echo -e "\n${BOLD}${C_GREEN}"
 cat << "EOF"
   ___ _  _ ___ _____ _   _    _      _ _____ ___ ___  _  _    ___ ___  __  __ ___ _    ___ _____ ___ 
- |_ _| \| / __|_   _/_\ | |  | |    /_\_   _|_ _/ _ \| \| |  / __/ _ \|  \/  | _ \ |  | __|_   _| __|
+ |_ _| \| / __|_   _/_\ | |  | |    /_\_   _|_ _/ _ \| \| |  / __/ _ \ |  \/  | _ \ |  | __|_   _| __|
   | || .` \__ \ | |/ _ \| |__| |__ / _ \| |  | | (_) | .` | | (_| (_) | |\/| |  _/ |__| _|  | | | _| 
  |___|_|\_|___/ |_/_/ \_\____|____/_/ \_\_| |___\___/|_|\_|  \___\___/|_|  |_|_| |____|___| |_| |___|
                                                                                                      

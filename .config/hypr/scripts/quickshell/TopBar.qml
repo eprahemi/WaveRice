@@ -9,10 +9,18 @@ import Quickshell.Services.SystemTray
 
 Variants {
     model: Quickshell.screens
-    
+
     delegate: Component {
         PanelWindow {
             id: barWindow
+
+	    IpcHandler {
+    		target: "topbar"
+    
+    		function forceReload() {
+            	    Quickshell.reload(true) 
+    		}
+	    }
 
             required property var modelData
             
@@ -104,10 +112,10 @@ Variants {
                 }
             }
             
-            // Background poller to check if wl-screenrec is active
+            // Background poller to check if gpu-screen-recorder is active via its PID file
             Process {
                 id: recPoller
-                command: ["bash", "-c", "pgrep -x wl-screenrec >/dev/null && echo '1' || echo '0'"]
+                command: ["bash", "-c", "if [ -s ~/.cache/qs_recording_state/rec_pid ] && kill -0 $(cat ~/.cache/qs_recording_state/rec_pid) 2>/dev/null; then echo '1'; else echo '0'; fi"]
                 stdout: StdioCollector {
                     onStreamFinished: {
                         barWindow.isRecording = (this.text.trim() === "1");
@@ -299,7 +307,7 @@ Variants {
                                     if (workspacesModel.get(i).wsId !== newData[i].id.toString()) {
                                         workspacesModel.setProperty(i, "wsId", newData[i].id.toString());
                                     }
-                                }
+                    }
                             } catch(e) {}
                         }
                     }
