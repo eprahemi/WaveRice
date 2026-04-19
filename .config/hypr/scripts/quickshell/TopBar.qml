@@ -575,10 +575,17 @@ Variants {
                 anchors.fill: parent
 
                 // ---------------- LEFT CONTENT ----------------
-                Row {
+                Rectangle {
                     id: leftContent
                     y: (parent.height - barWindow.barHeight) / 2
-                    spacing: barWindow.s(4) 
+                    height: barWindow.barHeight
+
+                    // Base unified styling (matches the right system pills)
+                    color: Qt.rgba(mocha.base.r, mocha.base.g, mocha.base.b, 0.75)
+                    radius: barWindow.s(14)
+                    border.width: 1
+                    border.color: Qt.rgba(mocha.text.r, mocha.text.g, mocha.text.b, 0.08)
+                    clip: true
                     
                     property bool showLayout: false
                     
@@ -597,143 +604,153 @@ Variants {
                         onTriggered: leftContent.showLayout = true
                     }
 
-                    // Help
-                    Rectangle {
-                        property bool isHovered: helpMouse.containsMouse
-                        color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.95) : Qt.rgba(mocha.base.r, mocha.base.g, mocha.base.b, 0.75)
-                        radius: barWindow.s(14); border.width: 1; border.color: Qt.rgba(mocha.text.r, mocha.text.g, mocha.text.b, isHovered ? 0.15 : 0.05)
-                        
-                        property real targetWidth: barWindow.showHelpIcon ? barWindow.barHeight : 0
-                        width: targetWidth
-                        height: barWindow.barHeight
-                        visible: targetWidth > 0 || opacity > 0
-                        opacity: barWindow.showHelpIcon ? 1.0 : 0.0
-                        clip: true
-                        
-                        Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutQuint } }
-                        Behavior on opacity { NumberAnimation { duration: 300 } }
-                        
-                        scale: isHovered ? 1.05 : 1.0
-                        Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutExpo } }
-                        Behavior on color { ColorAnimation { duration: 200 } }
-                        
-                        Text {
-                            anchors.centerIn: parent
-                            text: "󰋗"
-                            font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(22)
-                            color: parent.isHovered ? mocha.teal : mocha.text
-                            Behavior on color { ColorAnimation { duration: 200 } }
-                        }
-                        MouseArea {
-                            id: helpMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/qs_manager.sh toggle guide"])
-                        }
-                    }
+                    // Smooth dynamic width calculation based on inner layout
+                    property real targetWidth: leftLayout.width + barWindow.s(16) // 8px horizontal padding on each side
+                    width: targetWidth
+                    Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutQuint } }
 
-                    // Search 
-                    Rectangle {
-                        property bool isHovered: searchMouse.containsMouse
-                        color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.95) : Qt.rgba(mocha.base.r, mocha.base.g, mocha.base.b, 0.75)
-                        radius: barWindow.s(14); border.width: 1; border.color: Qt.rgba(mocha.text.r, mocha.text.g, mocha.text.b, isHovered ? 0.15 : 0.05)
-                        height: barWindow.barHeight; width: barWindow.barHeight
+                    Row {
+                        id: leftLayout
+                        anchors.centerIn: parent
+                        spacing: barWindow.s(4)
                         
-                        scale: isHovered ? 1.05 : 1.0
-                        Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutExpo } }
-                        Behavior on color { ColorAnimation { duration: 200 } }
-                        
-                        Text {
-                            anchors.centerIn: parent
-                            text: "󰍉"
-                            font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(24)
-                            color: parent.isHovered ? mocha.blue : mocha.text
-                            Behavior on color { ColorAnimation { duration: 200 } }
-                        }
-                        MouseArea {
-                            id: searchMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/rofi_show.sh drun"])
-                        }
-                    }
+                        property int pillHeight: barWindow.s(34)
 
-                    // Settings Button 
-                    Rectangle {
-                        property bool isHovered: settingsMouse.containsMouse
-                        color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.95) : Qt.rgba(mocha.base.r, mocha.base.g, mocha.base.b, 0.75)
-                        radius: barWindow.s(14); border.width: 1; border.color: Qt.rgba(mocha.text.r, mocha.text.g, mocha.text.b, isHovered ? 0.15 : 0.05)
-                        height: barWindow.barHeight; width: barWindow.barHeight
-                        
-                        scale: isHovered ? 1.05 : 1.0
-                        Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutExpo } }
-                        Behavior on color { ColorAnimation { duration: 200 } }
-                        
-                        Text {
-                            anchors.centerIn: parent
-                            text: ""
-                            font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(24)
-                            color: parent.isHovered ? mocha.blue : mocha.text
+                        // Help
+                        Rectangle {
+                            property bool isHovered: helpMouse.containsMouse
+                            color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : "transparent"
+                            radius: barWindow.s(10)
+                            
+                            property real targetWidth: barWindow.showHelpIcon ? barWindow.s(34) : 0
+                            width: targetWidth
+                            height: parent.pillHeight
+                            visible: targetWidth > 0 || opacity > 0
+                            opacity: barWindow.showHelpIcon ? 1.0 : 0.0
+                            clip: true
+                            
+                            Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutQuint } }
+                            Behavior on opacity { NumberAnimation { duration: 300 } }
                             Behavior on color { ColorAnimation { duration: 200 } }
-                        }
-                        MouseArea {
-                            id: settingsMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/qs_manager.sh toggle settings"])
-                        }
-                    }
-
-                    // Update Button
-                    Rectangle {
-                        id: updateButton
-                        property bool isHovered: updateMouse.containsMouse
-                        color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.95) : Qt.rgba(mocha.base.r, mocha.base.g, mocha.base.b, 0.75)
-                        radius: barWindow.s(14); border.width: 1; border.color: Qt.rgba(mocha.text.r, mocha.text.g, mocha.text.b, isHovered ? 0.15 : 0.05)
-                        
-                        property real targetWidth: barWindow.updateAvailable ? barWindow.barHeight : 0
-                        width: targetWidth
-                        height: barWindow.barHeight
-                        
-                        visible: targetWidth > 0 || opacity > 0
-                        opacity: barWindow.updateAvailable ? 1.0 : 0.0
-                        clip: true
-                        
-                        Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutQuint } }
-                        Behavior on opacity { NumberAnimation { duration: 300 } }
-                        
-                        scale: isHovered ? 1.05 : 1.0
-                        Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutExpo } }
-                        Behavior on color { ColorAnimation { duration: 200 } }
-                        
-                        property color pulseColor: mocha.green
-                        SequentialAnimation on pulseColor {
-                            running: barWindow.updateAvailable
-                            loops: Animation.Infinite
-                            ColorAnimation { to: mocha.teal; duration: 1500; easing.type: Easing.InOutSine }
-                            ColorAnimation { to: mocha.green; duration: 1500; easing.type: Easing.InOutSine }
-                        }
-                        
-                        Text {
-                            anchors.centerIn: parent
-                            text: "󰚰" // package/update icon
-                            font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(24)
-                            color: parent.isHovered ? mocha.text : parent.pulseColor
-                            Behavior on color { ColorAnimation { duration: 200 } }
+                            
+                            Text {
+                                anchors.centerIn: parent
+                                text: "󰋗"
+                                font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(22)
+                                color: parent.isHovered ? mocha.teal : mocha.text
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                                scale: parent.isHovered ? 1.15 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutExpo } }
+                            }
+                            MouseArea {
+                                id: helpMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/qs_manager.sh toggle guide"])
+                            }
                         }
 
-                        MouseArea {
-                            id: updateMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: {
-                                barWindow.updateAvailable = false;
-                                Quickshell.execDetached(["bash", "-c", "rm -f ~/.cache/qs_update_pending && ~/.config/hypr/scripts/qs_manager.sh toggle updater"]);
+                        // Search 
+                        Rectangle {
+                            property bool isHovered: searchMouse.containsMouse
+                            color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : "transparent"
+                            radius: barWindow.s(10)
+                            height: parent.pillHeight; width: barWindow.s(34)
+                            
+                            Behavior on color { ColorAnimation { duration: 200 } }
+                            
+                            Text {
+                                anchors.centerIn: parent
+                                text: "󰍉"
+                                font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(22)
+                                color: parent.isHovered ? mocha.blue : mocha.text
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                                scale: parent.isHovered ? 1.15 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutExpo } }
+                            }
+                            MouseArea {
+                                id: searchMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/rofi_show.sh drun"])
+                            }
+                        }
+
+                        // Settings Button 
+                        Rectangle {
+                            property bool isHovered: settingsMouse.containsMouse
+                            color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : "transparent"
+                            radius: barWindow.s(10)
+                            height: parent.pillHeight; width: barWindow.s(34)
+                            
+                            Behavior on color { ColorAnimation { duration: 200 } }
+                            
+                            Text {
+                                anchors.centerIn: parent
+                                text: ""
+                                font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(22)
+                                color: parent.isHovered ? mocha.blue : mocha.text
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                                scale: parent.isHovered ? 1.15 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutExpo } }
+                            }
+                            MouseArea {
+                                id: settingsMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/qs_manager.sh toggle settings"])
+                            }
+                        }
+
+                        // Update Button
+                        Rectangle {
+                            id: updateButton
+                            property bool isHovered: updateMouse.containsMouse
+                            color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : "transparent"
+                            radius: barWindow.s(10)
+                            
+                            property real targetWidth: barWindow.updateAvailable ? barWindow.s(34) : 0
+                            width: targetWidth
+                            height: parent.pillHeight
+                            
+                            visible: targetWidth > 0 || opacity > 0
+                            opacity: barWindow.updateAvailable ? 1.0 : 0.0
+                            clip: true
+                            
+                            Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutQuint } }
+                            Behavior on opacity { NumberAnimation { duration: 300 } }
+                            Behavior on color { ColorAnimation { duration: 200 } }
+                            
+                            property color pulseColor: mocha.green
+                            SequentialAnimation on pulseColor {
+                                running: barWindow.updateAvailable
+                                loops: Animation.Infinite
+                                ColorAnimation { to: mocha.teal; duration: 1500; easing.type: Easing.InOutSine }
+                                ColorAnimation { to: mocha.green; duration: 1500; easing.type: Easing.InOutSine }
+                            }
+                            
+                            Text {
+                                anchors.centerIn: parent
+                                text: "󰚰" // package/update icon
+                                font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(22)
+                                color: parent.isHovered ? mocha.text : parent.pulseColor
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                                scale: parent.isHovered ? 1.15 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutExpo } }
+                            }
+
+                            MouseArea {
+                                id: updateMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    barWindow.updateAvailable = false;
+                                    Quickshell.execDetached(["bash", "-c", "rm -f ~/.cache/qs_update_pending && ~/.config/hypr/scripts/qs_manager.sh toggle updater"]);
+                                }
                             }
                         }
                     }
-                }            
-
+                }
                 // ---------------- WORKSPACES ----------------
                 Rectangle {
                     id: workspacesBox

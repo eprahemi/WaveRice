@@ -63,8 +63,8 @@ Item {
     // -------------------------------------------------------------------------
     // SSOT GLOBAL SETTINGS & UPDATES
     // -------------------------------------------------------------------------
-    property bool requiresReload: false // Tracks if changes were applied
-
+    property int initialWorkspaceCount: 8 // Track the value loaded from JSON
+    
     property real setUiScale: 1.0
     property bool setOpenGuideAtStartup: true
     property bool setTopbarHelpIcon: true
@@ -111,9 +111,14 @@ Item {
                   
         Quickshell.execDetached(["bash", "-c", cmd]);
         
-        Quickshell.execDetached(["qs", "-p", Quickshell.env("HOME") + "/.config/hypr/scripts/quickshell/TopBar.qml", "ipc", "call", "topbar", "queueReload"]);
+        // ONLY queue a TopBar reload if the workspace count actually changed
+        if (root.setWorkspaceCount !== root.initialWorkspaceCount) {
+            Quickshell.execDetached(["qs", "-p", Quickshell.env("HOME") + "/.config/hypr/scripts/quickshell/TopBar.qml", "ipc", "call", "topbar", "queueReload"]);
+            
+            // Update the baseline so subsequent saves don't trigger unnecessary reloads
+            root.initialWorkspaceCount = root.setWorkspaceCount; 
+        }
     }
-
     Process {
         id: hyprLangReader
         command: ["bash", "-c", "grep -m1 '^ *kb_layout *=' ~/.config/hypr/hyprland.conf | cut -d'=' -f2 | tr -d ' '"]
@@ -143,9 +148,12 @@ Item {
                         if (parsed.wallpaperDir !== undefined) root.setWallpaperDir = parsed.wallpaperDir;
                         if (parsed.language !== undefined && parsed.language !== "") root.setLanguage = parsed.language;
                         if (parsed.kbOptions !== undefined) root.setKbOptions = parsed.kbOptions;
-                        if (parsed.workspaceCount !== undefined) root.setWorkspaceCount = parsed.workspaceCount;
+                        if (parsed.workspaceCount !== undefined) {
+                            root.setWorkspaceCount = parsed.workspaceCount;
+                            root.initialWorkspaceCount = parsed.workspaceCount; // TRACK BASELINE
+                        }
                     } else {
-                        root.saveAppSettings(false); // Do not trigger reload flag on startup config generation
+                        root.saveAppSettings();
                     }
                 } catch (e) {
                     console.log("Error parsing global settings:", e);
@@ -153,7 +161,6 @@ Item {
             }
         }
     }
-
     ListModel {
         id: langModel
         ListElement { code: "us"; name: "English (US)" }
