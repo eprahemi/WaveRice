@@ -98,9 +98,6 @@ Item {
 
         const escapeBash = (str) => String(str).replace(/(["\\$`])/g, '\\$1');
         
-        // 2. HARDWARE ADAPTATION: Force Vulkan rendering
-        // FIX: Hardcoded to bypass the Quickshell.env check since the backend is required.
-        const renderOverride = "env WGPU_BACKEND=vulkan ";
         const randomTransition = window.transitions[Math.floor(Math.random() * window.transitions.length)];
         
         // 3. AUTO-REVIVE COMMAND: Ensure daemon is alive before sending IPC commands
@@ -132,9 +129,11 @@ Item {
                         ( matugen image "$FINAL_THUMB" || true; bash "$RELOAD_SCRIPT" || true ) &
                         MATUGEN_PID=$!
                         
-                        # DETERMINISTIC LOOP
+                        # GRACEFUL FALLBACK LOOP: Try Vulkan first, fallback to default immediately if it fails
                         for i in {1..20}; do
-                            if ${renderOverride}swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
+                            if env WGPU_BACKEND=vulkan swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
+                                break
+                            elif swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
                                 break
                             fi
                             sleep 0.05
@@ -181,9 +180,11 @@ Item {
                             ( matugen image "$FINAL_THUMB" || true; bash "$RELOAD_SCRIPT" || true ) &
                             MATUGEN_PID=$!
                             
-                            # DETERMINISTIC LOOP
+                            # GRACEFUL FALLBACK LOOP
                             for i in {1..20}; do
-                                if ${renderOverride}swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
+                                if env WGPU_BACKEND=vulkan swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
+                                    break
+                                elif swww img "$DEST_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
                                     break
                                 fi
                                 sleep 0.05
@@ -214,8 +215,11 @@ Item {
         } else {
             wallpaperCmd = `
                 ${ensureDaemonCmd}
+                # GRACEFUL FALLBACK LOOP
                 for i in {1..20}; do
-                    if ${renderOverride}swww img "$WALL_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
+                    if env WGPU_BACKEND=vulkan swww img "$WALL_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
+                        break
+                    elif swww img "$WALL_FILE" --transition-type ${randomTransition} --transition-pos 0.5,0.5 --transition-fps 144 --transition-duration 1 >/dev/null 2>&1; then
                         break
                     fi
                     sleep 0.05
@@ -244,8 +248,8 @@ Item {
             ) </dev/null >/dev/null 2>&1 & disown
         `
         Quickshell.execDetached(["bash", "-c", fullScript])
-    }
-
+    }         
+    
     // -------------------------------------------------------------------------
     // PERSISTENT SETTINGS
     // -------------------------------------------------------------------------
@@ -274,10 +278,6 @@ Item {
                 window.isSearchPaused = true;
             }
         } else {
-            // Force a refresh of the settings from the SSOT every time the picker is opened
-            wpSettingsReader.running = false;
-            wpSettingsReader.running = true;
-
             window.isFilterAnimating = true;
             filterAnimationTimer.restart();
 
@@ -311,6 +311,7 @@ Item {
             if (!window.hasSearched) return "Type something to search...";
             if (window.isSearchPaused) return "Search Paused";
             if (window.visibleItemCount === 0) return "Searching DDG (FHD+)...";
+            // If it's not paused and has items, it is actively generating thumbnails
             return "Generating thumbnails..."; 
         }
 
@@ -323,18 +324,12 @@ Item {
         return window.currentFilter;
     }
     
+    // Block the notification flag during initial load to stop UI shifting
     property bool showNotification: !window.isStartup && currentNotification !== ""
 
     function getCleanName(name) {
         if (!name) return "";
         let clean = String(name);
-        
-        // Ensure paths sent via IPC are stripped
-        let lastSlashIndex = clean.lastIndexOf("/");
-        if (lastSlashIndex !== -1) {
-            clean = clean.substring(lastSlashIndex + 1);
-        }
-        
         return clean.startsWith("000_") ? clean.substring(4) : clean;
     }
 
@@ -395,14 +390,8 @@ Item {
                 }
             }
 
-            // DETERMINISTIC LOGIC:
-            if (foundIndex !== -1) {
-                // Focus the target the moment it arrives in the UI list
-                window.executeFocusRestore(foundIndex, false, true);
-            } else if (localFolderModel.status === FolderListModel.Ready) {
-                // Only snap to 0 if the folder absolutely finished loading
-                window.executeFocusRestore(0, false, true);
-            }
+            let finalIndex = foundIndex !== -1 ? foundIndex : 0;
+            window.executeFocusRestore(finalIndex, false, true);
         }
     }
     
@@ -514,33 +503,11 @@ Item {
     readonly property string homeDir: "file://" + Quickshell.env("HOME")
     readonly property string thumbDir: homeDir + "/.cache/wallpaper_picker/thumbs"
     readonly property string searchDir: homeDir + "/.cache/wallpaper_picker/search_thumbs"
-    property string srcDir: Quickshell.env("HOME") + "/Pictures/Wallpapers"
-
-    Process {
-        id: wpSettingsReader
-        command: ["bash", "-c", "cat ~/.config/hypr/settings.json 2>/dev/null || echo '{}'"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    if (this.text && this.text.trim().length > 0 && this.text.trim() !== "{}") {
-                        let parsed = JSON.parse(this.text);
-                        if (parsed.wallpaperDir) {
-                            let dir = parsed.wallpaperDir.trim();
-                            if (dir.startsWith("~/")) {
-                                dir = Quickshell.env("HOME") + dir.substring(1);
-                            }
-                            if (dir.endsWith("/")) {
-                                dir = dir.substring(0, dir.length - 1);
-                            }
-                            window.srcDir = dir;
-                        }
-                    }
-                } catch (e) {
-                    console.log("Error parsing settings in WallpaperPicker:", e);
-                }
-            }
-        }
+    readonly property string srcDir: {
+    	const dir = Quickshell.env("WALLPAPER_DIR")
+    	return (dir && dir !== "") 
+        ? dir 
+        : Quickshell.env("HOME") + "/Pictures/Wallpapers"
     }
 
     readonly property var transitions: ["grow", "outer", "any", "wipe", "wave", "pixel", "center"]
@@ -825,10 +792,7 @@ Item {
         } else if (window.jumpToLastOnFilterChange && lastValidIndex !== -1) {
             indexToFocus = lastValidIndex;
         } else if (firstValidIndex !== -1) {
-            // DETERMINISTIC: Only fall back to index 0 if the model is fully ready or we already set initial focus
-            if (window.initialFocusSet || localFolderModel.status === FolderListModel.Ready) {
-                indexToFocus = firstValidIndex;
-            }
+            indexToFocus = firstValidIndex;
         }
 
         window.jumpToLastOnFilterChange = false;
@@ -882,6 +846,7 @@ Item {
     
     Shortcut { 
         sequence: "Return"
+        // Bind the lock firmly to the shortcut to stop multiple keyboard fires
         enabled: !searchInput.activeFocus && !window.isScrollingBlocked && !window.isApplying
         onActivated: { 
             let targetModel = window.getModelForFilter(window.currentFilter);
@@ -919,25 +884,15 @@ Item {
     }
 
     function syncLocalModel() {
-        let needsClear = false;
-        
-        // If the list shrank, or the very first item no longer matches (folder completely replaced)
-        if (localFolderModel.count < localProxyModel.count) {
-            needsClear = true;
-        } else if (localProxyModel.count > 0 && localFolderModel.count > 0) {
-            if (localProxyModel.get(0).fileName !== localFolderModel.get(0, "fileName")) {
-                needsClear = true;
-            }
-        }
-
-        if (needsClear) {
-            window.isModelChanging = true;
-            localProxyModel.clear();
-            window.isModelChanging = false;
-        }
-
         let startIdx = localProxyModel.count;
         let endIdx = localFolderModel.count;
+        
+        if (endIdx < startIdx) {
+            window.isModelChanging = true;
+            localProxyModel.clear();
+            startIdx = 0;
+            window.isModelChanging = false;
+        }
 
         for (let i = startIdx; i < endIdx; i++) {
             let fn = localFolderModel.get(i, "fileName");
@@ -949,7 +904,6 @@ Item {
 
         if (window.currentFilter !== "Search") window.updateVisibleCount();
         
-        // Deterministically check for focus on every addition or when loading completes
         if (!window.initialFocusSet && window.currentFilter !== "Search" && localProxyModel.count > 0) {
             window.tryFocus();
         }
@@ -1163,6 +1117,7 @@ Item {
                 
                 MouseArea {
                     anchors.fill: parent
+                    // Lock inputs completely on the delegate as well
                     enabled: delegateRoot.matchesFilter && !window.isScrollingBlocked && !window.isApplying
                     onClicked: {
                         view.currentIndex = index
@@ -1454,7 +1409,7 @@ Item {
                         id: filterMouse
                         anchors.fill: parent
                         hoverEnabled: true 
-                        enabled: !window.isApplying
+                        enabled: !window.isApplying // Lock UI interaction
                         onClicked: window.currentFilter = modelData.name
                         cursorShape: Qt.PointingHandCursor
                     }
@@ -1479,7 +1434,7 @@ Item {
                     id: scMouse
                     anchors.fill: parent
                     hoverEnabled: true
-                    enabled: !window.isApplying
+                    enabled: !window.isApplying // Lock UI interaction
                     cursorShape: Qt.PointingHandCursor
                     onClicked: window.isSearchPaused = !window.isSearchPaused
                 }
@@ -1533,7 +1488,7 @@ Item {
                     id: searchMouseArea
                     anchors.fill: parent
                     hoverEnabled: true 
-                    enabled: !window.isApplying
+                    enabled: !window.isApplying // Lock UI interaction
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         if (window.currentFilter !== "Search") {
@@ -1624,7 +1579,7 @@ Item {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         hoverEnabled: true
-                        enabled: !window.isApplying
+                        enabled: !window.isApplying // Lock UI interaction
                         onClicked: {
                             window.triggerOnlineSearch();
                         }

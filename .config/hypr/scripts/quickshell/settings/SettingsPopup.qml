@@ -63,6 +63,8 @@ Item {
     // -------------------------------------------------------------------------
     // SSOT GLOBAL SETTINGS & UPDATES
     // -------------------------------------------------------------------------
+    property bool requiresReload: false // Tracks if changes were applied
+
     property real setUiScale: 1.0
     property bool setOpenGuideAtStartup: true
     property bool setTopbarHelpIcon: true
@@ -108,6 +110,8 @@ Item {
         let cmd = "mkdir -p ~/.config/hypr/ && echo '" + jsonString + "' > ~/.config/hypr/settings.json && notify-send 'Quickshell' 'Settings Applied Successfully!'";
                   
         Quickshell.execDetached(["bash", "-c", cmd]);
+        
+        Quickshell.execDetached(["qs", "-p", Quickshell.env("HOME") + "/.config/hypr/scripts/quickshell/TopBar.qml", "ipc", "call", "topbar", "queueReload"]);
     }
 
     Process {
@@ -141,7 +145,7 @@ Item {
                         if (parsed.kbOptions !== undefined) root.setKbOptions = parsed.kbOptions;
                         if (parsed.workspaceCount !== undefined) root.setWorkspaceCount = parsed.workspaceCount;
                     } else {
-                        root.saveAppSettings();
+                        root.saveAppSettings(false); // Do not trigger reload flag on startup config generation
                     }
                 } catch (e) {
                     console.log("Error parsing global settings:", e);
@@ -243,7 +247,18 @@ Item {
             easing.type: Easing.InExpo 
         }
         ScriptAction { 
-            script: Quickshell.execDetached(["bash", Quickshell.env("HOME") + "/.config/hypr/scripts/qs_manager.sh", "close"]) 
+            script: {
+                if (root.requiresReload) {
+                    // Wait for qs_manager.sh to clear the active widget state to prevent TopBar layout jumping
+                    let script = Quickshell.env("HOME") + "/.config/hypr/scripts/qs_manager.sh close; " +
+                                 "while [ -n \"$(cat /tmp/qs_current_widget 2>/dev/null)\" ]; do sleep 0.1; done; " +
+                                 "sleep 0.2; " + 
+                                 "qs -p ~/.config/hypr/scripts/quickshell/TopBar.qml ipc call topbar forceReload";
+                    Quickshell.execDetached(["bash", "-c", script]);
+                } else {
+                    Quickshell.execDetached(["bash", Quickshell.env("HOME") + "/.config/hypr/scripts/qs_manager.sh", "close"]);
+                }
+            } 
         }
     }
 

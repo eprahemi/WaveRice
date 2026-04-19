@@ -12,14 +12,25 @@ Variants {
 
     delegate: Component {
         PanelWindow {
-            id: barWindow
+	    id: barWindow
+
+	    property bool pendingReload: false
 
 	    IpcHandler {
     		target: "topbar"
     
     		function forceReload() {
             	    Quickshell.reload(true) 
-    		}
+	        }
+
+	        function queueReload() {
+                    // If it's already closed, reload immediately. Otherwise, flag it.
+                    if (!barWindow.isSettingsOpen && barWindow.sidebarHoleWidth <= 0.01) {
+                        Quickshell.reload(true)
+                    } else {
+                        barWindow.pendingReload = true
+                    }
+                }
 	    }
 
             required property var modelData
