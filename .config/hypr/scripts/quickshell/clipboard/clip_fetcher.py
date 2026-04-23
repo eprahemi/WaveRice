@@ -3,11 +3,32 @@ import subprocess
 import json
 import os
 import sys
+import threading
+
+def cleanup_cache(all_lines, cache_dir):
+    valid_ids = set()
+    # Keep top 100 recent IDs to prevent infinite cache bloat
+    for line in all_lines[:100]:
+        if '\t' in line:
+            valid_ids.add(line.split('\t', 1)[0])
+            
+    try:
+        for f in os.listdir(cache_dir):
+            if f.endswith('.png'):
+                iid = f.replace('.png', '')
+                if iid not in valid_ids:
+                    try:
+                        os.remove(os.path.join(cache_dir, f))
+                    except Exception:
+                        pass
+    except Exception:
+        pass
 
 def get_cliphist():
     # Implement pagination arguments
     offset = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-    limit = int(sys.argv[2]) if len(sys.argv) > 2 else 18
+    # Slightly smaller limit to make the initial UI pop open faster
+    limit = int(sys.argv[2]) if len(sys.argv) > 2 else 12 
     
     cache_dir = "/tmp/qs_cliphist"
     os.makedirs(cache_dir, exist_ok=True)
@@ -20,22 +41,9 @@ def get_cliphist():
         # Slice only the requested chunk
         lines = all_lines[offset:offset+limit]
         
-        # Only clean up old previews on the initial load to avoid deleting active cache
+        # Move cleanup to a background thread so it doesn't block the UI from receiving data
         if offset == 0:
-            valid_ids = set()
-            # Keep top 100 recent IDs to prevent infinite cache bloat
-            for line in all_lines[:100]:
-                if '\t' in line:
-                    valid_ids.add(line.split('\t', 1)[0])
-                    
-            for f in os.listdir(cache_dir):
-                if f.endswith('.png'):
-                    iid = f.replace('.png', '')
-                    if iid not in valid_ids:
-                        try:
-                            os.remove(os.path.join(cache_dir, f))
-                        except Exception:
-                            pass
+            threading.Thread(target=cleanup_cache, args=(all_lines, cache_dir), daemon=True).start()
 
     except Exception as e:
         print("[]")

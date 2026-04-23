@@ -10,7 +10,6 @@ import "../"
 Item {
     id: window
     
-    // --- Responsive Scaling Logic ---
     Scaler {
         id: scaler
         currentWidth: Screen.width
@@ -34,9 +33,6 @@ Item {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // INSTANT CACHING ENGINE & SHARED STATE
-    // -------------------------------------------------------------------------
     Settings {
         id: cache
         category: "QS_NetworkWidget"
@@ -68,6 +64,14 @@ Item {
         running: true
         repeat: true
         onTriggered: modeReader.running = true
+    }
+
+    property bool isReady: false
+    Timer {
+        id: readyTimer
+        interval: 100
+        running: true
+        onTriggered: window.isReady = true
     }
 
     Component.onCompleted: {
@@ -120,7 +124,6 @@ Item {
     readonly property color activeColor: activeMode === "wifi" ? window.wifiAccent : window.btAccent
     readonly property color activeGradientSecondary: Qt.darker(window.activeColor, 1.25)
 
-    // Interaction & Device States
     property var busyTasks: ({})
     property var disconnectingDevices: ({})
     property string connectingId: ""
@@ -869,9 +872,6 @@ Item {
                 anchors.bottomMargin: window.s(80) 
                 z: 1
 
-                // =========================================================
-                // 1. DYNAMIC CENTRAL CORES (N-Device Supported)
-                // =========================================================
                 Repeater {
                     id: coreRepeater
                     model: 5
@@ -883,7 +883,7 @@ Item {
                         
                         property bool isPrimary: index === 0
                         property bool hasDevice: myDevice !== null
-                        property bool isReallyActive: hasDevice || (isPrimary && window.activeCoreCount === 0)
+                        property bool isReallyActive: window.currentPower && (hasDevice || (isPrimary && window.activeCoreCount === 0))
 
                         property real activeTransition: isReallyActive ? 1.0 : 0.0
                         
@@ -894,7 +894,6 @@ Item {
 
                         property real multiShift: window.activeMode === "wifi" ? 0.0 : window.multiTransitionState
 
-                        // Auto scale down cores as devices fill ring
                         width: window.currentPower ? (window.s(200) - (window.s(30) * multiShift) - (window.s(15) * Math.max(0, window.smoothedActiveCoreCount - 2))) : window.s(160)
                         height: width
                         
@@ -917,8 +916,6 @@ Item {
                         property string myId: myDevice ? (window.activeMode === "wifi" ? myDevice.ssid : myDevice.mac) : "unknown"
                         property bool isMyDisconnecting: !!window.disconnectingDevices[myId]
 
-                        // Distinct visual layer states for Primary core
-                        property bool showOffline: isPrimary && !window.currentPower
                         property bool showScanning: isPrimary && window.currentPower && !window.currentConn && window.pendingWifiId === ""
                         property bool showConnected: window.currentConn && hasDevice && window.pendingWifiId === ""
                         property bool showPassword: isPrimary && window.pendingWifiId !== ""
@@ -1062,7 +1059,6 @@ Item {
                                 Behavior on color { ColorAnimation { duration: 200 } }
                                 Behavior on opacity { NumberAnimation { duration: 300 } }
                                 
-                                // Fixed duration breathing to prevent lag spikes
                                 SequentialAnimation on scale {
                                     loops: Animation.Infinite; running: window.currentConn || showPassword
                                     NumberAnimation { to: 1.1; duration: 2000; easing.type: Easing.InOutSine }
@@ -1097,33 +1093,6 @@ Item {
                                 }
                             }
 
-                            // -- LAYER: OFFLINE AURA --
-                            Item {
-                                anchors.fill: parent
-                                opacity: showOffline ? 1.0 : 0.0
-                                visible: opacity > 0.01
-                                Behavior on opacity { NumberAnimation { duration: 400 } }
-                                
-                                Rectangle {
-                                    anchors.centerIn: parent
-                                    width: parent.width * 0.7; height: width; radius: width/2
-                                    color: window.surface0
-                                    SequentialAnimation on scale {
-                                        running: showOffline; loops: Animation.Infinite
-                                        NumberAnimation { to: 1.05; duration: 2000; easing.type: Easing.InOutSine }
-                                        NumberAnimation { to: 1.0; duration: 2000; easing.type: Easing.InOutSine }
-                                    }
-                                }
-                                Text {
-                                    anchors.centerIn: parent
-                                    font.family: "Iosevka Nerd Font"
-                                    font.pixelSize: window.s(48) - (window.s(16) * coreContainer.multiShift)
-                                    color: window.surface2
-                                    text: window.activeMode === "wifi" ? "󰤮" : "󰂲"
-                                }
-                            }
-
-                            // -- LAYER: SCANNING AURA --
                             Item {
                                 anchors.fill: parent
                                 opacity: showScanning ? 1.0 : 0.0
@@ -1163,7 +1132,6 @@ Item {
                                 }
                             }
 
-                            // -- LAYER: PASSWORD INPUT --
                             Item {
                                 id: pwdLayer
                                 anchors.fill: parent
@@ -1226,7 +1194,6 @@ Item {
                                 }
                             }
 
-                            // -- LAYER: CONNECTED TEXT (Base + Clipped Mask) --
                             Item {
                                 anchors.fill: parent
                                 opacity: showConnected ? 1.0 : 0.0
@@ -1375,9 +1342,6 @@ Item {
                     }
                 }
 
-                // =========================================================
-                // 2. THE SWARM (Pure Mathematical Interpolation)
-                // =========================================================
                 Item {
                     anchors.fill: parent
                     opacity: window.currentPower ? 1.0 : 0.0
@@ -1589,7 +1553,6 @@ Item {
                                 color: locksList ? "#2affffff" : "#0effffff"
                                 Behavior on color { ColorAnimation { duration: 200 } }
                                 
-                                // Fail flash background
                                 Rectangle {
                                     anchors.fill: parent
                                     radius: parent.radius
@@ -1919,9 +1882,6 @@ Item {
                 }
             }
 
-            // =========================================================
-            // BOTTOM DOCK (Mode Switcher & Power)
-            // =========================================================
             Rectangle {
                 anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -1938,7 +1898,6 @@ Item {
                     anchors.margins: window.s(6)
                     spacing: window.s(6)
 
-                    // Wi-Fi Mode Button
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -1977,7 +1936,6 @@ Item {
 
                     Rectangle { width: 1; Layout.fillHeight: true; Layout.margins: window.s(5); color: "#33ffffff" }
 
-                    // Bluetooth Mode Button
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -2015,84 +1973,111 @@ Item {
                 }
             }
 
-            // Power Toggle 
-            Rectangle {
-                anchors.bottom: parent.bottom
-                anchors.right: parent.right
-                anchors.margins: window.s(30)
-                width: window.s(48); height: window.s(48); radius: window.s(24)
-                
-                color: "transparent"
-                border.color: window.currentPowerPending ? window.activeColor : (window.currentPower ? "transparent" : window.surface2)
-                border.width: window.s(2)
-                Behavior on border.color { ColorAnimation { duration: 300 } }
+            Item {
+                id: powerToggleContainer
+                z: 100
+                x: window.currentPower ? parent.width - window.s(30) - window.s(48) : parent.width / 2 - window.s(80)
+                y: window.currentPower ? parent.height - window.s(30) - window.s(48) : (parent.height - window.s(80)) / 2 - window.s(80)
+                width: window.currentPower ? window.s(48) : window.s(160)
+                height: width
+
+                Behavior on x { enabled: window.isReady; NumberAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+                Behavior on y { enabled: window.isReady; NumberAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+                Behavior on width { enabled: window.isReady; NumberAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+
+                MultiEffect {
+                    source: powerBtnRect
+                    anchors.fill: powerBtnRect
+                    shadowEnabled: true
+                    shadowColor: "#000000"
+                    shadowOpacity: 0.4
+                    shadowBlur: 1.2
+                    shadowVerticalOffset: window.s(4)
+                }
 
                 Rectangle {
+                    id: powerBtnRect
                     anchors.fill: parent
-                    radius: window.s(24)
-                    opacity: window.currentPower ? 1.0 : 0.0
-                    Behavior on opacity { NumberAnimation { duration: 300 } }
+                    radius: width / 2
+                    
+                    scale: pwrMa.pressed ? 0.95 : (pwrMa.containsMouse ? 1.05 : 1.0)
+                    Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+
                     gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: Qt.lighter(window.activeColor, 1.15); Behavior on color { ColorAnimation {duration: 300} } }
-                        GradientStop { position: 1.0; color: window.activeColor; Behavior on color { ColorAnimation {duration: 300} } }
+                        orientation: Gradient.Vertical
+                        GradientStop { position: 0.0; color: window.currentPower ? "transparent" : window.surface1 }
+                        GradientStop { position: 1.0; color: window.currentPower ? "transparent" : window.crust }
                     }
-                }
-                
-                scale: pwrMa.pressed ? 0.9 : (pwrMa.containsMouse ? 1.1 : 1.0)
-                Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
 
-                Text {
-                    id: pwrIcon
-                    anchors.centerIn: parent
-                    font.family: "Iosevka Nerd Font"
-                    font.pixelSize: window.s(22)
-                    color: window.currentPower ? window.crust : window.text
-                    text: window.currentPowerPending ? "󰑮" : "" 
-                    Behavior on color { ColorAnimation { duration: 300 } }
+                    border.color: window.currentPowerPending ? window.activeColor : (window.currentPower ? "transparent" : window.surface2)
+                    border.width: window.s(2)
+                    Behavior on border.color { enabled: window.isReady; ColorAnimation { duration: 800; easing.type: Easing.InOutQuint } }
 
-                    RotationAnimation {
-                        target: pwrIcon
-                        property: "rotation"
-                        from: 0; to: 360
-                        duration: 800
-                        loops: Animation.Infinite
-                        running: window.currentPowerPending
-                        onRunningChanged: {
-                            if (!running) pwrIcon.rotation = 0;
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: parent.radius
+                        opacity: window.currentPower ? 1.0 : 0.0
+                        Behavior on opacity { enabled: window.isReady; NumberAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: Qt.lighter(window.activeColor, 1.15) }
+                            GradientStop { position: 1.0; color: window.activeColor }
                         }
                     }
-                }
 
-                MouseArea {
-                    id: pwrMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (window.pendingWifiId !== "") { window.pendingWifiId = ""; window.pendingWifiSsid = ""; }
-                        if (window.activeMode === "wifi") {
-                            if (window.wifiPowerPending) return;
-                            window.expectedWifiPower = window.wifiPower === "on" ? "off" : "on";
-                            window.wifiPowerPending = true;
-                            
-                            if (window.expectedWifiPower === "on") window.playSfx("power_on.wav"); else window.playSfx("power_off.wav");
-                            
-                            wifiPendingReset.restart();
-                            window.wifiPower = window.expectedWifiPower; // Optimistic
-                            Quickshell.execDetached(["nmcli", "radio", "wifi", window.wifiPower]);
-                            wifiPoller.running = true;
-                        } else {
-                            if (window.btPowerPending) return;
-                            window.expectedBtPower = window.btPower === "on" ? "off" : "on";
-                            window.btPowerPending = true;
-                            
-                            if (window.expectedBtPower === "on") window.playSfx("power_on.wav"); else window.playSfx("power_off.wav");
-                            
-                            btPendingReset.restart();
-                            window.btPower = window.expectedBtPower; // Optimistic
-                            Quickshell.execDetached(["bash", window.scriptsDir + "/bluetooth_panel_logic.sh", "--toggle"]);
-                            btPoller.running = true;
+                    Text {
+                        id: pwrIcon
+                        anchors.centerIn: parent
+                        font.family: "Iosevka Nerd Font"
+                        font.pixelSize: window.currentPower ? window.s(22) : window.s(64)
+                        color: window.currentPower ? window.crust : window.text
+                        text: window.currentPowerPending ? "󰑮" : ""
+                        Behavior on font.pixelSize { enabled: window.isReady; NumberAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+                        Behavior on color { enabled: window.isReady; ColorAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+
+                        RotationAnimation {
+                            target: pwrIcon
+                            property: "rotation"
+                            from: 0; to: 360
+                            duration: 800
+                            loops: Animation.Infinite
+                            running: window.currentPowerPending
+                            onRunningChanged: {
+                                if (!running) pwrIcon.rotation = 0;
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: pwrMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (window.pendingWifiId !== "") { window.pendingWifiId = ""; window.pendingWifiSsid = ""; }
+                            if (window.activeMode === "wifi") {
+                                if (window.wifiPowerPending) return;
+                                window.expectedWifiPower = window.wifiPower === "on" ? "off" : "on";
+                                window.wifiPowerPending = true;
+                                
+                                if (window.expectedWifiPower === "on") window.playSfx("power_on.wav"); else window.playSfx("power_off.wav");
+                                
+                                wifiPendingReset.restart();
+                                window.wifiPower = window.expectedWifiPower;
+                                Quickshell.execDetached(["nmcli", "radio", "wifi", window.wifiPower]);
+                                wifiPoller.running = true;
+                            } else {
+                                if (window.btPowerPending) return;
+                                window.expectedBtPower = window.btPower === "on" ? "off" : "on";
+                                window.btPowerPending = true;
+                                
+                                if (window.expectedBtPower === "on") window.playSfx("power_on.wav"); else window.playSfx("power_off.wav");
+                                
+                                btPendingReset.restart();
+                                window.btPower = window.expectedBtPower;
+                                Quickshell.execDetached(["bash", window.scriptsDir + "/bluetooth_panel_logic.sh", "--toggle"]);
+                                btPoller.running = true;
+                            }
                         }
                     }
                 }

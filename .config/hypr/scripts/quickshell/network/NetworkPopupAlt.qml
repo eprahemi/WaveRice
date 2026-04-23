@@ -11,7 +11,6 @@ Item {
     id: window
     focus: true
 
-    // --- Responsive Scaling Logic ---
     Scaler {
         id: scaler
         currentWidth: Screen.width
@@ -25,6 +24,14 @@ Item {
         id: cache
         category: "QS_DesktopNetworkWidget"
         property string lastEthJson: ""
+    }
+
+    property bool isReady: false
+    Timer {
+        id: readyTimer
+        interval: 100
+        running: true
+        onTriggered: window.isReady = true
     }
 
     Component.onCompleted: {
@@ -69,8 +76,7 @@ Item {
     readonly property color activeColor: window.ethAccent
     readonly property color activeGradientSecondary: Qt.darker(window.activeColor, 1.25)
 
-    // Simplified connection logic
-    property string ethDeviceName: "" // Stores interface name (e.g. enp5s0)
+    property string ethDeviceName: "" 
     property bool ethPowerPending: false
     property string expectedEthPower: ""
     property string ethPower: "off"
@@ -81,7 +87,6 @@ Item {
     readonly property bool currentPowerPending: window.ethPowerPending
     readonly property bool currentConn: window.isEthConn
     
-    // Core synchronization 
     property var currentCore: window.ethConnected
     property real activeCoreCount: currentConn ? 1 : 0
     property real smoothedActiveCoreCount: activeCoreCount
@@ -378,23 +383,23 @@ Item {
                 anchors.fill: parent
                 anchors.bottomMargin: window.s(40) 
                 z: 1
+                opacity: window.currentPower ? 1.0 : 0.0
+                Behavior on opacity { NumberAnimation { duration: 600; easing.type: Easing.InOutQuint } }
 
-                // =========================================================
-                // 1. SINGLE CENTRAL CORE (Desktop Focus)
-                // =========================================================
                 Item {
                     id: coreContainer
                     
                     property bool hasDevice: window.currentCore !== null
-                    property real activeTransition: window.introState 
-
-                    width: window.currentPower ? window.s(200) : window.s(160)
+                    
+                    width: window.s(200)
                     height: width
                     
                     anchors.centerIn: parent
                     
-                    opacity: activeTransition
-                    scale: centralCore.bumpScale * (0.8 + 0.2 * activeTransition)
+                    opacity: window.currentPower ? window.introState : 0.0
+                    Behavior on opacity { enabled: window.isReady; NumberAnimation { duration: 600; easing.type: Easing.InOutQuint } }
+
+                    scale: centralCore.bumpScale * (0.8 + 0.2 * window.introState)
 
                     MultiEffect {
                         source: centralCore
@@ -568,11 +573,10 @@ Item {
                             }
                         }
 
-                        // OFFLINE TEXT
                         ColumnLayout {
                             anchors.centerIn: parent
                             spacing: window.s(10)
-                            visible: !window.currentConn || !window.currentPower
+                            visible: !window.currentConn
                             opacity: visible ? 1.0 : 0.0
                             Behavior on opacity { NumberAnimation { duration: 300 } }
 
@@ -580,7 +584,7 @@ Item {
                                 Layout.alignment: Qt.AlignHCenter
                                 font.family: "Iosevka Nerd Font"
                                 font.pixelSize: window.s(48)
-                                color: window.currentPower ? window.overlay0 : window.surface2
+                                color: window.overlay0
                                 text: "󰈂"
                             }
                             Text {
@@ -590,11 +594,10 @@ Item {
                                 color: window.overlay0
                                 text: window.currentPowerPending 
                                     ? (window.expectedEthPower === "on" ? "Powering On..." : "Powering Off...") 
-                                    : (!window.currentPower ? "Device Offline" : "Disconnected")
+                                    : "Disconnected"
                             }
                         }
 
-                        // ONLINE TEXT
                         Item {
                             anchors.fill: parent
                             visible: window.currentConn && window.currentPower
@@ -634,7 +637,6 @@ Item {
                                 }
                             }
 
-                            // Clipped overlay during disconnect drain animation
                             Item {
                                 id: waveClipItem
                                 anchors.bottom: parent.bottom
@@ -732,9 +734,6 @@ Item {
                     }
                 }
 
-                // =========================================================
-                // 2. THE SWARM (Orbiting Info Nodes Only)
-                // =========================================================
                 Item {
                     anchors.fill: parent
                     opacity: window.currentPower ? 1.0 : 0.0
@@ -918,82 +917,108 @@ Item {
                 }
             }
 
-            // Power Toggle 
-            Rectangle {
-                anchors.bottom: parent.bottom
-                anchors.right: parent.right
-                anchors.margins: window.s(30)
-                width: window.s(48); height: window.s(48); radius: window.s(24)
-                
-                color: "transparent"
-                border.color: window.currentPowerPending ? window.activeColor : (window.currentPower ? "transparent" : window.surface2)
-                border.width: window.s(2)
-                Behavior on border.color { ColorAnimation { duration: 300 } }
+            Item {
+                id: powerToggleContainer
+                z: 100
+                x: window.currentPower ? parent.width - window.s(30) - window.s(48) : parent.width / 2 - window.s(80)
+                y: window.currentPower ? parent.height - window.s(30) - window.s(48) : (parent.height - window.s(40)) / 2 - window.s(80)
+                width: window.currentPower ? window.s(48) : window.s(160)
+                height: width
+
+                Behavior on x { enabled: window.isReady; NumberAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+                Behavior on y { enabled: window.isReady; NumberAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+                Behavior on width { enabled: window.isReady; NumberAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+
+                MultiEffect {
+                    source: powerBtnRect
+                    anchors.fill: powerBtnRect
+                    shadowEnabled: true
+                    shadowColor: "#000000"
+                    shadowOpacity: 0.4
+                    shadowBlur: 1.2
+                    shadowVerticalOffset: window.s(4)
+                }
 
                 Rectangle {
+                    id: powerBtnRect
                     anchors.fill: parent
-                    radius: window.s(24)
-                    opacity: window.currentPower ? 1.0 : 0.0
-                    Behavior on opacity { NumberAnimation { duration: 300 } }
+                    radius: width / 2
+                    
+                    scale: pwrMa.pressed ? 0.95 : (pwrMa.containsMouse ? 1.05 : 1.0)
+                    Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+
                     gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: Qt.lighter(window.activeColor, 1.15); Behavior on color { ColorAnimation {duration: 300} } }
-                        GradientStop { position: 1.0; color: window.activeColor; Behavior on color { ColorAnimation {duration: 300} } }
+                        orientation: Gradient.Vertical
+                        GradientStop { position: 0.0; color: window.currentPower ? "transparent" : window.surface1 }
+                        GradientStop { position: 1.0; color: window.currentPower ? "transparent" : window.crust }
                     }
-                }
-                
-                scale: pwrMa.pressed ? 0.9 : (pwrMa.containsMouse ? 1.1 : 1.0)
-                Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
 
-                Text {
-                    id: pwrIcon
-                    anchors.centerIn: parent
-                    font.family: "Iosevka Nerd Font"
-                    font.pixelSize: window.s(22)
-                    color: window.currentPower ? window.crust : window.text
-                    text: window.currentPowerPending ? "󰑮" : "" 
-                    Behavior on color { ColorAnimation { duration: 300 } }
+                    border.color: window.currentPowerPending ? window.activeColor : (window.currentPower ? "transparent" : window.surface2)
+                    border.width: window.s(2)
+                    Behavior on border.color { enabled: window.isReady; ColorAnimation { duration: 800; easing.type: Easing.InOutQuint } }
 
-                    RotationAnimation {
-                        target: pwrIcon
-                        property: "rotation"
-                        from: 0; to: 360
-                        duration: 800
-                        loops: Animation.Infinite
-                        running: window.currentPowerPending
-                        onRunningChanged: {
-                            if (!running) pwrIcon.rotation = 0;
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: parent.radius
+                        opacity: window.currentPower ? 1.0 : 0.0
+                        Behavior on opacity { enabled: window.isReady; NumberAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: Qt.lighter(window.activeColor, 1.15) }
+                            GradientStop { position: 1.0; color: window.activeColor }
                         }
                     }
-                }
 
-                MouseArea {
-                    id: pwrMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (window.ethPowerPending) return;
-                        window.expectedEthPower = window.ethPower === "on" ? "off" : "on";
-                        window.ethPowerPending = true;
-                        
-                        if (window.expectedEthPower === "on") window.playSfx("power_on.wav"); else window.playSfx("power_off.wav");
-                        
-                        ethPendingReset.restart();
-                        window.ethPower = window.expectedEthPower; 
-                        
-                        // We use the cached device name, or fallback to the currentCore's id
-                        let targetDev = window.ethDeviceName !== "" ? window.ethDeviceName : (window.currentCore ? window.currentCore.id : "");
-                        
-                        if (targetDev !== "") {
-                            if (window.expectedEthPower === "on") {
-                                Quickshell.execDetached(["nmcli", "device", "connect", targetDev]);
-                            } else {
-                                Quickshell.execDetached(["nmcli", "device", "disconnect", targetDev]);
+                    Text {
+                        id: pwrIcon
+                        anchors.centerIn: parent
+                        font.family: "Iosevka Nerd Font"
+                        font.pixelSize: window.currentPower ? window.s(22) : window.s(64)
+                        color: window.currentPower ? window.crust : window.text
+                        text: window.currentPowerPending ? "󰑮" : ""
+                        Behavior on font.pixelSize { enabled: window.isReady; NumberAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+                        Behavior on color { enabled: window.isReady; ColorAnimation { duration: 800; easing.type: Easing.InOutQuint } }
+
+                        RotationAnimation {
+                            target: pwrIcon
+                            property: "rotation"
+                            from: 0; to: 360
+                            duration: 800
+                            loops: Animation.Infinite
+                            running: window.currentPowerPending
+                            onRunningChanged: {
+                                if (!running) pwrIcon.rotation = 0;
                             }
                         }
-                        
-                        ethPoller.running = true;
+                    }
+
+                    MouseArea {
+                        id: pwrMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (window.ethPowerPending) return;
+                            window.expectedEthPower = window.ethPower === "on" ? "off" : "on";
+                            window.ethPowerPending = true;
+                            
+                            if (window.expectedEthPower === "on") window.playSfx("power_on.wav"); else window.playSfx("power_off.wav");
+                            
+                            ethPendingReset.restart();
+                            window.ethPower = window.expectedEthPower; 
+                            
+                            let targetDev = window.ethDeviceName !== "" ? window.ethDeviceName : (window.currentCore ? window.currentCore.id : "");
+                            
+                            if (targetDev !== "") {
+                                if (window.expectedEthPower === "on") {
+                                    Quickshell.execDetached(["nmcli", "device", "connect", targetDev]);
+                                } else {
+                                    Quickshell.execDetached(["nmcli", "device", "disconnect", targetDev]);
+                                }
+                            }
+                            
+                            ethPoller.running = true;
+                        }
                     }
                 }
             }

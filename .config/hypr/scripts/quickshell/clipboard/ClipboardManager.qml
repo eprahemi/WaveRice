@@ -36,7 +36,7 @@ Item {
     
     // Pagination properties
     property int currentOffset: 0
-    property int fetchLimit: 18
+    property int fetchLimit: 24 
     property bool isLoading: false
     property bool hasMore: true
     
@@ -45,6 +45,10 @@ Item {
     property bool previewMode: false
     property bool previewAnimationDone: false
     property string fullTextPreview: ""
+    property int pendingIndex: -1 // Tracks intended keyboard jumps while loading
+    
+    // Startup state to prevent accordion layout shifts
+    property bool isInitialLoad: true
 
     onPreviewModeChanged: {
         if (!previewMode) {
@@ -88,8 +92,20 @@ Item {
                         }
                         
                         if (window.currentOffset === 0) {
-                            window.allClips = newItems;
-                            window.filterClips(searchInput.text);
+                            let isDifferent = window.allClips.length !== newItems.length;
+                            if (!isDifferent) {
+                                for (let i = 0; i < newItems.length; i++) {
+                                    if (window.allClips[i].id !== newItems[i].id) {
+                                        isDifferent = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (isDifferent || window.allClips.length === 0) {
+                                window.allClips = newItems;
+                                window.filterClips(searchInput.text);
+                            }
                         } else {
                             window.appendClips(newItems);
                         }
@@ -98,6 +114,7 @@ Item {
                     console.log("Error parsing clipboard list: ", e);
                 } finally {
                     window.isLoading = false;
+                    window.isInitialLoad = false;
                 }
             }
         }
@@ -122,6 +139,16 @@ Item {
             if (q === "" || newItems[i].type === "image" || newItems[i].content.toLowerCase().includes(q)) {
                 clipModel.append(newItems[i]);
             }
+        }
+        
+        // Flawlessly resolve any keyboard navigation that was waiting for data
+        if (window.pendingIndex !== -1) {
+            if (window.pendingIndex < clipModel.count) {
+                clipList.currentIndex = window.pendingIndex;
+            } else {
+                clipList.currentIndex = clipModel.count - 1;
+            }
+            window.pendingIndex = -1;
         }
     }
 
@@ -160,18 +187,31 @@ Item {
         target: window
         function onVisibleChanged() {
             if (window.visible) {
+                if (window.allClips.length === 0) {
+                    window.isInitialLoad = true;
+                }
                 focusTimer.restart();
                 introPhaseAnim.restart();
                 window.navDuration = 0; 
                 window.previewMode = false;
                 window.previewAnimationDone = false;
                 window.fullTextPreview = "";
+                window.pendingIndex = -1; // Reset pending state
                 
                 window.currentOffset = 0;
                 window.hasMore = true;
                 window.isLoading = true;
                 clipFetcher.command = ["python3", Quickshell.env("HOME") + "/.config/hypr/scripts/quickshell/clipboard/clip_fetcher.py", 0, window.fetchLimit];
                 clipFetcher.running = true;
+            } else {
+                searchInput.text = "";
+                window.pendingIndex = -1;
+                
+                window.filterClips("");
+                if (clipModel.count > 0) {
+                    clipList.currentIndex = 0;
+                    clipList.positionViewAtBeginning();
+                }
             }
         }
     }
@@ -184,7 +224,7 @@ Item {
     property real introPhase: 0
     NumberAnimation on introPhase {
         id: introPhaseAnim
-        from: 0; to: 1; duration: 400; easing.type: Easing.OutQuart; running: true
+        from: 0; to: 1; duration: 600; easing.type: Easing.OutExpo; running: true 
     }
 
     Rectangle {
@@ -196,18 +236,24 @@ Item {
         
         property int cols: 3
         property real cellW: (width - window.s(20)) / cols
-        property real cellH: window.s(120)
+        property real cellH: window.s(145) 
         
-        property real maxVisibleRows: 4
-        property real visibleRows: Math.min(Math.ceil(clipModel.count / cols), maxVisibleRows)
-        property real targetListHeight: clipModel.count === 0 ? 0 : (visibleRows * cellH)
-        property real targetMargins: clipModel.count > 0 ? window.s(20) : 0
+        property real maxVisibleRows: 4 
+        property real visibleRows: (window.isInitialLoad) ? maxVisibleRows : Math.min(Math.ceil(clipModel.count / cols), maxVisibleRows)
+        property real targetListHeight: (clipModel.count === 0 && !window.isInitialLoad) ? 0 : (visibleRows * cellH)
+        property real targetMargins: (clipModel.count > 0 || window.isInitialLoad) ? window.s(20) : 0
 
         property real animatedListHeight: targetListHeight
         property real animatedMargins: targetMargins
 
-        Behavior on animatedListHeight { NumberAnimation { duration: 400; easing.type: Easing.OutQuart } }
-        Behavior on animatedMargins { NumberAnimation { duration: 400; easing.type: Easing.OutQuart } }
+        Behavior on animatedListHeight { 
+            enabled: !window.isInitialLoad
+            NumberAnimation { duration: 500; easing.type: Easing.OutExpo } 
+        }
+        Behavior on animatedMargins { 
+            enabled: !window.isInitialLoad
+            NumberAnimation { duration: 500; easing.type: Easing.OutExpo } 
+        }
 
         height: searchHeight + separatorHeight + animatedMargins + animatedListHeight
 
@@ -220,7 +266,7 @@ Item {
         border.width: 1
         clip: true
 
-        transform: Translate { y: (window.introPhase - 1) * window.s(40) }
+        transform: Translate { y: (window.introPhase - 1) * window.s(60) }
         opacity: window.introPhase
 
         Rectangle {
@@ -272,10 +318,10 @@ Item {
                             scale: !window.previewMode ? 1 : 0.5
                             rotation: !window.previewMode ? 0 : -90
                             
-                            Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.InOutQuad } }
-                            Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
-                            Behavior on rotation { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.InOutQuad } }
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+                            Behavior on rotation { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+                            Behavior on color { ColorAnimation { duration: 100 } }
                         }
 
                         Text {
@@ -289,9 +335,9 @@ Item {
                             scale: window.previewMode ? 1 : 0.5
                             rotation: window.previewMode ? 0 : 90
                             
-                            Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.InOutQuad } }
-                            Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
-                            Behavior on rotation { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
+                            Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.InOutQuad } }
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+                            Behavior on rotation { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
                         }
                     }
 
@@ -311,9 +357,8 @@ Item {
                         focus: true
 
                         onTextChanged: {
-                            if (window.previewMode) {
-                                window.previewMode = false;
-                            }
+                            if (window.previewMode) { window.previewMode = false; }
+                            window.pendingIndex = -1;
                             filterClips(text);
                         }
 
@@ -329,35 +374,69 @@ Item {
 
                         Keys.onRightPressed: {
                             window.previewMode = false;
-                            window.navDuration = 300; 
-                            if (clipList.currentIndex < clipModel.count - 1) { clipList.currentIndex++; }
+                            window.navDuration = 250; 
+                            window.pendingIndex = -1;
+                            
+                            let targetIdx = clipList.currentIndex + 1;
+                            if (targetIdx < clipModel.count) { 
+                                clipList.currentIndex = targetIdx; 
+                            } else if (window.hasMore) {
+                                window.pendingIndex = targetIdx; // Wait and jump
+                                window.loadMore();
+                            }
                             event.accepted = true;
                         }
+                        
                         Keys.onLeftPressed: {
                             window.previewMode = false;
-                            window.navDuration = 300;
+                            window.navDuration = 250;
+                            window.pendingIndex = -1;
+                            
                             if (clipList.currentIndex > 0) { clipList.currentIndex--; }
                             event.accepted = true;
                         }
+                        
                         Keys.onDownPressed: {
-                            window.previewMode = false;
-                            window.navDuration = 300;
-                            if (clipList.currentIndex + mainBg.cols < clipModel.count) { clipList.currentIndex += mainBg.cols; }
-                            else { clipList.currentIndex = clipModel.count - 1; }
+                            if (window.previewMode && textPreviewFlickable.visible) {
+                                textPreviewFlickable.contentY = Math.min(textPreviewFlickable.contentY + window.s(60), Math.max(0, textPreviewFlickable.contentHeight - textPreviewFlickable.height));
+                            } else {
+                                window.previewMode = false;
+                                window.navDuration = 250;
+                                window.pendingIndex = -1;
+                                
+                                let targetIdx = clipList.currentIndex + mainBg.cols;
+                                if (targetIdx < clipModel.count) {
+                                    clipList.currentIndex = targetIdx;
+                                } else if (window.hasMore) {
+                                    window.pendingIndex = targetIdx; // Retain column lock while loading
+                                    window.loadMore();
+                                } else {
+                                    clipList.currentIndex = clipModel.count - 1;
+                                }
+                            }
                             event.accepted = true;
                         }
+                        
                         Keys.onUpPressed: {
-                            window.previewMode = false;
-                            window.navDuration = 300;
-                            if (clipList.currentIndex - mainBg.cols >= 0) { clipList.currentIndex -= mainBg.cols; }
+                            if (window.previewMode && textPreviewFlickable.visible) {
+                                textPreviewFlickable.contentY = Math.max(textPreviewFlickable.contentY - window.s(60), 0);
+                            } else {
+                                window.previewMode = false;
+                                window.navDuration = 250;
+                                window.pendingIndex = -1;
+                                
+                                if (clipList.currentIndex - mainBg.cols >= 0) { clipList.currentIndex -= mainBg.cols; }
+                            }
                             event.accepted = true;
                         }
+                        
                         Keys.onReturnPressed: {
                             if (clipList.currentIndex >= 0 && clipList.currentIndex < clipModel.count) {
                                 copyToClipboard(clipModel.get(clipList.currentIndex).id);
                             }
                             event.accepted = true;
                         }
+                        
                         Keys.onEscapePressed: {
                             if (window.previewMode) {
                                 window.previewMode = false;
@@ -393,6 +472,36 @@ Item {
                 boundsBehavior: Flickable.StopAtBounds
 
                 highlightFollowsCurrentItem: false
+
+                populate: Transition {
+                    id: popTrans
+                    SequentialAnimation {
+                        PropertyAction { property: "opacity"; value: 0 }
+                        PropertyAction { property: "scale"; value: 0.8 }
+                        PauseAnimation { duration: popTrans.ViewTransition.index * 15 }
+                        ParallelAnimation {
+                            NumberAnimation { property: "opacity"; to: 1; duration: 250; easing.type: Easing.OutCubic }
+                            NumberAnimation { property: "scale"; to: 1; duration: 400; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+                        }
+                    }
+                }
+                
+                add: Transition {
+                    id: addTrans
+                    SequentialAnimation {
+                        PropertyAction { property: "opacity"; value: 0 }
+                        PropertyAction { property: "scale"; value: 0.8 }
+                        PauseAnimation { duration: 10 }
+                        ParallelAnimation {
+                            NumberAnimation { property: "opacity"; to: 1; duration: 250; easing.type: Easing.OutCubic }
+                            NumberAnimation { property: "scale"; to: 1; duration: 400; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+                        }
+                    }
+                }
+                
+                displaced: Transition {
+                    NumberAnimation { properties: "x,y"; duration: 400; easing.type: Easing.OutExpo }
+                }
                 
                 onContentYChanged: {
                     if (contentY + height >= contentHeight - window.s(80)) {
@@ -400,26 +509,27 @@ Item {
                     }
                 }
 
-                NumberAnimation {
-                    id: smoothScrollAnim
-                    target: clipList
-                    property: "contentY"
-                    duration: window.navDuration > 0 ? window.navDuration : 0
-                    easing.type: Easing.OutQuart
+                Behavior on contentY {
+                    enabled: window.navDuration > 0
+                    NumberAnimation { duration: 250; easing.type: Easing.OutExpo }
                 }
 
                 onCurrentIndexChanged: {
-                    if (currentIndex >= 0) {
+                    if (currentIndex >= 0 && clipList.model !== null) {
+                        // Proactive loading check to prevent hitting the bounds in the first place
+                        if (currentIndex >= clipModel.count - (mainBg.cols * 2)) {
+                            window.loadMore();
+                        }
+                        
                         let row = Math.floor(currentIndex / mainBg.cols);
-                        let targetY = row * mainBg.cellH;
+                        let targetTop = row * mainBg.cellH;
+                        let targetBottom = targetTop + mainBg.cellH;
 
                         if (window.navDuration > 0) {
-                            if (targetY < contentY) {
-                                smoothScrollAnim.to = targetY;
-                                smoothScrollAnim.start();
-                            } else if (targetY + mainBg.cellH > contentY + height) {
-                                smoothScrollAnim.to = targetY + mainBg.cellH - height;
-                                smoothScrollAnim.start();
+                            if (targetTop < contentY) {
+                                contentY = targetTop;
+                            } else if (targetBottom > contentY + height) {
+                                contentY = targetBottom - height;
                             }
                         } else {
                             positionViewAtIndex(currentIndex, GridView.Contain);
@@ -448,16 +558,16 @@ Item {
                         color: window.mauve
 
                         property int curIdx: clipList.currentIndex
-                        property real targetX: curIdx === -1 ? 0 : (curIdx % mainBg.cols) * clipList.cellWidth
-                        property real targetY: curIdx === -1 ? 0 : Math.floor(curIdx / mainBg.cols) * clipList.cellHeight
+                        property real targetX: curIdx === -1 || clipList.model === null ? 0 : (curIdx % mainBg.cols) * clipList.cellWidth
+                        property real targetY: curIdx === -1 || clipList.model === null ? 0 : Math.floor(curIdx / mainBg.cols) * clipList.cellHeight
 
-                        Behavior on x { NumberAnimation { duration: window.navDuration; easing.type: Easing.OutCubic } }
-                        Behavior on y { NumberAnimation { duration: window.navDuration; easing.type: Easing.OutCubic } }
+                        Behavior on x { NumberAnimation { duration: window.navDuration > 0 ? window.navDuration : 350; easing.type: Easing.OutExpo } }
+                        Behavior on y { NumberAnimation { duration: window.navDuration > 0 ? window.navDuration : 350; easing.type: Easing.OutExpo } }
 
                         x: targetX + window.s(5)
                         y: targetY + window.s(5)
-                        opacity: clipList.count > 0 && clipList.currentIndex >= 0 ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 200 } }
+                        opacity: clipList.count > 0 && clipList.currentIndex >= 0 && clipList.model !== null ? 1 : 0
+                        Behavior on opacity { NumberAnimation { duration: 300 } }
                     }
                 }
 
@@ -478,7 +588,7 @@ Item {
                         radius: window.s(8)
                         
                         color: ma.containsMouse && index !== clipList.currentIndex ? Qt.rgba(window.surface0.r, window.surface0.g, window.surface0.b, 0.4) : "transparent"
-                        Behavior on color { ColorAnimation { duration: 200 } }
+                        Behavior on color { ColorAnimation { duration: 250; easing.type: Easing.OutSine } }
 
                         Rectangle {
                             z: 2
@@ -512,7 +622,7 @@ Item {
                                 anchors.fill: parent
                                 source: model.type === "image" ? "file://" + model.content : ""
                                 fillMode: Image.PreserveAspectFit
-                                asynchronous: false
+                                asynchronous: true 
                                 cache: true
                                 smooth: true
                                 mipmap: true
@@ -536,12 +646,12 @@ Item {
                                 wrapMode: Text.Wrap
                                 elide: Text.ElideRight
                                 verticalAlignment: Text.AlignTop
-                                maximumLineCount: 3
+                                maximumLineCount: 4 
                                 
                                 property real textShift: index === clipList.currentIndex ? window.s(4) : 0
                                 transform: Translate { x: textShift }
                                 Behavior on textShift { NumberAnimation { duration: 500; easing.type: Easing.OutExpo } }
-                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on color { ColorAnimation { duration: 300; easing.type: Easing.OutExpo } }
                             }
                         }
 
@@ -552,7 +662,7 @@ Item {
                             enabled: !window.previewMode
                             acceptedButtons: Qt.LeftButton | Qt.RightButton
                             onClicked: (mouse) => {
-                                window.navDuration = 100;
+                                window.navDuration = 250;
                                 clipList.currentIndex = index;
                                 
                                 if (mouse.button === Qt.RightButton) {
@@ -576,13 +686,11 @@ Item {
             property var curItem: clipList.currentIndex >= 0 && clipModel.count > 0 ? clipModel.get(clipList.currentIndex) : null
             property int curIdx: clipList.currentIndex !== -1 ? clipList.currentIndex : 0
             
-            // Expanded target dimensions
             property real gridX: window.s(10)
             property real gridY: mainBg.searchHeight + mainBg.separatorHeight + mainBg.animatedMargins / 2
             property real gridW: mainBg.width - window.s(20)
             property real gridH: mainBg.animatedListHeight
             
-            // Start dimensions (Matches exactly the physical position of the selected list item)
             property real startX: gridX + (curIdx % mainBg.cols) * clipList.cellWidth + window.s(5)
             property real startY: gridY + Math.floor(curIdx / mainBg.cols) * clipList.cellHeight - clipList.contentY + window.s(5)
             property real startW: clipList.cellWidth - window.s(10)
@@ -591,34 +699,11 @@ Item {
             color: window.crust
             border.color: window.mauve
             border.width: window.previewMode ? window.s(2) : 0
-            Behavior on border.width { NumberAnimation { duration: 250 } }
+            Behavior on border.width { NumberAnimation { duration: 150 } }
             clip: true
             
-            // Matte Header Bar
-            Rectangle {
-                id: previewHeader
-                width: parent.width
-                height: window.s(30)
-                color: Qt.rgba(window.surface1.r, window.surface1.g, window.surface1.b, 0.7)
-                anchors.top: parent.top
-                
-                opacity: window.previewMode ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 300 } }
-                
-                Rectangle {
-                    width: window.s(8)
-                    height: window.s(8)
-                    radius: window.s(4)
-                    color: window.blue
-                    anchors.right: parent.right
-                    anchors.rightMargin: window.s(20)
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-            }
-            
-            // Image Preview
             Image {
-                anchors.top: previewHeader.bottom
+                anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
@@ -626,16 +711,16 @@ Item {
                 
                 source: (previewMorph.curItem && previewMorph.curItem.type === "image") ? "file://" + previewMorph.curItem.content : ""
                 fillMode: Image.PreserveAspectFit
-                asynchronous: false
+                asynchronous: true 
                 visible: previewMorph.curItem && previewMorph.curItem.type === "image"
                 
                 opacity: window.previewMode ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 250;  } }
+                Behavior on opacity { NumberAnimation { duration: 150;  } }
             }
             
-            // Text Preview
             Flickable {
-                anchors.top: previewHeader.bottom
+                id: textPreviewFlickable
+                anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
@@ -645,17 +730,16 @@ Item {
                 contentHeight: textPreviewContent.paintedHeight
                 clip: true
                 
+                Behavior on contentY { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                
                 visible: previewMorph.curItem && previewMorph.curItem.type === "text"
                 opacity: window.previewMode ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 250;  } }
+                Behavior on opacity { NumberAnimation { duration: 150;  } }
                 
                 TextEdit {
                     id: textPreviewContent
                     width: parent.width
                     
-                    // SEAMLESS SLICE TRICK: 
-                    // Load the first 3000 chars instantly so it visually fills the screen. 
-                    // Calculate the rest silently after the animation to prevent layout lag.
                     text: {
                         if (!window.previewMode || !previewMorph.curItem || previewMorph.curItem.type !== "text") return "";
                         
@@ -666,7 +750,7 @@ Item {
                             return window.fullTextPreview;
                         }
                         
-                        return previewMorph.curItem.content; // Fallback to list preview
+                        return previewMorph.curItem.content; 
                     }
                     
                     color: window.text
@@ -714,8 +798,8 @@ Item {
                     from: "hidden"; to: "visible"
                     SequentialAnimation {
                         ParallelAnimation {
-                            NumberAnimation { target: previewMorph; property: "opacity"; duration: 100 }
-                            NumberAnimation { properties: "x,y,width,height,radius"; duration: 400; easing.type: Easing.OutExpo }
+                            NumberAnimation { target: previewMorph; property: "opacity"; duration: 50 } 
+                            NumberAnimation { properties: "x,y,width,height,radius"; duration: 300; easing.type: Easing.OutExpo } 
                         }
                         ScriptAction { script: { window.previewAnimationDone = true; } }
                     }
@@ -723,10 +807,10 @@ Item {
                 Transition {
                     from: "visible"; to: "hidden"
                     ParallelAnimation {
-                        NumberAnimation { properties: "x,y,width,height,radius"; duration: 350; easing.type: Easing.OutExpo }
+                        NumberAnimation { properties: "x,y,width,height,radius"; duration: 250; easing.type: Easing.OutExpo } 
                         SequentialAnimation {
-                            PauseAnimation { duration: 200 }
-                            NumberAnimation { target: previewMorph; property: "opacity"; to: 0; duration: 150 }
+                            PauseAnimation { duration: 150 }
+                            NumberAnimation { target: previewMorph; property: "opacity"; to: 0; duration: 100 }
                         }
                     }
                 }
