@@ -48,6 +48,7 @@ function getLayout(name, mx, my, mw, mh, userScale) {
         "notifications": { w: s(800, scale), h: s(700, scale), rx: Math.floor((mw/2)-(s(800, scale)/2)), ry: Math.floor((mh/2)-(s(700, scale)/2)), comp: "notifications/NotificationCenter.qml" },
         "sidepanel": { w: s(600, scale), h: mh - s(56, scale), rx: mw - s(604, scale), ry: s(56, scale), comp: "sidepanel/SidePanel.qml" },
         "wallpaper": { w: mw, h: s(650, scale), rx: 0, ry: Math.floor((mh/2)-(s(650, scale)/2)), comp: "wallpaper/WallpaperPicker.qml" },
+        "applauncher": { w: s(700, scale), h: s(600, scale), rx: Math.floor((mw/2)-(s(700, scale)/2)), ry: Math.floor((mh/2)-(s(600, scale)/2)), comp: "applauncher/appLauncher.qml" },
         "hidden":    { w: 1, h: 1, rx: -5000 - mx, ry: -5000 - my, comp: "" } 
     };
 
