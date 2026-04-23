@@ -60,8 +60,33 @@ PanelWindow {
         onClicked: switchWidget("hidden", "")
     }
 
+    // =========================================================
+    // --- DAEMON: PRELOADING SYSTEM
+    // =========================================================
+    // Hidden container to warm up the QML engine cache without displaying anything
+    Item {
+        id: preloaderContainer
+        visible: false
+    }
+
     Component.onCompleted: {
         // State is now strictly in memory; no need to write to /tmp on startup.
+
+        // PRELOADING: Asynchronously initialize heavy widgets in the background.
+        // This prevents the main thread from blocking (which freezes Hyprland)
+        // the first time StackView tries to instantiate them.
+        Qt.callLater(() => {
+            let widgetsToPreload = ["settings", "search", "help"];
+            for (let i = 0; i < widgetsToPreload.length; i++) {
+                let t = getLayout(widgetsToPreload[i]);
+                if (t && t.comp) {
+                    // Qt.Asynchronous tells QML to build this incrementally over multiple frames
+                    t.comp.incubateObject(preloaderContainer, {
+                        "notifModel": masterWindow.notifModel
+                    }, Qt.Asynchronous);
+                }
+            }
+        });
     }
 
     property string currentActive: "hidden"
