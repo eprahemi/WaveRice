@@ -33,101 +33,109 @@ if [[ "$ACTION" =~ ^[0-9]+$ ]]; then
     exit 0
 fi
 
+MANIFEST="$THUMB_DIR/.manifest"
+
+build_manifest() {
+    find "$THUMB_DIR" -maxdepth 1 -type f ! -name '.source_dir' ! -name '.manifest' \
+        -printf "%f\n" | sort > "$MANIFEST"
+}
+
 handle_wallpaper_prep() {
     mkdir -p "$THUMB_DIR"
 
-    THUMB_SOURCE_FILE="$THUMB_DIR/.source_dir"
-    if [ -f "$THUMB_SOURCE_FILE" ]; then
-        CACHED_SRC=$(cat "$THUMB_SOURCE_FILE")
-        if [ "$CACHED_SRC" != "$SRC_DIR" ]; then
-            find "$THUMB_DIR" -maxdepth 1 -type f ! -name '.source_dir' -delete
-            echo "$SRC_DIR" > "$THUMB_SOURCE_FILE"
-        fi
-    else
-        echo "$SRC_DIR" > "$THUMB_SOURCE_FILE"
-    fi
-    
-    # Completely detached subshell to prevent random input/output stream blocking
     (
-        LOCKFILE="/tmp/qs_manager_wallpaper.lock"
-        exec 9> "$LOCKFILE"
-        if ! flock -n 9; then
-            exit 0
-        fi
+        export THUMB_DIR SRC_DIR MANIFEST
 
-        # --- FAST ORPHAN REMOVAL (Fix for the 5-second QML UI freeze) ---
-        # Instead of looping one-by-one and triggering QML's FolderListModel 
-        # onCountChanged repeatedly, we map orphans in memory and delete 
-        # them all at once to only trigger the Qt file-watcher once.
-        
-        find "$SRC_DIR" -maxdepth 1 -type f -printf "%f\n" > /tmp/qs_src_files.txt
-        find "$THUMB_DIR" -maxdepth 1 -type f ! -name '.source_dir' -printf "%f\n" | awk '{
-            orig=$0; 
-            sub(/^000_/, "", orig); 
-            print orig "\t" $0
-        }' > /tmp/qs_thumbs_map.txt
-
-        awk 'NR==FNR {src[$0]=1; next} { if (!($1 in src)) print "'"$THUMB_DIR"'/"$2 }' /tmp/qs_src_files.txt /tmp/qs_thumbs_map.txt | xargs -r rm -f
-        
-        rm -f /tmp/qs_src_files.txt /tmp/qs_thumbs_map.txt
-
-        # --- GENERATE MISSING THUMBNAILS ---
-        for img in "$SRC_DIR"/*.{jpg,jpeg,png,webp,gif,mp4,mkv,mov,webm}; do
-            [ -e "$img" ] || continue
+        process_one() {
+            img="$1"
             filename=$(basename "$img")
             extension="${filename##*.}"
-
             if [[ "${extension,,}" == "webp" ]]; then
                 new_img="${img%.*}.jpg"
-                if command -v magick >/dev/null 2>&1; then
-                    magick "$img" "$new_img"
-                    rm -f "$img"
-                    img="$new_img"
-                    filename=$(basename "$img")
-                    extension="jpg"
-                fi
+                magick "$img" "$new_img" && rm -f "$img"
+                img="$new_img"; filename=$(basename "$img"); extension="jpg"
             fi
-
             if [[ "${extension,,}" =~ ^(mp4|mkv|mov|webm)$ ]]; then
                 thumb="$THUMB_DIR/000_$filename"
                 [ -f "$THUMB_DIR/$filename" ] && rm -f "$THUMB_DIR/$filename"
                 if [ ! -f "$thumb" ]; then
-                     ffmpeg -y -ss 00:00:05 -i "$img" -vframes 1 -f image2 -q:v 2 "$thumb" > /dev/null 2>&1
+                    ffmpeg -y -ss 00:00:05 -i "$img" -vframes 1 \
+                        -f image2 -q:v 2 "$thumb" >/dev/null 2>&1
+                    echo "000_$filename" >> "$MANIFEST"
                 fi
             else
                 thumb="$THUMB_DIR/$filename"
                 if [ ! -f "$thumb" ]; then
-                    if command -v magick >/dev/null 2>&1; then
-                        magick "$img" -resize x420 -quality 70 "$thumb"
-                    fi
+                    magick "$img" -resize x420 -quality 70 "$thumb"
+                    echo "$filename" >> "$MANIFEST"
                 fi
             fi
+        }
+        export -f process_one
+
+        # Source dir change — nuke everything and rebuild
+        THUMB_SOURCE_FILE="$THUMB_DIR/.source_dir"
+        if [ -f "$THUMB_SOURCE_FILE" ]; then
+            read -r CACHED_SRC < "$THUMB_SOURCE_FILE"
+            if [ "$CACHED_SRC" != "$SRC_DIR" ]; then
+                find "$THUMB_DIR" -maxdepth 1 -type f \
+                    ! -name '.source_dir' ! -name '.manifest' -delete
+                echo "$SRC_DIR" > "$THUMB_SOURCE_FILE"
+                > "$MANIFEST"  # reset manifest
+            fi
+        else
+            echo "$SRC_DIR" > "$THUMB_SOURCE_FILE"
+            > "$MANIFEST"
+        fi
+
+        # Build manifest if missing
+        [ ! -f "$MANIFEST" ] && build_manifest
+
+        # Get current src files (one find, sorted)
+        SRC_LIST=$(mktemp)
+        find "$SRC_DIR" -maxdepth 1 -type f \
+            \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \
+               -o -iname "*.gif" -o -iname "*.mp4" -o -iname "*.mkv" \
+               -o -iname "*.mov" -o -iname "*.webm" \) \
+            -printf "%f\n" | sort > "$SRC_LIST"
+
+        # Orphans: in manifest but not in src anymore
+        comm -23 \
+            <(sed 's/^000_//' "$MANIFEST" | sort) \
+            "$SRC_LIST" \
+        | while read -r orphan; do
+            rm -f "$THUMB_DIR/$orphan" "$THUMB_DIR/000_$orphan"
+            # Remove from manifest
+            sed -i "/^${orphan}$/d;/^000_${orphan}$/d" "$MANIFEST"
         done
+
+        # New files: in src but not in manifest
+        comm -23 \
+            "$SRC_LIST" \
+            <(sed 's/^000_//' "$MANIFEST" | sort) \
+        | xargs -P 8 -I{} bash -c 'process_one "$SRC_DIR/$@"' _ {}
+
+        rm -f "$SRC_LIST"
+
     ) </dev/null >/dev/null 2>&1 &
 
+    # swww/mpvpaper detection (unchanged, fast)
     TARGET_THUMB=""
     CURRENT_SRC=""
-
-    # Optimized search patterns using -m 1 for faster pipe termination
-    if pgrep -a "mpvpaper" > /dev/null 2>&1; then
-        CURRENT_SRC=$(pgrep -a mpvpaper 2>/dev/null | grep -m 1 -o "$SRC_DIR/[^' ]*")
-        [ -n "$CURRENT_SRC" ] && CURRENT_SRC=$(basename "$CURRENT_SRC")
+    if pgrep -a "mpvpaper" > /dev/null; then
+        CURRENT_SRC=$(pgrep -a mpvpaper | grep -o "$SRC_DIR/[^' ]*" | head -n1)
+        CURRENT_SRC=$(basename "$CURRENT_SRC")
     fi
-
-    if [ -z "$CURRENT_SRC" ] && command -v swww >/dev/null 2>&1; then
-        CURRENT_SRC=$(swww query 2>/dev/null | awk -F'image: ' '{print $2}' | head -n 1)
-        [ -n "$CURRENT_SRC" ] && CURRENT_SRC=$(basename "$CURRENT_SRC")
+    if [ -z "$CURRENT_SRC" ] && command -v swww >/dev/null; then
+        CURRENT_SRC=$(swww query 2>/dev/null | grep -o "$SRC_DIR/[^ ]*" | head -n1)
+        CURRENT_SRC=$(basename "$CURRENT_SRC")
     fi
-    
     if [ -n "$CURRENT_SRC" ]; then
         EXT="${CURRENT_SRC##*.}"
-        if [[ "${EXT,,}" =~ ^(mp4|mkv|mov|webm)$ ]]; then
-            TARGET_THUMB="000_$CURRENT_SRC"
-        else
-            TARGET_THUMB="$CURRENT_SRC"
-        fi
+        [[ "${EXT,,}" =~ ^(mp4|mkv|mov|webm)$ ]] \
+            && TARGET_THUMB="000_$CURRENT_SRC" \
+            || TARGET_THUMB="$CURRENT_SRC"
     fi
-    
     export WALLPAPER_THUMB="$TARGET_THUMB"
 }
 

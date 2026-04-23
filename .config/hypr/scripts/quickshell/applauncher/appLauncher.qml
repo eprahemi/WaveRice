@@ -78,7 +78,6 @@ Item {
 
     // --- SMART DIFFING FILTER ---
     function filterApps(query) {
-        // 1. Instantly drop selection and snap to top to prevent visual desync on recreation
         appList.currentIndex = -1;
         appList.positionViewAtBeginning();
 
@@ -91,7 +90,6 @@ Item {
             }
         }
 
-        // 2. Remove items that no longer match
         for (let i = appModel.count - 1; i >= 0; i--) {
             let currentName = appModel.get(i).name;
             let keep = false;
@@ -106,7 +104,6 @@ Item {
             }
         }
 
-        // 3. Insert and move maintaining fluid animations
         for (let i = 0; i < filtered.length; i++) {
             let targetApp = filtered[i];
             
@@ -130,7 +127,6 @@ Item {
             }
         }
         
-        // 4. Securely grab the first item now that the list math is fully resolved
         if (appModel.count > 0) {
             appList.currentIndex = 0;
         }
@@ -175,7 +171,7 @@ Item {
     property real introPhase: 0
     NumberAnimation on introPhase {
         id: introPhaseAnim
-        from: 0; to: 1; duration: 500; easing.type: Easing.OutExpo; running: true
+        from: 0; to: 1; duration: 600; easing.type: Easing.OutExpo; running: true
     }
 
     // -------------------------------------------------------------------------
@@ -188,30 +184,32 @@ Item {
         // --- DYNAMIC HEIGHT CALCULATION (Bottom-up Shrinking) ---
         property real searchHeight: window.s(65)
         property real separatorHeight: 1
-        property real listMargins: appModel.count > 0 ? window.s(20) : 0
         property real itemHeight: window.s(60)
         property real listSpacing: window.s(4)
+        property real maxListHeight: (8 * itemHeight) + (7 * listSpacing)
         
-        property real listContentHeight: appModel.count === 0 ? 0 : (appModel.count * itemHeight) + ((appModel.count - 1) * listSpacing)
-        property real maxListHeight: (8 * itemHeight) + (7 * listSpacing) // Max 8 items before scrolling
-        property real boundedListHeight: Math.min(listContentHeight, maxListHeight)
-        
-        height: searchHeight + separatorHeight + listMargins + boundedListHeight
+        property real targetListHeight: appModel.count === 0 ? 0 : Math.min((appModel.count * itemHeight) + ((appModel.count - 1) * listSpacing), maxListHeight)
+        property real targetMargins: appModel.count > 0 ? window.s(20) : 0
 
-        // Anchoring to the top ensures that shrinking happens fluidly from the bottom-up
+        // Smoothly animated properties for elegant container morphing
+        property real animatedListHeight: targetListHeight
+        property real animatedMargins: targetMargins
+
+        Behavior on animatedListHeight { 
+            // Swapped to OutExpo and extended duration for a much softer tail
+            NumberAnimation { duration: 500; easing.type: Easing.OutExpo } 
+        }
+        Behavior on animatedMargins { 
+            NumberAnimation { duration: 500; easing.type: Easing.OutExpo } 
+        }
+        
+        height: searchHeight + separatorHeight + animatedMargins + animatedListHeight
+
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
-        
-        // Extended, buttery smooth height transition
-        Behavior on height { 
-            NumberAnimation { 
-                duration: 750 
-                easing.type: Easing.OutQuint 
-            } 
-        }
 
         radius: window.s(16)
-        color: Qt.rgba(window.base.r, window.base.g, window.base.b, 0.95)
+        color: Qt.rgba(window.base.r, window.base.g, window.base.b, 1.0)
         border.color: window.surface1
         border.width: 1
         clip: true
@@ -271,14 +269,15 @@ Item {
                         color: window.text
                         font.family: "JetBrains Mono"
                         font.pixelSize: window.s(16)
-                        placeholderText: "Search applications..."
-                        placeholderTextColor: window.surface2
+                        
+                        placeholderText: "Search..."
+                        placeholderTextColor: window.subtext0 
+                        
                         verticalAlignment: TextInput.AlignVCenter
                         focus: true
 
                         onTextChanged: filterApps(text)
 
-                        // Arrow key navigation
                         Keys.onDownPressed: {
                             if (appList.currentIndex < appModel.count - 1) {
                                 appList.currentIndex++;
@@ -316,8 +315,13 @@ Item {
             ListView {
                 id: appList
                 Layout.fillWidth: true
-                Layout.preferredHeight: mainBg.boundedListHeight
-                Layout.margins: window.s(10)
+                
+                Layout.preferredHeight: mainBg.animatedListHeight
+                Layout.topMargin: mainBg.animatedMargins / 2
+                Layout.bottomMargin: mainBg.animatedMargins / 2
+                Layout.leftMargin: window.s(10)
+                Layout.rightMargin: window.s(10)
+                
                 clip: true
                 model: appModel
                 spacing: mainBg.listSpacing
@@ -332,29 +336,32 @@ Item {
                     }
                 }
 
+                // --- ELEGANT LIST ITEM ANIMATIONS ---
                 populate: Transition {
                     ParallelAnimation {
-                        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 400; easing.type: Easing.OutCubic }
-                        NumberAnimation { properties: "x,y"; duration: 500; easing.type: Easing.OutExpo }
+                        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 550; easing.type: Easing.OutExpo }
+                        NumberAnimation { property: "scale"; from: 0.85; to: 1; duration: 600; easing.type: Easing.OutExpo }
+                        NumberAnimation { properties: "x,y"; duration: 600; easing.type: Easing.OutExpo }
                     }
                 }
 
                 add: Transition {
                     ParallelAnimation {
-                        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 250; easing.type: Easing.OutQuart }
-                        NumberAnimation { properties: "x,y"; duration: 250; easing.type: Easing.OutQuart }
+                        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: 450; easing.type: Easing.OutExpo }
+                        NumberAnimation { property: "scale"; from: 0.85; to: 1; duration: 500; easing.type: Easing.OutExpo }
+                        NumberAnimation { properties: "x,y"; duration: 500; easing.type: Easing.OutExpo }
                     }
                 }
                 
                 remove: Transition {
                     ParallelAnimation {
-                        NumberAnimation { property: "opacity"; to: 0; duration: 200; easing.type: Easing.OutQuart }
-                        NumberAnimation { property: "scale"; to: 0.9; duration: 200; easing.type: Easing.OutQuart }
+                        NumberAnimation { property: "opacity"; to: 0; duration: 350; easing.type: Easing.OutExpo }
+                        NumberAnimation { property: "scale"; to: 0.85; duration: 400; easing.type: Easing.OutExpo }
                     }
                 }
                 
                 displaced: Transition {
-                    NumberAnimation { properties: "x,y"; duration: 250; easing.type: Easing.OutQuart }
+                    NumberAnimation { properties: "x,y"; duration: 500; easing.type: Easing.OutExpo }
                 }
 
                 ScrollBar.vertical: ScrollBar {
@@ -383,12 +390,13 @@ Item {
                         property int curIdx: appList.currentIndex
 
                         onCurIdxChanged: {
-                            if (curIdx === -1) return; // Safely ignore the unselect phase
+                            if (curIdx === -1) return; 
                             
+                            // Extended durations for the bounding box morphing
                             if (curIdx > prevIdx) {
-                                bottomAnim.duration = 200; topAnim.duration = 350;
+                                bottomAnim.duration = 250; topAnim.duration = 450;
                             } else if (curIdx < prevIdx) {
-                                topAnim.duration = 200; bottomAnim.duration = 350;
+                                topAnim.duration = 250; bottomAnim.duration = 450;
                             }
                             prevIdx = curIdx;
                         }
@@ -400,14 +408,15 @@ Item {
                         property real actualTop: targetTop
                         property real actualBottom: targetBottom
 
-                        Behavior on actualTop { NumberAnimation { id: topAnim; duration: 250; easing.type: Easing.OutExpo } }
-                        Behavior on actualBottom { NumberAnimation { id: bottomAnim; duration: 250; easing.type: Easing.OutExpo } }
+                        // Smoother morphing curves
+                        Behavior on actualTop { NumberAnimation { id: topAnim; easing.type: Easing.OutExpo } }
+                        Behavior on actualBottom { NumberAnimation { id: bottomAnim; easing.type: Easing.OutExpo } }
 
                         y: actualTop
                         height: actualBottom - actualTop
                         
                         opacity: appList.count > 0 && appList.currentIndex >= 0 ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 200 } }
+                        Behavior on opacity { NumberAnimation { duration: 300 } }
                     }
                 }
 
@@ -415,6 +424,9 @@ Item {
                     width: ListView.view.width
                     height: mainBg.itemHeight
                     z: 1 
+                    
+                    // Explicit origin ensures scaling happens from the center of the item
+                    transformOrigin: Item.Center 
 
                     Rectangle {
                         anchors.fill: parent
@@ -426,7 +438,7 @@ Item {
                             radius: window.s(8)
                             color: window.surface0
                             opacity: ma.containsMouse && index !== appList.currentIndex ? 0.4 : 0
-                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                            Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutSine } }
                         }
 
                         RowLayout {
@@ -441,22 +453,20 @@ Item {
                                 Layout.preferredHeight: window.s(40)
                                 radius: window.s(12)
                                 
-                                // Fully matte opaque backgrounds
-                                color: index === appList.currentIndex ? window.crust : window.surface1
+                                color: index === appList.currentIndex ? window.crust : window.surface0
                                 border.width: 0 
                                 clip: true
                                 
-                                // Subtle, beautiful scale pop when selected
                                 property real activeScale: index === appList.currentIndex ? 1.15 : 1
                                 scale: activeScale
                                 Behavior on activeScale { 
-                                    NumberAnimation { duration: 400; easing.type: Easing.OutBack; easing.overshoot: 2 } 
+                                    NumberAnimation { duration: 500; easing.type: Easing.OutBack; easing.overshoot: 1.5 } 
                                 }
-                                Behavior on color { ColorAnimation { duration: 200 } }
+                                Behavior on color { ColorAnimation { duration: 300; easing.type: Easing.OutExpo } }
 
                                 Image {
                                     anchors.centerIn: parent
-                                    width: window.s(24) // Properly bounded within the matte rectangle
+                                    width: window.s(24)
                                     height: window.s(24)
                                     source: model.icon.startsWith("/") ? "file://" + model.icon : "image://icon/" + model.icon
                                     sourceSize: Qt.size(64, 64)
@@ -466,15 +476,17 @@ Item {
                                     mipmap: true
                                 }
                                 
-                                // The Matugen Tint Overlay (The identical radius prevents shadow-box bleeding)
+                                // The Matugen Tint Overlay
                                 Rectangle {
                                     anchors.fill: parent
                                     radius: window.s(12) 
                                     
-                                    // 20% opacity perfectly washes the icon while maintaining clarity
-                                    color: index === appList.currentIndex ? window.mauve : window.overlay0
-                                    opacity: 0.2 
-                                    Behavior on color { ColorAnimation { duration: 200 } }
+                                    color: window.mauve
+                                    opacity: index === appList.currentIndex ? 0.25 : 0.08 
+                                    
+                                    Behavior on opacity { 
+                                        NumberAnimation { duration: 300; easing.type: Easing.OutExpo } 
+                                    }
                                 }
                             }
 
@@ -488,14 +500,13 @@ Item {
                                 elide: Text.ElideRight
                                 verticalAlignment: Text.AlignVCenter
                                 
-                                // Fluid horizontal slide when selected
                                 property real textShift: index === appList.currentIndex ? window.s(6) : 0
                                 transform: Translate { x: textShift }
                                 
                                 Behavior on textShift { 
-                                    NumberAnimation { duration: 450; easing.type: Easing.OutExpo } 
+                                    NumberAnimation { duration: 500; easing.type: Easing.OutExpo } 
                                 }
-                                Behavior on color { ColorAnimation { duration: 200 } }
+                                Behavior on color { ColorAnimation { duration: 300; easing.type: Easing.OutExpo } }
                             }
                         }
 
@@ -514,4 +525,3 @@ Item {
         }
     }
 }
-

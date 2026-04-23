@@ -1,7 +1,6 @@
 .pragma library
 
 function getScale(mw, mh, userScale) {
-    // FIXED: Support legacy calls missing the `mh` argument from other un-updated QML files
     if (arguments.length === 2) {
         userScale = mh;
         mh = mw * (1080.0 / 1920.0);
@@ -9,8 +8,6 @@ function getScale(mw, mh, userScale) {
 
     if (mw <= 0 || mh <= 0) return 1.0;
     
-    // FIXED: Calculate ratios based on both axes, then clamp to the smallest ratio. 
-    // This stops horizontal Ultrawides from throwing widgets off the bottom of the screen.
     let rw = mw / 1920.0;
     let rh = mh / 1080.0;
     let r = Math.min(rw, rh);
@@ -49,6 +46,7 @@ function getLayout(name, mx, my, mw, mh, userScale) {
         "sidepanel": { w: s(600, scale), h: mh - s(56, scale), rx: mw - s(604, scale), ry: s(56, scale), comp: "sidepanel/SidePanel.qml" },
         "wallpaper": { w: mw, h: s(650, scale), rx: 0, ry: Math.floor((mh/2)-(s(650, scale)/2)), comp: "wallpaper/WallpaperPicker.qml" },
         "applauncher": { w: s(700, scale), h: s(600, scale), rx: Math.floor((mw/2)-(s(700, scale)/2)), ry: Math.floor((mh/2)-(s(600, scale)/2)), comp: "applauncher/appLauncher.qml" },
+        "clipboard": { w: s(800, scale), h: s(650, scale), rx: Math.floor((mw/2)-(s(800, scale)/2)), ry: Math.floor((mh/2)-(s(650, scale)/2)), comp: "clipboard/ClipboardManager.qml" },
         "hidden":    { w: 1, h: 1, rx: -5000 - mx, ry: -5000 - my, comp: "" } 
     };
 
@@ -62,7 +60,6 @@ function getLayout(name, mx, my, mw, mh, userScale) {
 }
 
 function getPopupLayout(mw, mh, userScale) {
-    // FIXED: Backward compatibility parsing again
     if (arguments.length === 2) {
         userScale = mh;
         mh = mw * (1080.0 / 1920.0);

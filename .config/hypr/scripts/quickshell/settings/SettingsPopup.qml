@@ -521,83 +521,7 @@ Item {
     property var dispatchers: ["exec", "exec-once", "dispatch", "workspace", "movetoworkspace", "movewindow", "resizeactive", "movefocus", "togglefloating", "killactive"]
 
     function buildKeybinds() {
-        dynamicKeybindsModel.clear();
-        let binds = [
-            { type: "bindm", mods: "$mainMod", key: "mouse:272", dispatcher: "movewindow", command: "" },
-            { type: "bindm", mods: "$mainMod", key: "mouse:273", dispatcher: "resizewindow", command: "" },
-            { type: "binde", mods: "$mainMod&SHIFT_L", key: "left", dispatcher: "resizeactive", command: "-50 0" },
-            { type: "binde", mods: "$mainMod&SHIFT_L", key: "right", dispatcher: "resizeactive", command: "50 0" },
-            { type: "binde", mods: "$mainMod&SHIFT_L", key: "up", dispatcher: "resizeactive", command: "0 -50" },
-            { type: "binde", mods: "$mainMod&SHIFT_L", key: "down", dispatcher: "resizeactive", command: "0 50" },
-            { type: "bind", mods: "$mainMod&CTRL", key: "left", dispatcher: "movewindow", command: "l" },
-            { type: "bind", mods: "$mainMod&CTRL", key: "right", dispatcher: "movewindow", command: "r" },
-            { type: "bind", mods: "$mainMod&CTRL", key: "up", dispatcher: "movewindow", command: "u" },
-            { type: "bind", mods: "$mainMod&CTRL", key: "down", dispatcher: "movewindow", command: "d" },
-            { type: "bind", mods: "$mainMod", key: "left", dispatcher: "movefocus", command: "l" },
-            { type: "bind", mods: "$mainMod", key: "right", dispatcher: "movefocus", command: "r" },
-            { type: "bind", mods: "$mainMod", key: "up", dispatcher: "movefocus", command: "u" },
-            { type: "bind", mods: "$mainMod", key: "down", dispatcher: "movefocus", command: "d" },
-            { type: "bind", mods: "ALT", key: "F4", dispatcher: "exec", command: "hyprctl dispatch killactive" },
-            { type: "bind", mods: "$mainMod&SHIFT_L", key: "F", dispatcher: "togglefloating", command: "" },
-            { type: "bindl", mods: "", key: "Caps_Lock", dispatcher: "exec", command: "sleep 0.1 && swayosd-client --caps-lock" },
-            { type: "bindl", mods: "", key: "XF86MonBrightnessDown", dispatcher: "exec", command: "swayosd-client --brightness lower" },
-            { type: "bindl", mods: "", key: "XF86MonBrightnessUp", dispatcher: "exec", command: "swayosd-client --brightness raise" },
-            { type: "bindl", mods: "", key: "Print", dispatcher: "exec", command: "~/.config/hypr/scripts/screenshot.sh" },
-            { type: "bindl", mods: "SHIFT_L", key: "Print", dispatcher: "exec", command: "~/.config/hypr/scripts/screenshot.sh --edit" },
-            { type: "bindl", mods: "SUPER", key: "Print", dispatcher: "exec", command: "~/.config/hypr/scripts/screenshot.sh --full" },
-            { type: "bindl", mods: "SUPER SHIFT_L", key: "Print", dispatcher: "exec", command: "~/.config/hypr/scripts/screenshot.sh --full --edit" },
-            { type: "bindl", mods: "", key: "XF86PowerOff", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/lock.sh" },
-            { type: "bindel", mods: "$mainMod", key: "L", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/lock.sh" },
-            { type: "bindl", mods: "$mainMod", key: "SPACE", dispatcher: "exec", command: "playerctl play-pause" },
-            { type: "bindl", mods: "", key: "XF86AudioPause", dispatcher: "exec", command: "playerctl play-pause" },
-            { type: "bindl", mods: "", key: "XF86AudioPlay", dispatcher: "exec", command: "playerctl play-pause" },
-            { type: "bindl", mods: "", key: "xf86AudioMicMute", dispatcher: "exec", command: "swayosd-client --input-volume mute-toggle" },
-            { type: "bindl", mods: "", key: "xf86audiomute", dispatcher: "exec", command: "swayosd-client --output-volume mute-toggle" },
-            { type: "bindel", mods: "", key: "xf86audiolowervolume", dispatcher: "exec", command: "swayosd-client --output-volume lower" },
-            { type: "bindel", mods: "", key: "xf86audioraisevolume", dispatcher: "exec", command: "swayosd-client --output-volume raise" },
-            { type: "bind", mods: "$mainMod", key: "D", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/rofi_show.sh drun" },
-            { type: "bind", mods: "ALT", key: "TAB", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/rofi_show.sh window" },
-            { type: "bind", mods: "$mainMod", key: "C", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/rofi_clipboard.sh" },
-            { type: "bind", mods: "$mainMod", key: "A", dispatcher: "exec", command: "swaync-client -t -sw" },
-            { type: "bind", mods: "$mainMod", key: "F", dispatcher: "exec", command: "firefox" },
-            { type: "bind", mods: "$mainMod", key: "E", dispatcher: "exec", command: "nautilus" },
-            { type: "bind", mods: "$mainMod", key: "T", dispatcher: "exec", command: "Telegram" },
-            { type: "bind", mods: "$mainMod", key: "O", dispatcher: "exec", command: "obsidian" },
-            { type: "bind", mods: "$mainMod", key: "RETURN", dispatcher: "exec", command: "$terminal" },
-            { type: "bind", mods: "$mainMod", key: "M", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/qs_manager.sh toggle monitors" },
-            { type: "bind", mods: "$mainMod", key: "R", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/reload.sh" },
-            { type: "bind", mods: "$mainMod&SHIFT_L", key: "S", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/qs_manager.sh toggle settings" },
-            { type: "bind", mods: "$mainMod", key: "Q", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/qs_manager.sh toggle music" },
-            { type: "bind", mods: "$mainMod", key: "B", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/qs_manager.sh toggle battery" },
-            { type: "bind", mods: "$mainMod", key: "W", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/qs_manager.sh toggle wallpaper" },
-            { type: "bind", mods: "$mainMod", key: "S", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/qs_manager.sh toggle calendar" },
-            { type: "bind", mods: "$mainMod", key: "N", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/qs_manager.sh toggle network" },
-            { type: "bind", mods: "$mainMod&SHIFT_L", key: "T", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/qs_manager.sh toggle focustime" },
-            { type: "bind", mods: "$mainMod", key: "V", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/qs_manager.sh toggle volume" },
-            { type: "bind", mods: "$mainMod", key: "H", dispatcher: "exec", command: "bash ~/.config/hypr/scripts/qs_manager.sh toggle guide" },
-            { type: "bind", mods: "$mainMod", key: "1", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 1" },
-            { type: "bind", mods: "$mainMod", key: "2", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 2" },
-            { type: "bind", mods: "$mainMod", key: "3", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 3" },
-            { type: "bind", mods: "$mainMod", key: "4", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 4" },
-            { type: "bind", mods: "$mainMod", key: "5", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 5" },
-            { type: "bind", mods: "$mainMod", key: "6", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 6" },
-            { type: "bind", mods: "$mainMod", key: "7", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 7" },
-            { type: "bind", mods: "$mainMod", key: "8", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 8" },
-            { type: "bind", mods: "$mainMod", key: "9", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 9" },
-            { type: "bind", mods: "$mainMod", key: "0", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 10" },
-            { type: "bind", mods: "$mainMod SHIFT", key: "1", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 1 move" },
-            { type: "bind", mods: "$mainMod SHIFT", key: "2", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 2 move" },
-            { type: "bind", mods: "$mainMod SHIFT", key: "3", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 3 move" },
-            { type: "bind", mods: "$mainMod SHIFT", key: "4", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 4 move" },
-            { type: "bind", mods: "$mainMod SHIFT", key: "5", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 5 move" },
-            { type: "bind", mods: "$mainMod SHIFT", key: "6", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 6 move" },
-            { type: "bind", mods: "$mainMod SHIFT", key: "7", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 7 move" },
-            { type: "bind", mods: "$mainMod SHIFT", key: "8", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 8 move" },
-            { type: "bind", mods: "$mainMod SHIFT", key: "9", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 9 move" },
-            { type: "bind", mods: "$mainMod SHIFT", key: "0", dispatcher: "exec", command: "~/.config/hypr/scripts/qs_manager.sh 10 move" }
-        ];
-        for (let i = 0; i < binds.length; i++) { binds[i].isEditing = false; }
-        dynamicKeybindsModel.append(binds);    
+        dynamicKeybindsModel.clear(); 
     }
 
     function saveAllKeybinds() {
@@ -2130,6 +2054,7 @@ Item {
         }
     }
 
+    
     Component {
         id: keybindTabComponent
         Item {
@@ -2204,8 +2129,6 @@ Item {
                         }
                     }
 
-                    // FIX 5: Added initialPositionSet flag to prevent marquee animation on first load.
-                    // The marquee container's x is suppressed until the item has been fully laid out.
                     ListView {
                         id: kbListView
                         Layout.fillWidth: true
@@ -2220,7 +2143,13 @@ Item {
 
                         delegate: Rectangle {
                             id: kbRowRect
-                            property bool isJumpHighlighted: root.highlightedBox === index
+                            property int outerIndex: index // FIX 1: Store outer index to avoid shadowing inside dropdown lists
+                            property bool isJumpHighlighted: root.highlightedBox === outerIndex
+                            
+                            // FIX 2: Layout Ready flag to prevent initial sweeping animations
+                            property bool layoutReady: false
+                            Component.onCompleted: Qt.callLater(() => layoutReady = true)
+
                             width: kbListView.width
                             height: root.s(44) + (model.isEditing ? editPanel.implicitHeight + root.s(12) : 0)
                             radius: root.s(8)
@@ -2230,8 +2159,6 @@ Item {
                             property bool isTypeOpen: false
                             property bool isDispOpen: false
 
-                            // FIX 6: Keybind selected state — use a neutral dark overlay instead of peach fill
-                            // so the internal elements can still use their accent colors and remain readable.
                             color: isJumpHighlighted ? root.surface1 : (isHovered ? root.surface1 : root.surface0)
                             border.color: isJumpHighlighted ? root.peach : (isHovered ? Qt.alpha(root.peach, 0.5) : root.surface1)
                             border.width: isJumpHighlighted ? 2 : 1
@@ -2241,7 +2168,7 @@ Item {
                             Behavior on border.color { ColorAnimation { duration: 200; easing.type: Easing.OutExpo } }
                             Behavior on border.width { NumberAnimation { duration: 150 } }
 
-                            MouseArea { anchors.fill: parent; z: -2; onClicked: root.highlightedBox = index; }
+                            MouseArea { anchors.fill: parent; z: -2; onClicked: root.highlightedBox = outerIndex; }
 
                             ColumnLayout {
                                 anchors.fill: parent; anchors.margins: root.s(10); spacing: root.s(10)
@@ -2290,8 +2217,14 @@ Item {
                                         color: model.isEditing
                                             ? root.peach
                                             : (editMa.containsMouse ? root.peach : root.surface2)
-                                        Behavior on x { NumberAnimation { duration: 250; easing.type: Easing.OutQuart } }
+                                            
+                                        // FIX 2: Only allow animation when layout is ready
+                                        Behavior on x { 
+                                            enabled: kbRowRect.layoutReady
+                                            NumberAnimation { duration: 250; easing.type: Easing.OutQuart } 
+                                        }
                                         Behavior on color { ColorAnimation { duration: 180; easing.type: Easing.OutExpo } }
+                                        
                                         Text {
                                             anchors.centerIn: parent
                                             text: model.isEditing ? "▴" : "󰏫"
@@ -2305,7 +2238,7 @@ Item {
                                         MouseArea { 
                                             id: editMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; 
                                             onClicked: { 
-                                                dynamicKeybindsModel.setProperty(index, "isEditing", !model.isEditing); 
+                                                dynamicKeybindsModel.setProperty(outerIndex, "isEditing", !model.isEditing); 
                                                 kbRowRect.isTypeOpen = false; 
                                                 kbRowRect.isDispOpen = false; 
                                                 if (!model.isEditing) {
@@ -2323,20 +2256,14 @@ Item {
                                         property int marqueeSpacing: root.s(60)
                                         property bool shouldMarquee: kbRowRect.isHovered && cmdTextMain.implicitWidth > width
 
+                                        // FIX 3: Restored original marquee layout structure, which aligns it right.
                                         Item {
                                             id: marqueeContainer
                                             height: parent.height
-                                            // FIX 5: Use parent width when not marqueeing to prevent initial slide
                                             width: cmdClipRect.shouldMarquee ? cmdTextMain.implicitWidth * 2 + cmdClipRect.marqueeSpacing : parent.width
                                             anchors.verticalCenter: parent.verticalCenter
                                             anchors.right: cmdClipRect.shouldMarquee ? undefined : parent.right
                                             anchors.left: cmdClipRect.shouldMarquee ? parent.left : undefined
-
-                                            // FIX 5: Track whether layout has been completed to avoid initial position animation
-                                            property bool layoutComplete: false
-                                            Component.onCompleted: {
-                                                Qt.callLater(function() { layoutComplete = true; });
-                                            }
 
                                             Row {
                                                 spacing: cmdClipRect.marqueeSpacing; anchors.verticalCenter: parent.verticalCenter
@@ -2354,8 +2281,7 @@ Item {
 
                                             SequentialAnimation on x {
                                                 id: cmdAnim; loops: Animation.Infinite
-                                                // FIX 5: Only run when layout is complete AND marquee is needed
-                                                running: cmdClipRect.shouldMarquee && marqueeContainer.layoutComplete
+                                                running: cmdClipRect.shouldMarquee && kbRowRect.layoutReady
                                                 PauseAnimation { duration: 1500 }
                                                 NumberAnimation { from: 0; to: -(cmdTextMain.implicitWidth + cmdClipRect.marqueeSpacing); duration: (cmdTextMain.implicitWidth + cmdClipRect.marqueeSpacing) * 25 }
                                                 PropertyAction { target: marqueeContainer; property: "x"; value: 0 }
@@ -2365,7 +2291,7 @@ Item {
 
                                         onShouldMarqueeChanged: {
                                             if (shouldMarquee) { marqueeContainer.anchors.right = undefined; marqueeContainer.anchors.left = parent.left; marqueeContainer.x = 0; cmdAnim.restart(); }
-                                            else { cmdAnim.stop(); marqueeContainer.x = 0; marqueeContainer.anchors.left = undefined; marqueeContainer.anchors.right = cmdClipRect.right; }
+                                            else { cmdAnim.stop(); marqueeContainer.x = 0; marqueeContainer.anchors.left = undefined; marqueeContainer.anchors.right = parent.right; }
                                         }
                                     }
 
@@ -2381,7 +2307,6 @@ Item {
                                 }
 
                                 // ── Edit panel ───────────────────────────────
-                                // FIX 6: Edit panel colors completely overhauled — no more dark-on-dark
                                 ColumnLayout {
                                     id: editPanel
                                     Layout.fillWidth: true; visible: model.isEditing; spacing: root.s(8); clip: true
@@ -2436,7 +2361,7 @@ Item {
                                                 if (isModifierOnly) {
                                                     let mergedMods = [...captureTrap.accumulatedMods];
                                                     for (let m of newMods) { if (!mergedMods.includes(m)) mergedMods.push(m); }
-                                                    dynamicKeybindsModel.setProperty(index, "mods", mergedMods.join(" "));
+                                                    dynamicKeybindsModel.setProperty(outerIndex, "mods", mergedMods.join(" "));
                                                     captureTrap.accumulatedMods = mergedMods;
                                                     return;
                                                 }
@@ -2456,16 +2381,16 @@ Item {
                                                     let prevMods = model.mods ? model.mods.split(" ").filter(x => x !== "") : [];
                                                     if (!prevMods.includes(captureTrap.accumulatedKey)) prevMods.push(captureTrap.accumulatedKey);
                                                     for (let m of newMods) { if (!prevMods.includes(m)) prevMods.push(m); }
-                                                    dynamicKeybindsModel.setProperty(index, "mods", prevMods.join(" "));
+                                                    dynamicKeybindsModel.setProperty(outerIndex, "mods", prevMods.join(" "));
                                                     captureTrap.accumulatedMods = prevMods;
                                                 } else {
                                                     let allMods = [...captureTrap.accumulatedMods];
                                                     for (let m of newMods) { if (!allMods.includes(m)) allMods.push(m); }
                                                     captureTrap.accumulatedMods = allMods;
-                                                    dynamicKeybindsModel.setProperty(index, "mods", allMods.join(" "));
+                                                    dynamicKeybindsModel.setProperty(outerIndex, "mods", allMods.join(" "));
                                                 }
                                                 captureTrap.accumulatedKey = k;
-                                                dynamicKeybindsModel.setProperty(index, "key", k);
+                                                dynamicKeybindsModel.setProperty(outerIndex, "key", k);
                                             }
                                             onActiveFocusChanged: {
                                                 if (!activeFocus) { accumulatedMods = []; accumulatedKey = ""; Quickshell.execDetached(["hyprctl", "dispatch", "submap", "reset"]); }
@@ -2476,7 +2401,6 @@ Item {
 
                                     RowLayout {
                                         Layout.fillWidth: true; spacing: root.s(8); Layout.alignment: Qt.AlignTop; z: 2
-                                        // FIX 6: Type dropdown — clean neutral style, accent on open
                                         ColumnLayout {
                                             Layout.preferredWidth: (parent.width - root.s(8)) * 0.4; Layout.alignment: Qt.AlignTop; spacing: root.s(4)
                                             Rectangle {
@@ -2525,12 +2449,11 @@ Item {
                                                             font.family: "JetBrains Mono"; font.pixelSize: root.s(11)
                                                             color: model.type === modelData ? root.peach : root.text
                                                         }
-                                                        MouseArea { id: typeItemMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { dynamicKeybindsModel.setProperty(index, "type", modelData); kbRowRect.isTypeOpen = false; } }
+                                                        MouseArea { id: typeItemMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { dynamicKeybindsModel.setProperty(outerIndex, "type", modelData); kbRowRect.isTypeOpen = false; } }
                                                     }
                                                 }
                                             }
                                         }
-                                        // FIX 6: Dispatcher dropdown — clean neutral style, accent on open
                                         ColumnLayout {
                                             Layout.preferredWidth: (parent.width - root.s(8)) * 0.6; Layout.alignment: Qt.AlignTop; spacing: root.s(4)
                                             Rectangle {
@@ -2580,7 +2503,7 @@ Item {
                                                             font.family: "JetBrains Mono"; font.pixelSize: root.s(11)
                                                             color: model.dispatcher === modelData ? root.peach : root.text
                                                         }
-                                                        MouseArea { id: dispItemMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { dynamicKeybindsModel.setProperty(index, "dispatcher", modelData); kbRowRect.isDispOpen = false; } }
+                                                        MouseArea { id: dispItemMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { dynamicKeybindsModel.setProperty(outerIndex, "dispatcher", modelData); kbRowRect.isDispOpen = false; } }
                                                     }
                                                 }
                                             }
@@ -2603,7 +2526,7 @@ Item {
                                             text: model.command
                                             font.family: "JetBrains Mono"; font.pixelSize: root.s(11)
                                             color: root.text; clip: true; selectByMouse: true
-                                            onTextChanged: dynamicKeybindsModel.setProperty(index, "command", text)
+                                            onTextChanged: dynamicKeybindsModel.setProperty(outerIndex, "command", text)
                                             Text {
                                                 text: "Command arguments..."
                                                 color: root.subtext0
@@ -2612,7 +2535,6 @@ Item {
                                         }
                                     }
 
-                                    // FIX 6: Action buttons — clean style that works on both highlighted and normal rows
                                     RowLayout {
                                         Layout.fillWidth: true; Layout.alignment: Qt.AlignRight; spacing: root.s(8); z: 0
                                         // Delete button
@@ -2640,7 +2562,7 @@ Item {
                                                 id: delMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; 
                                                 onClicked: { 
                                                     root.forceActiveFocus();
-                                                    dynamicKeybindsModel.remove(index); 
+                                                    dynamicKeybindsModel.remove(outerIndex); 
                                                     root.saveAllKeybinds(); 
                                                 } 
                                             }
@@ -2669,12 +2591,12 @@ Item {
                                             MouseArea {
                                                 id: rowSaveMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                                 onClicked: {
-                                                    let validationResult = root.validateKeybind(index, model.mods, model.key, model.dispatcher, model.command);
+                                                    let validationResult = root.validateKeybind(outerIndex, model.mods, model.key, model.dispatcher, model.command);
                                                     if (validationResult !== "VALID") { 
                                                         Quickshell.execDetached(["notify-send", "-u", "critical", "Keybind Error", validationResult]); 
                                                         return; 
                                                     }
-                                                    dynamicKeybindsModel.setProperty(index, "isEditing", false);
+                                                    dynamicKeybindsModel.setProperty(outerIndex, "isEditing", false);
                                                     root.forceActiveFocus();
                                                     root.saveAllKeybinds();
                                                 }
@@ -2688,7 +2610,8 @@ Item {
                 }
             }
         }
-    }
+    } 
+
 
     // ── Main Panel ─────────────────────────────────────────────────────────────
     Rectangle {
