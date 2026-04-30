@@ -14,7 +14,18 @@ Variants {
         PanelWindow {
             id: barWindow
             property bool pendingReload: false
+	    
+	    Connections {
+                target: Quickshell
 
+                function onReloadCompleted() {
+                    Quickshell.inhibitReloadPopup()
+                }
+
+                function onReloadFailed(errorString) {
+                    Quickshell.inhibitReloadPopup()
+                }
+    	    }        
             IpcHandler {
                 target: "topbar"
                 function forceReload() {

@@ -12,7 +12,19 @@ import "notifications" as Notifs
 PanelWindow {
     id: masterWindow
     color: "transparent"
-    
+
+    Connections {
+        target: Quickshell
+
+        function onReloadCompleted() {
+            Quickshell.inhibitReloadPopup()
+        }
+
+        function onReloadFailed(errorString) {
+            Quickshell.inhibitReloadPopup()
+        }
+    }
+
     IpcHandler {
         target: "main"
     

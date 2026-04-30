@@ -971,7 +971,7 @@ PanelWindow {
     Timer {
         id: captureTimer
         property string pendingCmd: ""
-        interval: 80
+        interval: 200
         repeat: false
         onTriggered: {
             Quickshell.execDetached(["bash", "-c", pendingCmd])
