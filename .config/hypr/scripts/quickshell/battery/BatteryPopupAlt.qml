@@ -80,10 +80,7 @@ Item {
     Settings {
         id: widgetCache
         category: "SystemMonitorCache"
-        property int cpuUsage: 0
-        property int ramUsage: 0
         property int diskUsage: 0
-        property int sysTemp: 0
         property string powerProfile: "balanced"
         property int upHours: 0
         property int upMins: 0
@@ -96,11 +93,16 @@ Item {
     // -------------------------------------------------------------------------
     // STATE & POLLING
     // -------------------------------------------------------------------------
-    property int cpuUsage: widgetCache.cpuUsage
-    property int ramUsage: widgetCache.ramUsage
-    property int diskUsage: widgetCache.diskUsage
-    property int sysTemp: widgetCache.sysTemp
+    Component.onCompleted: SysData.subscribe()
+    Component.onDestruction: SysData.unsubscribe()
 
+    // Bound directly to the global singleton
+    property int cpuUsage: SysData.cpu
+    property int ramUsage: SysData.ramPercent
+    property int sysTemp: SysData.temp
+
+    // Standard properties updated via local poller
+    property int diskUsage: widgetCache.diskUsage
     property string powerProfile: widgetCache.powerProfile
     
     property int upHours: widgetCache.upHours
@@ -159,12 +161,9 @@ Item {
 
     Process {
         id: sysPoller
-        // HIGHLY ROBUST BASH COMMANDS
+        // Stripped down to only the properties not provided by SysData.qml
         command: ["bash", "-c", 
-            "vmstat 1 2 | tail -1 | awk '{print 100 - $15}' || echo '0'; " +
-            "free -m | awk '/Mem:/ {print int($3/$2 * 100)}' || echo '0'; " +
             "df -h / | awk 'NR==2 {print $5}' | tr -d '%' || echo '0'; " +
-            "temp=$(sensors 2>/dev/null | grep -m 1 -E 'Package id 0|Tctl|Tdie|edge|temp1' | grep -oE '\\+[0-9]+\\.[0-9]+' | head -n 1 | tr -d '+' | cut -d. -f1); [ -z \"$temp\" ] && temp=$(cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null | head -n 1 | awk '{print int($1/1000)}'); echo \"${temp:-0}\"; " +
             "powerprofilesctl get 2>/dev/null || echo 'balanced'; " +
             "awk '{print int($1/3600)\"h \"int(($1%3600)/60)\"m\"}' /proc/uptime 2>/dev/null || echo '0h 0m'; " +
             "wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | awk '{print int($2*100), ($3==\"[MUTED]\"?\"off\":\"on\")}' || echo '0 on'; " +
@@ -174,23 +173,14 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 let lines = this.text.trim().split("\n");
-                if (lines.length >= 8) {
-                    window.cpuUsage = parseInt(lines[0]) || 0;
-                    widgetCache.cpuUsage = window.cpuUsage;
-
-                    window.ramUsage = parseInt(lines[1]) || 0;
-                    widgetCache.ramUsage = window.ramUsage;
-
-                    window.diskUsage = parseInt(lines[2]) || 0;
+                if (lines.length >= 5) {
+                    window.diskUsage = parseInt(lines[0]) || 0;
                     widgetCache.diskUsage = window.diskUsage;
-
-                    window.sysTemp = parseInt(lines[3]) || 0;
-                    widgetCache.sysTemp = window.sysTemp;
                     
-                    window.powerProfile = lines[4];
+                    window.powerProfile = lines[1];
                     widgetCache.powerProfile = window.powerProfile;
                     
-                    let upParts = lines[5].split("h ");
+                    let upParts = lines[2].split("h ");
                     if (upParts.length === 2) {
                         window.upHours = parseInt(upParts[0]) || 0;
                         widgetCache.upHours = window.upHours;
@@ -199,7 +189,7 @@ Item {
                     }
 
                     if (!window.isDraggingVol) {
-                        let volParts = (lines[6] || "0 on").trim().split(" ");
+                        let volParts = (lines[3] || "0 on").trim().split(" ");
                         window.sysVolume = parseInt(volParts[0]) || 0;
                         widgetCache.sysVolume = window.sysVolume;
                         window.sysMuted = (volParts[1] === "off");
@@ -207,7 +197,7 @@ Item {
                     }
                     
                     if (!window.isDraggingBri) {
-                        window.sysBrightness = parseInt(lines[7]) || 0;
+                        window.sysBrightness = parseInt(lines[4]) || 0;
                         widgetCache.sysBrightness = window.sysBrightness;
                     }
                 }
