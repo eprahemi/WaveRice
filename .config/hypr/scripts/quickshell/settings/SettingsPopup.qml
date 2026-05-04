@@ -459,14 +459,46 @@ Item {
         // Triggers the very first time Config finishes reading the JSON
         function onKeybindsLoaded() {
             dynamicKeybindsModel.clear();
-            dynamicKeybindsModel.append(Config.keybindsData);
+            for (let i = 0; i < Config.keybindsData.length; i++) {
+                let k = Config.keybindsData[i];
+                dynamicKeybindsModel.append({
+                    type: k.type || "bind",
+                    mods: k.mods || "",
+                    key: k.key || "",
+                    dispatcher: k.dispatcher || "exec",
+                    command: k.command || "",
+                    isEditing: false
+                });
+            }
         }
         // Triggers whenever you save and Config.keybindsData is overwritten
         function onKeybindsDataChanged() {
             dynamicKeybindsModel.clear();
-            dynamicKeybindsModel.append(Config.keybindsData);
+            for (let i = 0; i < Config.keybindsData.length; i++) {
+                let k = Config.keybindsData[i];
+                dynamicKeybindsModel.append({
+                    type: k.type || "bind",
+                    mods: k.mods || "",
+                    key: k.key || "",
+                    dispatcher: k.dispatcher || "exec",
+                    command: k.command || "",
+                    isEditing: false
+                });
+            }
         }
-    }    
+        function onStartupLoaded() {
+            dynamicStartupModel.clear();
+            for (let s of Config.startupData) {
+                dynamicStartupModel.append({ command: s.command || "", isEditing: false });
+            }
+        }
+        function onStartupDataChanged() {
+            dynamicStartupModel.clear();
+            for (let s of Config.startupData) {
+                dynamicStartupModel.append({ command: s.command || "", isEditing: false });
+            }
+        }
+    }
     property var bindTypes: ["bind", "binde", "bindl", "bindel", "bindm"]
     property var dispatchers: ["exec", "exec-once", "dispatch", "workspace", "movetoworkspace", "movewindow", "resizeactive", "movefocus", "togglefloating", "killactive"]
 
@@ -892,7 +924,17 @@ Item {
         root.tab0Loaded = true;
         startupSequence.start();
         if (Config.dataReady && dynamicKeybindsModel.count === 0) {
-            dynamicKeybindsModel.append(Config.keybindsData);
+            for (let i = 0; i < Config.keybindsData.length; i++) {
+                let k = Config.keybindsData[i];
+                dynamicKeybindsModel.append({
+                    type: k.type || "bind",
+                    mods: k.mods || "",
+                    key: k.key || "",
+                    dispatcher: k.dispatcher || "exec",
+                    command: k.command || "",
+                    isEditing: false
+                });
+            }
         }
         if (Config.dataReady && dynamicStartupModel.count === 0) {
             for (let s of Config.startupData) {

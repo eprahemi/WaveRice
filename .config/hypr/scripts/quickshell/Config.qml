@@ -37,14 +37,10 @@ Item {
     }
 
     function setSetting(key, value) {
-        // 1. Update local cache instantly
         rawSettings[key] = value;
-        
-        // 2. Format for bash (escape quotes safely)
         let safeValue = typeof value === "string" ? `"${value}"` : value;
         if (typeof value === "object") safeValue = JSON.stringify(value).replace(/'/g, "'\\''");
 
-        // 3. Patch JSON using jq
         let cmd = `mkdir -p "$(dirname '${settingsJsonPath}')" && ` +
                   `[ ! -f '${settingsJsonPath}' ] && echo '{}' > '${settingsJsonPath}'; ` +
                   `jq '. + {"${key}": ${safeValue}}' '${settingsJsonPath}' > '${settingsJsonPath}.tmp' && ` +
@@ -60,23 +56,12 @@ Item {
                   `mv '${settingsJsonPath}.tmp' '${settingsJsonPath}'`;
         sh(cmd);
         
-        // Update local cache
         for (let key in dataObj) rawSettings[key] = dataObj[key];
     }
 
     // --- Env Operations ---
     function getEnv(key, fallbackValue) {
         return rawEnvs.hasOwnProperty(key) ? rawEnvs[key] : fallbackValue;
-    }
-
-    function setEnv(filePath, key, value) {
-        rawEnvs[key] = value;
-        let safeVal = value.toString().replace(/'/g, "'\\''");
-        let cmd = `mkdir -p "$(dirname '${filePath}')" && touch '${filePath}'; ` +
-                  `if grep -q "^${key}=" '${filePath}'; then ` +
-                  `sed -i "s|^${key}=.*|${key}='${safeVal}'|" '${filePath}'; ` +
-                  `else echo "${key}='${safeVal}'" >> '${filePath}'; fi`;
-        sh(cmd);
     }
 
     function updateEnvBulk(filePath, envDict) {
@@ -90,7 +75,6 @@ Item {
         }
         sh(cmds.join(" && "));
     }
-
 
     // =========================================================================
     // Legacy Specific Properties (Bound to Settings.qml)
@@ -114,9 +98,8 @@ Item {
     property var startupData: []
     signal startupLoaded()
 
-
     // =========================================================================
-    // Legacy Specific Functions (Bound to Settings.qml)
+    // Settings Save Functions
     // =========================================================================
     function saveAppSettings() {
         let configObj = {
@@ -131,11 +114,6 @@ Item {
 
         config.updateJsonBulk(configObj);
         sh("notify-send 'Quickshell' 'Settings Applied Successfully!'");
-
-        let patchCmd = config.openGuideAtStartup
-            ? `sed -i 's|^#*[[:space:]]*exec-once = ~/.config/hypr/scripts/qs_manager.sh toggle guide.*|exec-once = ~/.config/hypr/scripts/qs_manager.sh toggle guide \\&|' "${config.hyprDir}/config/autostart.conf"`
-            : `sed -i 's|^exec-once = ~/.config/hypr/scripts/qs_manager.sh toggle guide.*|# exec-once = ~/.config/hypr/scripts/qs_manager.sh toggle guide \\&|' "${config.hyprDir}/config/autostart.conf"`;
-        sh(patchCmd);
 
         if (config.workspaceCount !== config.initialWorkspaceCount) {
             sh(`qs -p "${qsScriptsDir}/TopBar.qml" ipc call topbar queueReload`);
@@ -167,18 +145,12 @@ Item {
         sh("notify-send 'Quickshell' 'Startup entries saved!'");
     }
 
-    function runAutostartMigrator() {
-        autostartMigrator.running = false;
-        autostartMigrator.running = true;
-    }
-
     // =========================================================================
     // Boot Initialization (Runs once on start)
     // =========================================================================
     Component.onCompleted: {
         settingsReader.running = true;
         envReader.running = true;
-        hyprLangReader.running = true;
     }
 
     Process {
@@ -201,45 +173,6 @@ Item {
                         else if (key === "OPENWEATHER_UNIT") config.weatherUnit = val;
                     }
                 }
-            }
-        }
-    }
-
-    Process {
-        id: hyprLangReader
-        command: ["bash", "-c", `grep -m1 '^ *kb_layout *=' "${config.hyprDir}/hyprland.conf" | cut -d'=' -f2 | tr -d ' '`]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let out = this.text ? this.text.trim() : "";
-                if (out.length > 0 && config.language === "") config.language = out;
-            }
-        }
-    }
-
-    Timer {
-        id: guideAutostartSyncTimer
-        interval: 300
-        onTriggered: {
-            autostartMigrator.running = false;
-            autostartMigrator.running = true;
-        }
-    }
-
-    Process {
-        id: autostartMigrator
-        command: ["bash", "-c", `grep -E '^\\s*exec-once\\s*=' "${config.hyprDir}/config/autostart.conf" 2>/dev/null | grep -v 'qs_manager.sh toggle guide' | sed 's/^\\s*exec-once\\s*=\\s*//'`]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let lines = this.text ? this.text.trim().split('\n') : [];
-                let tempStartup = [];
-                for (let line of lines) {
-                    line = line.trim();
-                    if (line.length > 0) tempStartup.push({ command: line });
-                }
-                config.startupData = tempStartup;
-                config.saveAllStartup(tempStartup);
             }
         }
     }
@@ -282,9 +215,9 @@ Item {
                             config.keybindsData = tempBinds;
                         } else {
                             config.keybindsData = [];
-                            config.saveAllKeybinds([]);
                         }
 
+                        // Map Startups
                         if (config.rawSettings.startup !== undefined && Array.isArray(config.rawSettings.startup)) {
                             let tempStartup = [];
                             for (let s of config.rawSettings.startup) {
@@ -293,20 +226,17 @@ Item {
                             config.startupData = tempStartup;
                         } else {
                             config.startupData = [];
-                            autostartMigrator.running = true;
                         }
                     } else {
                         config.saveAppSettings();
                         config.keybindsData = [];
                         config.saveAllKeybinds([]);
                         config.startupData = [];
-                        autostartMigrator.running = true;
                     }
                 } catch (e) {
                     console.log("Error parsing global settings:", e);
                     config.keybindsData = [];
                     config.startupData = [];
-                    autostartMigrator.running = true;
                 }
                 config.keybindsLoaded();
                 config.startupLoaded();
@@ -315,4 +245,3 @@ Item {
         }
     }
 }
-
