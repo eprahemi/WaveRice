@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.7.2"
+DOTS_VERSION="1.7.3"
 VERSION_FILE="$HOME/.local/state/imperative-dots-version"
 
 # ==============================================================================
@@ -914,7 +914,7 @@ prompt_optional_features_menu() {
         if [ "$HAS_HISTORY" = true ]; then
             local S_KB_OVR=$( [ "$OPT_OVERRIDE_KEYBINDS" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${DIM}[ ]${RESET}" )
             local S_STARTUPS_OVR=$( [ "$OPT_OVERRIDE_STARTUPS" = true ] && echo -e "${C_GREEN}[✓]${RESET}" || echo -e "${DIM}[ ]${RESET}" )
-            MENU_ITEMS+="5. $S_KB_OVR Overwrite Local Keybinds with Upstream Defaults\n"
+            MENU_ITEMS+="5. $S_KB_OVR Reset local keybinds to upstream defaults\n"
             MENU_ITEMS+="6. $S_STARTUPS_OVR Overwrite Local Startups with Upstream Defaults\n"
             MENU_ITEMS+="7. ${BOLD}${C_GREEN}Proceed with Installation / Update${RESET}\n"
             MENU_ITEMS+="8. ${DIM}Back to Main Menu${RESET}"
@@ -1370,12 +1370,14 @@ jq -n --slurpfile local "$OLD_JSON" --slurpfile up "$UPSTREAM_JSON" \
        if $ovr_kb == "true" then 
            $u.keybinds 
        else 
+           ($l.keybinds | map(((.mods // "") + "|" + (.key // "")))) as $local_keys |
            ($l.keybinds | map(.command)) as $local_cmds |
-           ($l.keybinds | map((.mods // "") + "|" + (.key // ""))) as $local_keys |
            
            ($u.keybinds | map(select(
-               (.command as $cmd | ($local_cmds | index($cmd)) == null) and
-               (((.mods // "") + "|" + (.key // "")) as $k | ($local_keys | index($k)) == null)
+               # Key combo must not be claimed by user
+               (((.mods // "") + "|" + (.key // "")) as $k | ($local_keys | index($k)) == null) and
+               # Command must not already exist under a different user-defined key
+               (.command as $cmd | ($local_cmds | index($cmd)) == null)
            ))) as $new_upstream |
            
            ($l.keybinds + $new_upstream)

@@ -72,7 +72,8 @@ Variants {
             // =========================================================
             property var tabModules: [
                 "quickactions/DrawAction.qml",
-                "quickactions/SystemUsage.qml",
+		"quickactions/SystemUsage.qml",
+		"quickactions/Timer.qml"
             ]
 
             property int tabCount: Math.max(1, tabModules.length)

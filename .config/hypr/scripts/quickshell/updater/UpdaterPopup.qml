@@ -55,7 +55,8 @@ Item {
     property string localVersion: "..."
     property string remoteVersion: "..."
     
-    property string videoUrl: "https://raw.githubusercontent.com/ilyamiro/imperative-dots/master/update.mp4"
+    // Dynamic URL based on the user's current version vs the manifest
+    property string videoUrl: ""
     property bool uiExpanded: false
     property bool videoReady: false
     
@@ -86,7 +87,7 @@ Item {
             window._init = true;
             localVerProcess.running = true;
             remoteVerProcess.running = true;
-            videoCheckProcess.running = true;
+            videoResolveProcess.running = true;
             commitFetchProcess.running = true;
         }
     }
@@ -117,17 +118,55 @@ Item {
         }
     }
 
-    // --- 3. VIDEO CHECK (FAST HEAD REQUEST) ---
+    // --- 3. DYNAMIC VIDEO RESOLUTION ---
+    property string videoResolveScript: `
+import urllib.request, json, subprocess, sys
+try:
+    local_str = subprocess.check_output("source ~/.local/state/imperative-dots-version 2>/dev/null && echo $LOCAL_VERSION", shell=True).decode('utf-8').strip()
+    if not local_str: local_str = '0.0.0'
+    
+    # Safe Semantic Version Parsing
+    def parse_v(v):
+        clean = ''.join(c if c.isdigit() or c == '.' else ' ' for c in v).strip().replace(' ', '.')
+        return [int(x) for x in clean.split('.') if x.isdigit()]
+        
+    local_v = parse_v(local_str)
+
+    req = urllib.request.Request('https://raw.githubusercontent.com/ilyamiro/imperative-dots/master/updates.json')
+    res = urllib.request.urlopen(req, timeout=5)
+    data = json.loads(res.read().decode())
+
+    valid_videos = []
+    for item in data.get('videos', []):
+        target_v = parse_v(item['version'])
+        # Only grab videos for versions newer than what the user currently has installed
+        if target_v > local_v:
+            valid_videos.append((target_v, item['url']))
+
+    if valid_videos:
+        valid_videos.sort(key=lambda x: x[0])
+        url = valid_videos[-1][1] # Play the newest feature video they missed
+        
+        # Verify the video URL is actually alive before expanding the UI
+        head = urllib.request.Request(url, method='HEAD')
+        head_res = urllib.request.urlopen(head, timeout=5)
+        if head_res.getcode() in [200, 301, 302]:
+            print(url)
+except Exception:
+    pass
+`
+
     Process {
-        id: videoCheckProcess
+        id: videoResolveProcess
         running: false
-        command: ["bash", "-c", "curl -m 5 -o /dev/null -s -I -w '%{http_code}' " + window.videoUrl]
+        command: ["python3", "-c", window.videoResolveScript]
         stdout: StdioCollector {
             onStreamFinished: {
-                let code = this.text ? this.text.trim() : "";
-                if (code === "200") {
-                    window.uiExpanded = true; // Expand UI instantly
-                    videoDownloadProcess.running = true; // Start heavy download
+                let url = this.text ? this.text.trim() : "";
+                if (url !== "" && url.startsWith("http")) {
+                    window.videoUrl = url;
+                    window.uiExpanded = true;
+                    videoDownloadProcess.running = true;
                 }
             }
         }
@@ -427,8 +466,8 @@ except Exception as e:
                     }
 
                     MediaPlayer {
-			id: videoPlayer
-			videoOutput: videoOutput
+                        id: videoPlayer
+                        videoOutput: videoOutput
                         loops: MediaPlayer.Infinite
                     }
 
