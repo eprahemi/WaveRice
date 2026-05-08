@@ -30,29 +30,6 @@ Item {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     }
 
-    function compareVersions(local, remote) {
-        if (local === remote || local === "Unknown" || local === "Loading..." || !local || !remote) return false;
-
-        function parseVersion(v) {
-            let parts = v.split('-');
-            let base = parts[0].split('.').map(Number);
-            let rev = parts.length > 1 ? parseInt(parts[1]) : 0;
-            return { base: base, rev: rev };
-        }
-
-        let l = parseVersion(local);
-        let r = parseVersion(remote);
-
-        for (let i = 0; i < Math.max(l.base.length, r.base.length); i++) {
-            let lVal = l.base[i] || 0;
-            let rVal = r.base[i] || 0;
-            if (lVal < rVal) return true;
-            if (lVal > rVal) return false;
-        }
-
-        return l.rev < r.rev;
-    }
-
     // -------------------------------------------------------------------------
     // KEYBOARD SHORTCUTS & NAVIGATION
     // -------------------------------------------------------------------------
@@ -89,6 +66,18 @@ Item {
             }
             event.accepted = true;
         }
+    }
+    Keys.onUpPressed: {
+        let prev = (currentTab - 1 + tabNames.length) % tabNames.length;
+        if (prev === 0) prev = tabNames.length - 1;
+        currentTab = prev;
+        event.accepted = true;
+    }
+    Keys.onDownPressed: {
+        let next = (currentTab + 1) % tabNames.length;
+        if (next === 0) next = 1;
+        currentTab = next;
+        event.accepted = true;
     }
     Keys.onReturnPressed: {
         if (currentTab === 2) { 
@@ -137,24 +126,15 @@ Item {
     // GLOBALS
     // -------------------------------------------------------------------------
     property string dotsVersion: "Loading..."
-    property string remoteVersion: ""
-    property bool updateAvailable: false
-
-    onDotsVersionChanged: {
-        if (remoteVersion !== "" && dotsVersion !== "Loading...") {
-            updateAvailable = compareVersions(dotsVersion, remoteVersion);
-        }
-    }
-
-    onRemoteVersionChanged: {
-        if (remoteVersion !== "" && dotsVersion !== "Loading...") {
-            updateAvailable = compareVersions(dotsVersion, remoteVersion);
-        }
-    }
+    property string updateRemoteVer: ""
+    property string updateStatusText: "Click CHECK"
+    property string updateStatusIcon: ""
+    property color updateStatusColor: root.subtext0
+    property bool checkingUpdates: false
 
     Process {
         id: versionReader
-        command: ["bash", "-c", "source ~/.local/state/imperative-dots-version 2>/dev/null && echo $LOCAL_VERSION || echo 'Unknown'"]
+        command: ["bash", "-c", "source ~/.local/state/waverice-version 2>/dev/null && echo $LOCAL_VERSION || echo 'Unknown'"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
@@ -166,12 +146,35 @@ Item {
 
     Process {
         id: updateChecker
-        command: ["bash", "-c", "curl -m 5 -s https://raw.githubusercontent.com/eprahemi/WaveRice/master/install.sh | grep '^DOTS_VERSION=' | cut -d'\"' -f2"]
-        running: true
+        running: false
+        command: ["bash", "-c", "LOCAL_VER=$(source ~/.local/state/waverice-version 2>/dev/null && echo \"$LOCAL_VERSION\" || echo \"Unknown\"); REMOTE_VER=$(curl -m 5 -s https://raw.githubusercontent.com/eprahemi/WaveRice/master/install.sh | grep '^DOTS_VERSION=' | cut -d'\"' -f2); echo \"${LOCAL_VER:-Unknown}|${REMOTE_VER:-ERROR}\""]
         stdout: StdioCollector {
             onStreamFinished: {
                 let out = this.text ? this.text.trim() : "";
-                if (out !== "") root.remoteVersion = out;
+                root.checkingUpdates = false;
+                if (out !== "") {
+                    let parts = out.split("|");
+                    let local = parts.length > 0 ? parts[0].trim() : "";
+                    let remote = parts.length > 1 ? parts[1].trim() : "";
+                    if (remote === "" || remote === "ERROR") {
+                        root.updateStatusText = "Check failed";
+                        root.updateStatusIcon = "";
+                        root.updateStatusColor = root.red;
+                    } else if (remote === local) {
+                        root.updateStatusText = "Up to date";
+                        root.updateStatusIcon = "";
+                        root.updateStatusColor = root.green;
+                    } else {
+                        root.updateRemoteVer = remote;
+                        root.updateStatusText = "v" + remote + " available";
+                        root.updateStatusIcon = "󰚰";
+                        root.updateStatusColor = root.peach;
+                    }
+                } else {
+                    root.updateStatusText = "Check failed";
+                    root.updateStatusIcon = "";
+                    root.updateStatusColor = root.red;
+                }
             }
         }
     }
@@ -222,8 +225,8 @@ Item {
     // -------------------------------------------------------------------------
     property int currentTab: 1
     property int selectedModuleIndex: 0
-    property var tabNames: ["Settings", "System", "Modules", "Matugen", "About"]
-    property var tabIcons: ["", "", "󰣆", "󰏘", ""]
+    property var tabNames: ["Settings", "System", "Modules", "Matugen", "About", "Updates"]
+    property var tabIcons: ["", "", "󰣆", "󰏘", "", "󰑖"]
 
     property real introBase: 0.0
     property real introSidebar: 0.0
@@ -575,57 +578,6 @@ Item {
 
                 Item { Layout.fillHeight: true }
 
-                // --- UPDATE AVAILABLE BUTTON ---
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: root.updateAvailable ? root.s(50) : 0
-                    visible: root.updateAvailable
-                    opacity: root.updateAvailable ? 1.0 : 0.0
-                    radius: root.s(8)
-                    color: updateHover.containsMouse ? Qt.alpha(root.green, 0.15) : Qt.alpha(root.green, 0.05)
-                    border.color: updateHover.containsMouse ? root.green : Qt.alpha(root.green, 0.4)
-                    border.width: 1
-                    scale: updateHover.pressed ? 0.96 : (updateHover.containsMouse ? 1.02 : 1.0)
-                    clip: true
-                    
-                    Behavior on Layout.preferredHeight { NumberAnimation { duration: 300; easing.type: Easing.OutQuart } }
-                    Behavior on opacity { NumberAnimation { duration: 300 } }
-                    Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                    Behavior on border.color { ColorAnimation { duration: 150 } }
-
-                    ColumnLayout {
-                        anchors.centerIn: parent
-                        spacing: root.s(2)
-                        
-                        RowLayout {
-                            Layout.alignment: Qt.AlignHCenter
-                            spacing: root.s(6)
-                            Text { text: "󰚰"; font.family: "Iosevka Nerd Font"; font.pixelSize: root.s(14); color: root.green }
-                            Text { text: "Update Available"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(12); color: root.green }
-                        }
-                        
-                        Text {
-                            text: root.dotsVersion + "  " + root.remoteVersion
-                            font.family: "JetBrains Mono"
-                            font.pixelSize: root.s(10)
-                            color: root.subtext0
-                            Layout.alignment: Qt.AlignHCenter
-                        }
-                    }
-
-                    MouseArea {
-                        id: updateHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            let cmd = "if command -v kitty >/dev/null 2>&1; then kitty --hold bash -c 'eval \"$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WaveRice/master/install.sh)\"'; else ${TERM:-xterm} -hold -e bash -c 'eval \"$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WaveRice/master/install.sh)\"'; fi";
-                            Quickshell.execDetached(["bash", "-c", cmd]);
-                        }
-                    }
-                }
-
                 // --- CLOSE BUTTON ---
                 Rectangle {
                     Layout.fillWidth: true
@@ -751,17 +703,27 @@ Item {
                             spacing: root.s(30)
 
                             Item {
+                                id: avatarContainer
                                 Layout.preferredWidth: root.s(100)
                                 Layout.preferredHeight: root.s(100)
-                                
+
+                                property real glowAngle: 0
+                                NumberAnimation on glowAngle {
+                                    from: 0
+                                    to: 360
+                                    duration: 8000
+                                    loops: Animation.Infinite
+                                    easing.type: Easing.Linear
+                                }
+
                                 Rectangle {
                                     anchors.centerIn: parent
                                     width: root.s(100)
                                     height: root.s(100)
                                     radius: root.s(50)
                                     color: "transparent"
-                                    border.color: Qt.alpha(root.ambientPurple, sysBoxMa.containsMouse ? 0.8 : 0.3)
-                                    border.width: root.s(3)
+                                    border.color: Qt.alpha(root.ambientPurple, sysBoxMa.containsMouse ? 0.9 : 0.5)
+                                    border.width: root.s(4)
                                     scale: sysBoxMa.containsMouse ? 1.05 : 1.0
                                     
                                     Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
@@ -775,7 +737,7 @@ Item {
                                         running: true 
                                     }
                                 }
-                                
+
                                 Item {
                                     anchors.centerIn: parent
                                     width: root.s(84)
@@ -842,14 +804,15 @@ Item {
                                     color: root.text 
                                 }
                                 
-                                Text { 
-                                    text: "@" + root.sysHost
-                                    font.family: "JetBrains Mono"
-                                    font.pixelSize: root.s(14)
-                                    color: root.subtext0 
-                                }
-                                
-                                Rectangle { 
+                        Text {
+                            text: ""
+                            font.family: "Iosevka Nerd Font"
+                            font.pixelSize: root.s(16)
+                            color: root.blue
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+
+                                Rectangle {
                                     Layout.fillWidth: true
                                     height: 1
                                     color: Qt.alpha(root.surface1, 0.5)
@@ -941,7 +904,7 @@ Item {
                                 Layout.alignment: Qt.AlignVCenter
                                 spacing: root.s(1)
                                 Repeater {
-                                    model: [ { l: "i", c: root.red }, { l: "l", c: root.peach }, { l: "y", c: root.yellow }, { l: "a", c: root.green }, { l: "m", c: root.sapphire }, { l: "i", c: root.blue }, { l: "r", c: root.mauve }, { l: "o", c: root.pink } ]
+                                    model: [ { l: "e", c: root.red }, { l: "p", c: root.peach }, { l: "r", c: root.yellow }, { l: "a", c: root.green }, { l: "h", c: root.sapphire }, { l: "e", c: root.blue }, { l: "m", c: root.mauve }, { l: "i", c: root.pink } ]
                                     Text { 
                                         text: modelData.l
                                         font.family: "JetBrains Mono"
@@ -978,7 +941,7 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/eprahemi/WaveRice"]) 
+                            onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/eprahemi"]) 
                         }
                     }
 
@@ -1126,8 +1089,21 @@ Item {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: root.s(4)
-                            Text { text: "Interactive Modules"; font.family: "JetBrains Mono"; font.weight: Font.Black; font.pixelSize: root.s(28); color: root.text }
-                            Text { text: "Use arrow keys or select below to preview. Double-click or press Enter to toggle."; font.family: "JetBrains Mono"; font.pixelSize: root.s(13); color: root.subtext0 }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: root.s(8)
+
+                                Text {
+                                    text: "Interactive Modules"
+                                    font.family: "JetBrains Mono"
+                                    font.weight: Font.Black
+                                    font.pixelSize: root.s(28)
+                                    color: root.text
+                                }
+
+                                Item { Layout.fillWidth: true }
+                            }
                         }
                         
                         Item { Layout.fillWidth: true } 
@@ -1343,6 +1319,11 @@ Item {
                                     Text { anchors.centerIn: parent; text: ""; font.family: "Iosevka Nerd Font"; font.pixelSize: root.s(28); color: root.text } 
                                 } 
                                 Text { text: "Wallpaper"; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(12); color: root.text; Layout.alignment: Qt.AlignHCenter } 
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Qt.openUrlExternally("https://github.com/eprahemi/eprahemi-wallpapers")
+                                }
                             }
                             
                             Item { 
@@ -1530,62 +1511,450 @@ Item {
                 visible: root.currentTab === 4
                 opacity: visible ? 1.0 : 0.0
                 property real slideY: visible ? 0 : root.s(10)
-                
+
                 Behavior on slideY { NumberAnimation { duration: 250; easing.type: Easing.OutQuart } }
                 transform: Translate { y: slideY }
                 Behavior on opacity { NumberAnimation { duration: 250 } }
 
-                RowLayout {
+                ColumnLayout {
                     anchors.centerIn: parent
-                    spacing: root.s(30)
+                    spacing: root.s(24)
 
-                    Repeater {
-                        model: [
-{ name: "WaveRice", icon: "󰣇", color: "mauve", url: "https://github.com/eprahemi/WaveRice" },
+                    // ─── LINK CARDS ────────────────────────────────────
+                    RowLayout {
+                        Layout.alignment: Qt.AlignHCenter
+                        spacing: root.s(30)
+
+                        Repeater {
+                            model: [
+                                { name: "GitHub", icon: "", color: "blue", url: "https://github.com/eprahemi" },
+                                { name: "Eprahemi", icon: "󰣇", color: "mauve", url: "https://github.com/eprahemi/WaveRice" },
                                 { name: "Wallpapers", icon: "", color: "peach", url: "https://github.com/eprahemi/eprahemi-wallpapers" }
-                        ]
+                            ]
+
+                            Rectangle {
+                                Layout.preferredWidth: root.s(140)
+                                Layout.preferredHeight: root.s(140)
+                                radius: root.s(16)
+                                color: repoMa.containsMouse ? Qt.alpha(root[modelData.color], 0.15) : Qt.alpha(root.surface0, 0.4)
+                                border.color: repoMa.containsMouse ? root[modelData.color] : root.surface1
+                                border.width: 1
+                                scale: repoMa.pressed ? 0.95 : (repoMa.containsMouse ? 1.05 : 1.0)
+
+                                Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                                Behavior on border.color { ColorAnimation { duration: 200 } }
+
+                                ColumnLayout {
+                                    anchors.centerIn: parent
+                                    spacing: root.s(15)
+
+                                    Text {
+                                        text: modelData.icon
+                                        font.family: "Iosevka Nerd Font"
+                                        font.pixelSize: root.s(42)
+                                        color: root[modelData.color]
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+
+                                    Text {
+                                        text: modelData.name
+                                        font.family: "JetBrains Mono"
+                                        font.weight: Font.Bold
+                                        font.pixelSize: root.s(13)
+                                        color: root.text
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: repoMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Quickshell.execDetached(["xdg-open", modelData.url])
+                                }
+                            }
+                        }
+                    }
+
+                    // ─── DIVIDER ───────────────────────────────────────
+                    Rectangle {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: root.s(240)
+                        Layout.preferredHeight: 1
+                        color: Qt.alpha(root.text, 0.08)
+                    }
+
+                    // ─── VERSION DISPLAY ───────────────────────────────
+                    RowLayout {
+                        Layout.alignment: Qt.AlignHCenter
+                        spacing: root.s(8)
+
+                        Image {
+                            source: "file://" + Quickshell.env("HOME") + "/.config/hypr/scripts/quickshell/guide/makima_icon.svg"
+                            fillMode: Image.PreserveAspectFit
+                            Layout.preferredWidth: 40
+                            Layout.preferredHeight: 40
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+
+                        Text {
+                            text: "Version"
+                            font.family: "JetBrains Mono"
+                            font.weight: Font.Medium
+                            font.pixelSize: root.s(12)
+                            color: root.subtext0
+                        }
+
+                        Text {
+                            text: root.dotsVersion !== "Loading..." ? root.dotsVersion : "..."
+                            font.family: "JetBrains Mono"
+                            font.weight: Font.Bold
+                            font.pixelSize: root.s(12)
+                            color: root.text
+                        }
+                    }
+
+                    // ─── TERMINAL HINT ─────────────────────────────────
+                    RowLayout {
+                        Layout.alignment: Qt.AlignHCenter
+                        spacing: root.s(6)
+                        opacity: 0.55
+
+                        Text {
+                            text: "Tip: Type 'update' in your terminal"
+                            font.family: "JetBrains Mono"
+                            font.pixelSize: root.s(10)
+                            color: root.subtext0
+                        }
+                    }
+                }
+            }
+
+            // ------------------------------------------
+            // TAB 5: UPDATES & CHANGELOG
+            // ------------------------------------------
+            Item {
+                anchors.fill: parent
+                visible: root.currentTab === 5
+                opacity: visible ? 1.0 : 0.0
+                property real slideY: visible ? 0 : root.s(10)
+
+                Behavior on slideY { NumberAnimation { duration: 250; easing.type: Easing.OutQuart } }
+                transform: Translate { y: slideY }
+                Behavior on opacity { NumberAnimation { duration: 250 } }
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.topMargin: root.s(15)
+                    anchors.leftMargin: root.s(20)
+                    anchors.rightMargin: root.s(20)
+                    anchors.bottomMargin: root.s(20)
+                    spacing: root.s(20)
+
+                    // ─── HEADER ────────────────────────────────────────
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: root.s(15)
+
+                        Rectangle {
+                            Layout.preferredWidth: root.s(48)
+                            Layout.preferredHeight: root.s(48)
+                            radius: root.s(12)
+                            color: Qt.alpha(root.green, 0.15)
+                            Text {
+                                anchors.centerIn: parent
+                                text: "󰑖"
+                                font.family: "Iosevka Nerd Font"
+                                font.pixelSize: root.s(24)
+                                color: root.green
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
+                            spacing: root.s(4)
+                            Text {
+                                text: "Updates & Changelog"
+                                font.family: "JetBrains Mono"
+                                font.weight: Font.Black
+                                font.pixelSize: root.s(28)
+                                color: root.text
+                            }
+                            Text {
+                                text: "Track what's new in your dotfiles"
+                                font.family: "JetBrains Mono"
+                                font.pixelSize: root.s(13)
+                                color: root.subtext0
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true }
 
                         Rectangle {
                             Layout.preferredWidth: root.s(140)
-                            Layout.preferredHeight: root.s(140)
-                            radius: root.s(16)
-                            color: repoMa.containsMouse ? Qt.alpha(root[modelData.color], 0.15) : Qt.alpha(root.surface0, 0.4)
-                            border.color: repoMa.containsMouse ? root[modelData.color] : root.surface1
+                            Layout.preferredHeight: root.s(44)
+                            radius: root.s(22)
+                            color: checkMa.containsMouse ? Qt.alpha(root.green, 0.9) : Qt.alpha(root.green, 0.7)
+                            border.color: root.green
                             border.width: 1
-                            scale: repoMa.pressed ? 0.95 : (repoMa.containsMouse ? 1.05 : 1.0)
+                            scale: checkMa.pressed ? 0.95 : (checkMa.containsMouse ? 1.05 : 1.0)
 
                             Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
-                            Behavior on color { ColorAnimation { duration: 200 } }
-                            Behavior on border.color { ColorAnimation { duration: 200 } }
+                            Behavior on color { ColorAnimation { duration: 150 } }
 
-                            ColumnLayout {
+                            RowLayout {
                                 anchors.centerIn: parent
-                                spacing: root.s(15)
-
+                                spacing: root.s(8)
                                 Text {
-                                    text: modelData.icon
+                                    text: root.checkingUpdates ? "󰑮" : ""
                                     font.family: "Iosevka Nerd Font"
-                                    font.pixelSize: root.s(42)
-                                    color: root[modelData.color]
-                                    Layout.alignment: Qt.AlignHCenter
+                                    font.pixelSize: root.s(20)
+                                    color: root.base
+                                    RotationAnimation on rotation {
+                                        from: 0; to: 360
+                                        duration: 1500; loops: Animation.Infinite
+                                        running: root.checkingUpdates
+                                    }
                                 }
-
                                 Text {
-                                    text: modelData.name
+                                    text: root.checkingUpdates ? "CHECKING" : "CHECK"
                                     font.family: "JetBrains Mono"
-                                    font.weight: Font.Bold
-                                    font.pixelSize: root.s(13)
-                                    color: root.text
-                                    Layout.alignment: Qt.AlignHCenter
+                                    font.weight: Font.Black
+                                    font.pixelSize: root.s(14)
+                                    color: root.base
                                 }
                             }
 
                             MouseArea {
-                                id: repoMa
+                                id: checkMa
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Quickshell.execDetached(["xdg-open", modelData.url])
+                                onClicked: {
+                                    if (!root.checkingUpdates) {
+                                        root.checkingUpdates = true;
+                                        root.updateStatusText = "Checking...";
+                                        root.updateStatusIcon = "󰑮";
+                                        root.updateStatusColor = root.subtext0;
+                                        updateChecker.running = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ─── VERSION DISPLAY ───────────────────────────────
+                    Item {
+                        Layout.alignment: Qt.AlignHCenter
+                        implicitWidth: versionRow.implicitWidth
+                        implicitHeight: versionRow.implicitHeight
+                        scale: versionRowMa.containsMouse ? 1.15 : 1.0
+                        Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+
+                        RowLayout {
+                            id: versionRow
+                            anchors.centerIn: parent
+                            spacing: root.s(8)
+
+                            Image {
+                                source: "file://" + Quickshell.env("HOME") + "/.config/hypr/scripts/quickshell/guide/himeno.svg"
+                                fillMode: Image.PreserveAspectFit
+                                Layout.preferredWidth: 36
+                                Layout.preferredHeight: 36
+                                Layout.alignment: Qt.AlignVCenter
+                            }
+
+                            Text {
+                                text: "Version"
+                                font.family: "JetBrains Mono"
+                                font.weight: Font.Medium
+                                font.pixelSize: root.s(12)
+                                color: root.subtext0
+                            }
+
+                            Text {
+                                text: root.dotsVersion !== "Loading..." ? root.dotsVersion : "..."
+                                font.family: "JetBrains Mono"
+                                font.weight: Font.Bold
+                                font.pixelSize: root.s(12)
+                                color: root.text
+                            }
+                        }
+
+                        MouseArea {
+                            id: versionRowMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                        }
+                    }
+
+                    // ─── DIVIDER ────────────────────────────────────────
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 1
+                        color: Qt.alpha(root.surface1, 0.3)
+                        Layout.topMargin: root.s(8)
+                        Layout.bottomMargin: root.s(8)
+                    }
+
+                    // ─── CHANGELOG SECTION ─────────────────────────────
+                    Text {
+                        text: "Recent Changes"
+                        font.family: "JetBrains Mono"
+                        font.weight: Font.Black
+                        font.pixelSize: root.s(18)
+                        color: root.text
+                        Layout.alignment: Qt.AlignVCenter
+                    }
+
+                    ListView {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        spacing: root.s(6)
+
+                        model: ListModel {
+                            ListElement { version: "v2.1.0"; title: "Stewart AI (Reserved)"; desc: "Voice assistant integration placeholder"; icon: "󰚩"; clr: "mauve"; detail: "Voice-first interaction layer for controlling modules and workspace layout. Reserved for future development with plugin-based skill expansion." }
+                            ListElement { version: "v2.0.5"; title: "Ambient Orbs Enhanced"; desc: "3 dynamic orbs with smooth color blending"; icon: "󱓞"; clr: "peach"; detail: "Three dynamic gradient orbs with trigonometric motion paths and theme-aware color blending between accent pairs." }
+                            ListElement { version: "v2.0.4"; title: "Network Hub Rewrite"; desc: "Wi-Fi & Bluetooth via nmcli and bluez"; icon: "󰤨"; clr: "blue"; detail: "Unified Wi-Fi and Bluetooth management using nmcli and BlueZ backends with connection quality monitoring." }
+                            ListElement { version: "v2.0.3"; title: "FocusTime Daemon"; desc: "Pomodoro timer with session tracking"; icon: "󰄉"; clr: "pink"; detail: "Pomodoro timer with configurable intervals, session progress tracking, and desktop notifications for deep work." }
+                            ListElement { version: "v2.0.2"; title: "Battery Health"; desc: "Uptime, power profiles, health metrics"; icon: "󰁹"; clr: "yellow"; detail: "Real-time charge status, power consumption metrics, cycle tracking, and visual health indicators." }
+                            ListElement { version: "v2.0.1"; title: "Media Overhaul"; desc: "Cava visualizer & live lyrics"; icon: "󰎆"; clr: "green"; detail: "Cava audio visualizer with real-time frequency analysis and synchronized lyrics display via OSD." }
+                            ListElement { version: "v2.0.0"; title: "Imperative Release"; desc: "Full QML rewrite, 8 modules, Matugen"; icon: "󰣆"; clr: "mauve"; detail: "Foundational QML rewrite with eight interactive modules, Matugen theming, and animated guide popup." }
+                        }
+
+                        delegate: Rectangle {
+                            id: chgDelegate
+                            width: ListView.view.width
+                            height: root.s(52)
+                            radius: root.s(8)
+                            color: chMa.containsMouse ? Qt.alpha(root[model.clr], 0.08) : Qt.alpha(root.surface0, 0.3)
+                            border.color: chMa.containsMouse ? Qt.alpha(root[model.clr], 0.3) : "transparent"
+                            border.width: 1
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: root.s(10)
+                                spacing: root.s(12)
+
+                                Rectangle {
+                                    Layout.preferredWidth: root.s(28)
+                                    Layout.preferredHeight: root.s(28)
+                                    radius: root.s(6)
+                                    color: Qt.alpha(root.base, 0.3)
+                                    Text { anchors.centerIn: parent; text: model.icon; font.family: "Iosevka Nerd Font"; font.pixelSize: root.s(14); color: root[model.clr] }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                    spacing: root.s(2)
+                                    RowLayout {
+                                        spacing: root.s(8)
+                                        Text { text: model.version; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(12); color: root[model.clr] }
+                                        Text { text: model.title; font.family: "JetBrains Mono"; font.weight: Font.Bold; font.pixelSize: root.s(12); color: root.text }
+                                        Item { Layout.fillWidth: true }
+                                    }
+                                    Text { text: model.desc; font.family: "JetBrains Mono"; font.pixelSize: root.s(11); color: root.subtext0 }
+                                }
+                            }
+
+                            MouseArea {
+                                id: chMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onEntered: root.showHint(model.detail, this)
+                                onExited: root.hideHint()
+                            }
+                        }
+                    }
+
+                    // ─── UPDATE INSTRUCTIONS ───────────────────────────
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: root.s(50)
+                        radius: root.s(10)
+                        color: Qt.alpha(root.surface0, 0.4)
+                        border.color: root.surface1
+                        border.width: 1
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: root.s(12)
+                            spacing: root.s(10)
+
+                            Text { text: ""; font.family: "Iosevka Nerd Font"; font.pixelSize: root.s(16); color: root.subtext0 }
+
+                            Text {
+                                text: "Run "
+                                font.family: "JetBrains Mono"
+                                font.pixelSize: root.s(12)
+                                color: root.subtext0
+                            }
+
+                            Rectangle {
+                                Layout.preferredHeight: root.s(26)
+                                Layout.preferredWidth: cmdText.implicitWidth + root.s(16)
+                                radius: root.s(4)
+                                color: root.base
+                                border.color: root.surface2
+                                border.width: 1
+
+                                Text {
+                                    id: cmdText
+                                    anchors.centerIn: parent
+                                    text: "update"
+                                    font.family: "JetBrains Mono"
+                                    font.weight: Font.Bold
+                                    font.pixelSize: root.s(11)
+                                    color: root.green
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    hoverEnabled: true
+                                    onClicked: Quickshell.execDetached(["bash", "-c", "update"])
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            Rectangle {
+                                Layout.preferredWidth: root.s(28)
+                                Layout.preferredHeight: root.s(28)
+                                radius: root.s(6)
+                                color: cpMa.containsMouse ? root.surface1 : "transparent"
+                                Text { anchors.centerIn: parent; text: ""; font.family: "Iosevka Nerd Font"; font.pixelSize: root.s(14); color: cpMa.containsMouse ? root.mauve : root.subtext0 }
+                                MouseArea {
+                                    id: cpMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Quickshell.execDetached(["bash", "-c", "echo update | wl-copy"])
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.preferredWidth: root.s(28)
+                                Layout.preferredHeight: root.s(28)
+                                radius: root.s(6)
+                                color: docMa.containsMouse ? root.surface1 : "transparent"
+                                Text { anchors.centerIn: parent; text: ""; font.family: "Iosevka Nerd Font"; font.pixelSize: root.s(14); color: docMa.containsMouse ? root.green : root.subtext0 }
+                                MouseArea {
+                                    id: docMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/eprahemi/WaveRice/releases"])
+                                }
                             }
                         }
                     }
