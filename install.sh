@@ -241,7 +241,7 @@ if [ -f "$EXISTING_SETTINGS" ] && command -v jq &>/dev/null; then
     fi
 fi
 
-WORKER_URL="https://dots-telemetry.ilyamiro-work.workers.dev"
+WORKER_URL=""
 
 send_telemetry() {
     local mode=$1
@@ -326,24 +326,24 @@ draw_header() {
     clear 
     printf "${BOLD}${C_CYAN}"
     cat << "EOF"
- ██╗██╗     ██╗   ██╗ █████╗ ███╗   ███╗██╗██████╗  ██████╗ 
- ██║██║     ╚██╗ ██╔╝██╔══██╗████╗ ████║██║██╔══██╗██╔═══██╗
- ██║██║      ╚████╔╝ ███████║██╔████╔██║██║██████╔╝██║   ██║
- ██║██║       ╚██╔╝  ██╔══██║██║╚██╔╝██║██║██╔══██╗██║   ██║
- ██║███████╗   ██║   ██║  ██║██║ ╚═╝ ██║██║██║  ██║╚██████╔╝
- ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝╚═╝  ╚═╝ ╚═════╝ 
+ ███████╗██████╗ ██████╗  █████╗ ██╗  ██╗███████╗███╗   ███╗██╗
+ ██╔════╝██╔══██╗██╔══██╗██╔══██╗██║  ██║██╔════╝████╗ ████║██║
+ █████╗  ██████╔╝██████╔╝███████║███████║█████╗  ██╔████╔██║██║
+ ██╔══╝  ██╔══██╗██╔══██╗██╔══██║██╔══██║██╔══╝  ██║╚██╔╝██║██║
+ ███████╗██║  ██║██║  ██║██║  ██║██║  ██║███████╗██║ ╚═╝ ██║██║
+ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝╚═╝
 EOF
     printf "${RESET}\n"
 
-    local OSC8_GH="\e]8;;https://github.com/ilyamiro/imperative-dots.git\a"
-    local OSC8_TW="\e]8;;https://twitter.com/ilyamirox\a"
-    local OSC8_RD="\e]8;;https://reddit.com/u/ilyamiro1\a"
-    local OSC8_KF="\e]8;;https://ko-fi.com/ilyamiro\a"
+    local OSC8_GH="\e]8;;https://github.com/eprahemi/WaveRice.git\a"
+    local OSC8_TW="\e]8;;https://twitter.com/eprahemi\a"
+    local OSC8_RD="\e]8;;https://reddit.com/u/eprahemi\a"
+    local OSC8_KF="\e]8;;https://ko-fi.com/eprahemi\a"
     local OSC8_END="\e]8;;\a"
 
     printf "\033[K${C_BLUE} -----------------------------------------------------------------${RESET}\n"
-    printf "\033[K${BOLD}${C_GREEN} GitHub:${RESET}  ${OSC8_GH}https://github.com/ilyamiro/imperative-dots.git${OSC8_END}\n"
-    printf "\033[K${BOLD}${C_CYAN} Twitter:${RESET} ${OSC8_TW}@ilyamirox${OSC8_END}  |  ${BOLD}${C_RED}Reddit:${RESET} ${OSC8_RD}u/ilyamiro1${OSC8_END}\n"
+    printf "\033[K${BOLD}${C_GREEN} GitHub:${RESET}  ${OSC8_GH}https://github.com/eprahemi/WaveRice.git${OSC8_END}\n"
+    printf "\033[K${BOLD}${C_CYAN} Twitter:${RESET} ${OSC8_TW}@eprahemi${OSC8_END}  |  ${BOLD}${C_RED}Reddit:${RESET} ${OSC8_RD}u/eprahemi${OSC8_END}\n"
     printf "\033[K${BOLD}${C_MAGENTA} Donate:${RESET}  ${OSC8_KF}Donate on Ko-fi (Help the project!)${OSC8_END}\n"
     printf "\033[K${C_BLUE} -----------------------------------------------------------------${RESET}\n"
     printf "\033[K${BOLD} User:           ${RESET} %s\n" "$USER_NAME"
@@ -673,7 +673,7 @@ manage_keyboard() {
 show_overview() {
     draw_header
     echo -e "${BOLD}${C_MAGENTA}=== System Overview & Keybinds ===${RESET}\n"
-    echo -e "This configuration is an adaptation of the ${BOLD}${C_CYAN}ilyamiro/nixos-configuration${RESET} setup."
+    echo -e "This configuration is an adaptation of the ${BOLD}${C_CYAN}eprahemi/WaveRice${RESET} setup."
     echo -e "Here are the core keybindings to navigate your new system once installed:\n"
 
     print_kb() {
@@ -1201,7 +1201,7 @@ fi
 
 # --- 3. Repository Cloning & Wallpapers ---
 echo -e "\n${C_CYAN}[ INFO ]${RESET} Setting up Dotfiles Repository..."
-REPO_URL="https://github.com/ilyamiro/imperative-dots.git"
+REPO_URL="https://github.com/eprahemi/WaveRice.git"
 CLONE_DIR="$HOME/.hyprland-dots"
 
 OLD_COMMIT=""
@@ -1241,7 +1241,7 @@ mkdir -p "$WALLPAPER_DIR"
 if [ "$(ls -A "$WALLPAPER_DIR" 2>/dev/null | grep -E '\.(jpg|png|jpeg|gif|webp)$')" ]; then
     echo -e "  -> ${C_GREEN}Wallpapers already present in $WALLPAPER_DIR. Skipping download.${RESET}"
 else
-    WALLPAPER_REPO="https://github.com/ilyamiro/shell-wallpapers.git"
+    WALLPAPER_REPO="https://github.com/eprahemi/eprahemi-wallpapers.git"
     WALLPAPER_CLONE_DIR="/tmp/shell-wallpapers"
 
     if [ -d "$WALLPAPER_CLONE_DIR" ]; then
@@ -1705,7 +1705,7 @@ echo -e "${RESET}\n"
 echo -e "${BOLD}${C_MAGENTA}=================================================================${RESET}"
 echo -e "${BOLD}${C_YELLOW} Support the Creator:${RESET}"
 echo -e " If you enjoy this project, consider buying me a coffee!"
-echo -e " ${BOLD}${C_CYAN}Ko-fi:${RESET} https://ko-fi.com/ilyamiro"
+ echo -e " ${BOLD}${C_CYAN}Ko-fi:${RESET} https://ko-fi.com/eprahemi"
 echo -e "${BOLD}${C_MAGENTA}=================================================================${RESET}\n"
 
 if [ ${#FAILED_PKGS[@]} -ne 0 ]; then

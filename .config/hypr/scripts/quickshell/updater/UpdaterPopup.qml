@@ -109,7 +109,7 @@ Item {
     Process {
         id: remoteVerProcess
         running: false
-        command: ["bash", "-c", "curl -m 5 -s https://raw.githubusercontent.com/ilyamiro/imperative-dots/master/install.sh | grep '^DOTS_VERSION=' | cut -d'\"' -f2"]
+        command: ["bash", "-c", "curl -m 5 -s https://raw.githubusercontent.com/eprahemi/WaveRice/master/install.sh | grep '^DOTS_VERSION=' | cut -d'\"' -f2"]
         stdout: StdioCollector {
             onStreamFinished: {
                 let out = this.text ? this.text.trim() : "";
@@ -132,7 +132,7 @@ try:
         
     local_v = parse_v(local_str)
 
-    req = urllib.request.Request('https://raw.githubusercontent.com/ilyamiro/imperative-dots/master/updates.json')
+    req = urllib.request.Request('https://raw.githubusercontent.com/eprahemi/WaveRice/master/updates.json')
     res = urllib.request.urlopen(req, timeout=5)
     data = json.loads(res.read().decode())
 
@@ -191,7 +191,7 @@ except Exception:
     property string fetchScript: `
 import urllib.request, json, subprocess
 
-repo = 'ilyamiro/imperative-dots'
+repo = 'eprahemi/WaveRice'
 
 try:
     local = subprocess.check_output("source ~/.local/state/imperative-dots-version 2>/dev/null && echo $LOCAL_VERSION", shell=True).decode('utf-8').strip()
@@ -670,7 +670,7 @@ except Exception as e:
                     easing.type: Easing.InSine
                     onFinished: {
                         updateBtn.triggered = true;
-                        let cmd = "if command -v kitty >/dev/null 2>&1; then kitty --hold bash -c 'eval \"$(curl -fsSL https://raw.githubusercontent.com/ilyamiro/imperative-dots/master/install.sh)\"'; else ${TERM:-xterm} -hold -e bash -c 'eval \"$(curl -fsSL https://raw.githubusercontent.com/ilyamiro/imperative-dots/master/install.sh)\"'; fi";
+                        let cmd = "if command -v kitty >/dev/null 2>&1; then kitty --hold bash -c 'eval \"$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WaveRice/master/install.sh)\"'; else ${TERM:-xterm} -hold -e bash -c 'eval \"$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WaveRice/master/install.sh)\"'; fi";
                         Quickshell.execDetached(["bash", "-c", cmd]);
                         Quickshell.execDetached(["bash", Quickshell.env("HOME") + "/.config/hypr/scripts/qs_manager.sh", "close"]);
                     }
