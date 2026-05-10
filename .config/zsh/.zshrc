@@ -210,52 +210,7 @@ refresh() {
     fetch
 }
 
-# ─── EPRAHEMI UPDATE CHECKER ──────────────────────────────────────────
+# ─── EPRAHEMI UPDATE ────────────────────────────────────────────────
 update() {
-    local current_version remote_version
-    local RED='\e[31m' GREEN='\e[32m' CYAN='\e[36m' BLUE='\e[34m'
-    local MAGENTA='\e[35m' YELLOW='\e[33m' BOLD='\e[1m' DIM='\e[2m' RESET='\e[0m'
-
-    if [ -f ~/.local/state/wiferice-version ]; then
-        source ~/.local/state/wiferice-version
-        current_version="$LOCAL_VERSION"
-    else
-        current_version="Unknown"
-    fi
-
-    remote_version=$(curl -m 5 -s https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh | grep '^DOTS_VERSION=' | cut -d'"' -f2)
-
-    if [ -z "$remote_version" ]; then
-        echo -e "\n  ${RED}[ERROR]${RESET} Could not check for updates. Check your internet connection.\n"
-        return 1
-    fi
-
-    echo ""
-    echo -e "  ${BLUE}──────────────────────────────────────────────────${RESET}"
-    echo -e "  ${BOLD}${GREEN}  ● Eprahemi Dots — Update Checker${RESET}"
-    echo -e "  ${BLUE}──────────────────────────────────────────────────${RESET}"
-    echo -e "  ${BOLD} Current:${RESET}  v$current_version"
-    echo -e "  ${BOLD} Latest:${RESET}   v$remote_version"
-
-    if [ "$current_version" = "$remote_version" ]; then
-        echo -e "  ${BLUE}──────────────────────────────────────────────────${RESET}"
-        echo -e "  ${GREEN}✅ You're on the latest version!${RESET}"
-        echo -e "  ${BLUE}──────────────────────────────────────────────────${RESET}\n"
-        return 0
-    fi
-
-    echo -e "  ${YELLOW}  ⚠ Update available!${RESET}"
-    echo -e "  ${BLUE}──────────────────────────────────────────────────${RESET}"
-    echo -e "  ${DIM}  GitHub: ${RESET}${BOLD}eprahemi/WifeRice${RESET}"
-    echo -e "  ${DIM}  Reddit: ${RESET}${BOLD}u/eprahemi${RESET}"
-    echo -e "  ${BLUE}──────────────────────────────────────────────────${RESET}"
-    printf "  ${BOLD}Download & install?${RESET} [y/N]: "
-    read -r answer
-    if [[ "$answer" =~ ^[Yy]$ ]]; then
-        echo ""
-        echo -e "  ${CYAN}Downloading v$remote_version...${RESET}"
-        bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
-    else
-        echo -e "  ${DIM}Update skipped.${RESET}\n"
-    fi
+    bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
 }
