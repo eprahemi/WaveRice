@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.8.5"
+DOTS_VERSION="1.8.6"
 VERSION_FILE="$HOME/.local/state/wiferice-version"
 
 # ==============================================================================
@@ -160,6 +160,12 @@ ARCH_PKGS=(
     "cliphist" "jq" "socat" "inotify-tools" "pamixer" "brightnessctl" "acpi" "iw"
     "bluez" "bluez-utils" "libnotify" "networkmanager" "lm_sensors" "bc" 
     "pipewire" "wireplumber" "pipewire-pulse" "pipewire-alsa" "pipewire-jack" "libpulse" "python"
+    "pulsemixer" "pandoc" "sof-firmware" "alsa-firmware"
+    "ffmpegthumbnailer" "gst-plugins-base" "gst-plugins-good" "gst-plugins-bad" "gst-plugins-ugly"
+    "gst-libav" "gst-plugin-pipewire" "libdvdcss" "libdvdread" "libdvdnav"
+    "tumbler" "poppler-glib" "libgsf" "raw-thumbnailer" "webp-pixbuf-loader"
+    "exfatprogs" "fuse2" "dosfstools" "ntfs-3g" "udiskie"
+    "ark" "gwenview" "p7zip" "unrar" "btop" "neofetch"
     "imagemagick" "wget" "file" "git" "psmisc"
     "matugen-bin" "ffmpeg" "fastfetch" "quickshell-git" "unzip" "python-websockets" "qt6-websockets"
     "grim" "playerctl" "satty" "yq" "xdg-desktop-portal-gtk" "slurp" "mpvpaper"
@@ -169,6 +175,10 @@ ARCH_PKGS=(
     "visual-studio-code-bin"
     "qt5-wayland" "qt5-quickcontrols" "qt5-quickcontrols2" "qt5-graphicaleffects" "qt6-wayland"
     "qt5ct" "qt6ct" "gpu-screen-recorder" "adw-gtk-theme"
+    "ttf-jetbrains-mono" "ttf-jetbrains-mono-nerd" "ttf-font-awesome" "noto-fonts"
+    "noto-fonts-emoji" "noto-fonts-cjk" "ttf-nerd-fonts-symbols" "ttf-nerd-fonts-symbols-mono"
+    "ttf-dejavu" "ttf-liberation" "ttf-droid" "ttf-ubuntu-font-family"
+    "ttf-opensans" "ttf-roboto" "ttf-fira-code" "ttf-iosevka-nerd" "otf-font-awesome"
 )
 
 PKGS=("${ARCH_PKGS[@]}")
@@ -722,6 +732,15 @@ env = LIBVA_DRIVER_NAME,nvidia"
     sed -i "s|{{HARDWARE_ENV}}|$NVIDIA_VARS|g" "$TARGET_CONFIG_DIR/hypr/templates/env.conf.template"
 else
     sed -i "s|{{HARDWARE_ENV}}||g" "$TARGET_CONFIG_DIR/hypr/templates/env.conf.template"
+fi
+
+# --- 4.6 Deploy Lock Screen Wallpapers ---
+WALLPAPER_SRC="$REPO_DIR/usr/share/wallpapers"
+WALLPAPER_DST="/usr/share/wallpapers"
+if [ -d "$WALLPAPER_SRC" ]; then
+    sudo mkdir -p "$WALLPAPER_DST"
+    sudo cp -r "$WALLPAPER_SRC"/* "$WALLPAPER_DST/"
+    printf "  -> Deployed lock screen wallpapers %-12s ${C_GREEN}[ OK ]${RESET}\n" ""
 fi
 
 # ==============================================================================

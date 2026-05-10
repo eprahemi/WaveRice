@@ -471,7 +471,39 @@ Item {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
+                                property real pressY: 0
+                                property real pressVol: 0
+                                property bool wasDrag: false
+                                onPressed: (mouse) => {
+                                    pressY = mouse.y;
+                                    pressVol = window.activeVol;
+                                    wasDrag = false;
+                                    syncDelay.stop();
+                                    window.draggingMaster = true;
+                                }
+                                onPositionChanged: (mouse) => {
+                                    if (!pressed) return;
+                                    let dy = mouse.y - pressY;
+                                    if (Math.abs(dy) > window.s(15)) {
+                                        wasDrag = true;
+                                    }
+                                    if (!wasDrag) return;
+                                    let delta = -Math.round(dy * 0.15);
+                                    let newVol = Math.max(0, Math.min(100, pressVol + delta));
+                                    window.activeVol = newVol;
+                                    masterCmdThrottle.targetPct = newVol;
+                                    if (!masterCmdThrottle.running) masterCmdThrottle.start();
+                                }
+                                onReleased: {
+                                    if (wasDrag) {
+                                        masterCmdThrottle.restart();
+                                        syncDelay.restart();
+                                        audioPoller.running = true;
+                                    }
+                                }
                                 onClicked: {
+                                    if (wasDrag) return;
+                                    window.activeMute = !window.activeMute;
                                     let type = window.activeTab === "inputs" ? "source" : "sink";
                                     Quickshell.execDetached(["bash", window.scriptsDir + "/audio_control.sh", "toggle-mute", type, "@DEFAULT@"]);
                                     audioPoller.running = true;
