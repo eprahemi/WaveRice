@@ -247,8 +247,7 @@ update() {
     echo -e "  ${YELLOW}  ⚠ Update available!${RESET}"
     echo -e "  ${BLUE}──────────────────────────────────────────────────${RESET}"
     echo -e "  ${DIM}  GitHub: ${RESET}${BOLD}eprahemi/WifeRice${RESET}"
-    echo -e "  ${DIM}  Twitter:${RESET} ${BOLD}@eprahemi${RESET}   ${DIM}Reddit:${RESET} ${BOLD}u/eprahemi${RESET}"
-    echo -e "  ${DIM}  Ko-fi: ${RESET}${BOLD}https://ko-fi.com/eprahemi${RESET}"
+    echo -e "  ${DIM}  Reddit: ${RESET}${BOLD}u/eprahemi${RESET}"
     echo -e "  ${BLUE}──────────────────────────────────────────────────${RESET}"
     printf "  ${BOLD}Download & install?${RESET} [y/N]: "
     read -r answer
