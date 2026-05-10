@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.9.0"
+DOTS_VERSION="1.9.1"
 VERSION_FILE="$HOME/.local/state/wiferice-version"
 
 # ==============================================================================
@@ -169,7 +169,7 @@ ARCH_PKGS=(
     "imagemagick" "wget" "file" "git" "psmisc"
     "matugen-bin" "ffmpeg" "fastfetch" "quickshell-git" "unzip" "python-websockets" "qt6-websockets"
     "grim" "playerctl" "satty" "yq" "xdg-desktop-portal-gtk" "slurp" "mpvpaper"
-    "wmctrl" "power-profiles-daemon" "easyeffects" "swayosd-git" "nautilus" "lsp-plugins" "hyprpolkitagent"
+    "wmctrl" "power-profiles-daemon" "easyeffects" "swayosd-git" "lsp-plugins" "hyprpolkitagent"
     "thunar" "thunar-volman" "thunar-archive-plugin"
     "vlc" "vlc-plugins-all"
     "visual-studio-code-bin"
