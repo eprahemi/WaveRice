@@ -369,12 +369,12 @@ EOF
     printf "${RESET}\n"
 
     local OSC8_GH="\e]8;;https://github.com/eprahemi/WifeRice.git\a"
-    local OSC8_RD="\e]8;;https://reddit.com/u/eprahemi\a"
+    local OSC8_DC="\e]8;;https://discord.gg/eprahemi\a"
     local OSC8_END="\e]8;;\a"
 
     printf "\033[K${C_BLUE} -----------------------------------------------------------------${RESET}\n"
     printf "\033[K${BOLD}${C_GREEN} GitHub:${RESET}  ${OSC8_GH}https://github.com/eprahemi/WifeRice.git${OSC8_END}\n"
-    printf "\033[K${BOLD}${C_RED} Reddit:${RESET}  ${OSC8_RD}u/eprahemi${OSC8_END}\n"
+    printf "\033[K${BOLD}${C_BLUE} Discord:${RESET}  ${OSC8_DC}discord.gg/eprahemi${OSC8_END}\n"
     printf "\033[K${C_BLUE} -----------------------------------------------------------------${RESET}\n"
     printf "\033[K${BOLD} User:           ${RESET} %s\n" "$USER_NAME"
     printf "\033[K${BOLD} OS:             ${RESET} %s\n" "$OS_NAME"
