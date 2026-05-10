@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.8.0"
+DOTS_VERSION="1.8.1"
 VERSION_FILE="$HOME/.local/state/wiferice-version"
 
 # ==============================================================================
@@ -1295,27 +1295,20 @@ fi
 echo -e "\n${C_CYAN}[ INFO ]${RESET} Cleaning up legacy dotfiles..."
 LEGACY_CLEANED=false
 
-if [ -f "$HOME/.local/state/imperative-dots-version" ]; then
-    rm -f "$HOME/.local/state/imperative-dots-version"
-    echo "  -> Removed legacy version file (imperative-dots-version) ${C_GREEN}[ OK ]${RESET}"
-    LEGACY_CLEANED=true
-fi
+for legacy_ver in "$HOME/.local/state/"*version; do
+    [ -f "$legacy_ver" ] && [ "$legacy_ver" != "$VERSION_FILE" ] && rm -f "$legacy_ver" && LEGACY_CLEANED=true
+done
 
-if [ -f "$HOME/.local/state/waverice-version" ]; then
-    rm -f "$HOME/.local/state/waverice-version"
-    echo "  -> Removed legacy version file (waverice-version) ${C_GREEN}[ OK ]${RESET}"
-    LEGACY_CLEANED=true
-fi
+for legacy_repo in "$HOME/.hyprland-dots"*backup* "$HOME/.hyprland-dots"*old*; do
+    [ -d "$legacy_repo" ] && rm -rf "$legacy_repo" && LEGACY_CLEANED=true
+done
 
-if [ -d "$HOME/.hyprland-dots-ilyamiro-backup" ]; then
-    rm -rf "$HOME/.hyprland-dots-ilyamiro-backup"
-    echo "  -> Removed legacy backup directory (ilyamiro-backup) ${C_GREEN}[ OK ]${RESET}"
-    LEGACY_CLEANED=true
-fi
+for legacy_cache in "$HOME/.cache/"*dots*; do
+    [ -d "$legacy_cache" ] && rm -rf "$legacy_cache" && LEGACY_CLEANED=true
+done
 
-if [ -d "$HOME/.cache/imperative-dots" ]; then
-    rm -rf "$HOME/.cache/imperative-dots"
-    LEGACY_CLEANED=true
+if [ "$LEGACY_CLEANED" = false ]; then
+    echo "  -> No legacy files found, skipping. ${C_GREEN}[ OK ]${RESET}"
 fi
 
 for old_backup in "$HOME/.config-backup-"*; do
@@ -1325,10 +1318,6 @@ for old_backup in "$HOME/.config-backup-"*; do
         LEGACY_CLEANED=true
     fi
 done
-
-if [ "$LEGACY_CLEANED" = false ]; then
-    echo "  -> No legacy files found, skipping. ${C_GREEN}[ OK ]${RESET}"
-fi
 
 # --- 4. Copying Dotfiles & Backups ---
 echo -e "\n${C_CYAN}[ INFO ]${RESET} Applying Configurations & Backing Up Old Ones..."
