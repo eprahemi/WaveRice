@@ -1354,13 +1354,15 @@ for folder in "${CONFIG_FOLDERS[@]}"; do
 done
 
 # --- 4.3 Deploy Battery Alert Sounds ---
+BAT_SOUND_DIR="$TARGET_CONFIG_DIR/hypr/scripts/quickshell/battery"
+mkdir -p "$BAT_SOUND_DIR"
 if [ -d "$REPO_DIR/sounds" ]; then
     if [ -f "$REPO_DIR/sounds/lowbattery20-10.mp3" ]; then
-        cp "$REPO_DIR/sounds/lowbattery20-10.mp3" "$HOME/lowbattery20-10.mp3"
+        cp "$REPO_DIR/sounds/lowbattery20-10.mp3" "$BAT_SOUND_DIR/lowbattery20-10.mp3"
         printf "  -> Copied low battery sound (20%%) %-14s ${C_GREEN}[ OK ]${RESET}\n" ""
     fi
     if [ -f "$REPO_DIR/sounds/lowbattery5.mp3" ]; then
-        cp "$REPO_DIR/sounds/lowbattery5.mp3" "$HOME/lowbattery5.mp3"
+        cp "$REPO_DIR/sounds/lowbattery5.mp3" "$BAT_SOUND_DIR/lowbattery5.mp3"
         printf "  -> Copied low battery sound (5%%) %-15s ${C_GREEN}[ OK ]${RESET}\n" ""
     fi
 fi
