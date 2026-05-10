@@ -3,7 +3,7 @@
 # ==============================================================================
 # Script Versioning & Initialization
 # ==============================================================================
-DOTS_VERSION="1.8.7"
+DOTS_VERSION="1.8.8"
 VERSION_FILE="$HOME/.local/state/wiferice-version"
 
 # ==============================================================================
@@ -109,10 +109,10 @@ OPT_OVERRIDE_STARTUPS=false
 
 INSTALL_NVIM=false
 INSTALL_ZSH=false
-INSTALL_SDDM=false
-REPLACE_DM=false
-SETUP_SDDM_THEME=false
-SDDM_WAYLAND=false
+INSTALL_SDDM=true
+REPLACE_DM=true
+SETUP_SDDM_THEME=true
+SDDM_WAYLAND=true
 
 DRIVER_CHOICE="None (Skipped)"
 DRIVER_PKGS=()
@@ -179,6 +179,7 @@ ARCH_PKGS=(
     "noto-fonts-emoji" "noto-fonts-cjk" "ttf-nerd-fonts-symbols" "ttf-nerd-fonts-symbols-mono"
     "ttf-dejavu" "ttf-liberation" "ttf-droid" "ttf-ubuntu-font-family"
     "ttf-opensans" "ttf-roboto" "ttf-fira-code" "ttf-iosevka-nerd" "otf-font-awesome"
+    "sddm" "qt5-graphicaleffects"
 )
 
 PKGS=("${ARCH_PKGS[@]}")
@@ -532,6 +533,14 @@ fi
 if [[ "$INSTALL_SDDM" == true ]]; then
     sudo systemctl enable sddm.service -f
     printf "  -> SDDM enabled successfully %-14s ${C_GREEN}[ OK ]${RESET}\n" ""
+fi
+
+if [[ "$SETUP_SDDM_THEME" == true ]]; then
+    if [ -f "$REPO_DIR/Faces/.face.icon" ]; then
+        sudo mkdir -p /usr/share/sddm/faces
+        sudo cp "$REPO_DIR/Faces/.face.icon" "/usr/share/sddm/faces/${USER}.face.icon"
+        printf "  -> SDDM face icon deployed %-15s ${C_GREEN}[ OK ]${RESET}\n" ""
+    fi
 fi
 
 # --- 3. Repository Cloning & Wallpapers ---
