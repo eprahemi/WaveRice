@@ -212,5 +212,12 @@ refresh() {
 
 # ─── EPRAHEMI UPDATE ────────────────────────────────────────────────
 update() {
+    local remote_ver=$(curl -m 5 -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh | grep '^DOTS_VERSION=' | cut -d'"' -f2)
+    local local_ver=$(source ~/.local/state/wiferice-version 2>/dev/null && echo "$LOCAL_VERSION" || echo "0")
+    if [ -z "$remote_ver" ] || [ "$remote_ver" = "$local_ver" ]; then
+        echo "Already up to date (v$local_ver)"
+        return
+    fi
+    echo "Updating v$local_ver → v$remote_ver..."
     bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
 }
