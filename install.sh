@@ -1318,6 +1318,14 @@ if [ -d "$HOME/.cache/imperative-dots" ]; then
     LEGACY_CLEANED=true
 fi
 
+for old_backup in "$HOME/.config-backup-"*; do
+    if [ -d "$old_backup" ]; then
+        rm -rf "$old_backup"
+        echo "  -> Removed old backup: $(basename "$old_backup") ${C_GREEN}[ OK ]${RESET}"
+        LEGACY_CLEANED=true
+    fi
+done
+
 if [ "$LEGACY_CLEANED" = false ]; then
     echo "  -> No legacy files found, skipping. ${C_GREEN}[ OK ]${RESET}"
 fi
