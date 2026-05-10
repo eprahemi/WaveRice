@@ -116,7 +116,7 @@ Item {
         sh("notify-send 'Quickshell' 'Settings Applied Successfully!'");
 
         if (config.workspaceCount !== config.initialWorkspaceCount) {
-            sh(`qs -p "${qsScriptsDir}/TopBar.qml" ipc call topbar queueReload`);
+            sh(`quickshell -p "${qsScriptsDir}/TopBar.qml" ipc call topbar queueReload`);
             config.initialWorkspaceCount = config.workspaceCount;
         }
     }

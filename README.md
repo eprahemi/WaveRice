@@ -3,11 +3,8 @@
 
 ### To install:
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/master/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
 ```
-
-### Reach out to me:
-#### twitter/x: @eprahemi
 #### reddit: u/eprahemi
 #### email: eprahemi@users.noreply.github.com
 

@@ -109,7 +109,7 @@ Item {
     Process {
         id: remoteVerProcess
         running: false
-        command: ["bash", "-c", "curl -m 5 -s https://raw.githubusercontent.com/eprahemi/WifeRice/master/install.sh | grep '^DOTS_VERSION=' | cut -d'\"' -f2"]
+        command: ["bash", "-c", "curl -m 5 -s https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh | grep '^DOTS_VERSION=' | cut -d'\"' -f2"]
         stdout: StdioCollector {
             onStreamFinished: {
                 let out = this.text ? this.text.trim() : "";
@@ -132,7 +132,7 @@ try:
         
     local_v = parse_v(local_str)
 
-    req = urllib.request.Request('https://raw.githubusercontent.com/eprahemi/WifeRice/master/updates.json')
+    req = urllib.request.Request('https://raw.githubusercontent.com/eprahemi/WifeRice/main/updates.json')
     res = urllib.request.urlopen(req, timeout=5)
     data = json.loads(res.read().decode())
 
@@ -203,7 +203,7 @@ if not local:
 
 def get_latest():
     try:
-        req = urllib.request.Request('https://api.github.com/repos/' + repo + '/commits/master', headers={'User-Agent': 'updater'})
+        req = urllib.request.Request('https://api.github.com/repos/' + repo + '/commits/main', headers={'User-Agent': 'updater'})
         res = urllib.request.urlopen(req, timeout=5)
         print(json.loads(res.read().decode())['commit']['message'])
     except Exception: print('No changelog available')
@@ -236,7 +236,7 @@ try:
                 break
                 
         if local_sha:
-            compare_req = urllib.request.Request('https://api.github.com/repos/' + repo + '/compare/' + local_sha + '...master', headers={'User-Agent': 'updater'})
+            compare_req = urllib.request.Request('https://api.github.com/repos/' + repo + '/compare/' + local_sha + '...main', headers={'User-Agent': 'updater'})
             compare_res = urllib.request.urlopen(compare_req, timeout=5)
             data = json.loads(compare_res.read().decode())
             commits = data.get('commits', [])
@@ -670,7 +670,7 @@ except Exception as e:
                     easing.type: Easing.InSine
                     onFinished: {
                         updateBtn.triggered = true;
-                        let cmd = "if command -v kitty >/dev/null 2>&1; then kitty --hold bash -c 'eval \"$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/master/install.sh)\"'; else ${TERM:-xterm} -hold -e bash -c 'eval \"$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/master/install.sh)\"'; fi";
+                        let cmd = "if command -v kitty >/dev/null 2>&1; then kitty --hold bash -c 'eval \"$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)\"'; else ${TERM:-xterm} -hold -e bash -c 'eval \"$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)\"'; fi";
                         Quickshell.execDetached(["bash", "-c", cmd]);
                         Quickshell.execDetached(["bash", Quickshell.env("HOME") + "/.config/hypr/scripts/qs_manager.sh", "close"]);
                     }
