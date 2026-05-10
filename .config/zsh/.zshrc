@@ -243,7 +243,7 @@ update() {
     if [[ "$answer" =~ ^[Yy]$ ]]; then
         echo ""
         echo "  Downloading and installing v$remote_version..."
-        bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WaveRice/main/install.sh)"
+        bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
     else
         echo "  Update skipped."
     fi

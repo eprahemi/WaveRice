@@ -3,7 +3,7 @@
 
 ### To install:
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WaveRice/master/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/master/install.sh)"
 ```
 
 ### Reach out to me:

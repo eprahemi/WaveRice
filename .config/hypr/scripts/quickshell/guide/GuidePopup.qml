@@ -134,7 +134,7 @@ Item {
 
     Process {
         id: versionReader
-        command: ["bash", "-c", "source ~/.local/state/waverice-version 2>/dev/null && echo $LOCAL_VERSION || echo 'Unknown'"]
+        command: ["bash", "-c", "source ~/.local/state/wiferice-version 2>/dev/null && echo $LOCAL_VERSION || echo 'Unknown'"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
@@ -147,7 +147,7 @@ Item {
     Process {
         id: updateChecker
         running: false
-        command: ["bash", "-c", "LOCAL_VER=$(source ~/.local/state/waverice-version 2>/dev/null && echo \"$LOCAL_VERSION\" || echo \"Unknown\"); REMOTE_VER=$(curl -m 5 -s https://raw.githubusercontent.com/eprahemi/WaveRice/master/install.sh | grep '^DOTS_VERSION=' | cut -d'\"' -f2); echo \"${LOCAL_VER:-Unknown}|${REMOTE_VER:-ERROR}\""]
+        command: ["bash", "-c", "LOCAL_VER=$(source ~/.local/state/wiferice-version 2>/dev/null && echo \"$LOCAL_VERSION\" || echo \"Unknown\"); REMOTE_VER=$(curl -m 5 -s https://raw.githubusercontent.com/eprahemi/WifeRice/master/install.sh | grep '^DOTS_VERSION=' | cut -d'\"' -f2); echo \"${LOCAL_VER:-Unknown}|${REMOTE_VER:-ERROR}\""]
         stdout: StdioCollector {
             onStreamFinished: {
                 let out = this.text ? this.text.trim() : "";
@@ -1528,7 +1528,7 @@ Item {
                         Repeater {
                             model: [
                                 { name: "GitHub", icon: "", color: "blue", url: "https://github.com/eprahemi" },
-                                { name: "Eprahemi", icon: "󰣇", color: "mauve", url: "https://github.com/eprahemi/WaveRice" },
+                                { name: "Eprahemi", icon: "󰣇", color: "mauve", url: "https://github.com/eprahemi/WifeRice" },
                                 { name: "Wallpapers", icon: "", color: "peach", url: "https://github.com/eprahemi/eprahemi-wallpapers" }
                             ]
 
@@ -1953,7 +1953,7 @@ Item {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/eprahemi/WaveRice/releases"])
+                                    onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/eprahemi/WifeRice/releases"])
                                 }
                             }
                         }
