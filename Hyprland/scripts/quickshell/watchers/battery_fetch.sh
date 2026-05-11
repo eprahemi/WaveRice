@@ -49,9 +49,12 @@ if [ "$status" = "Discharging" ]; then
         [ -f "$flag" ] && continue
         touch "$flag"
         case $threshold in
-            20) _play_bat_sound "$BAT_SOUND_2010" & ; notify-send -u critical -t 5000 "Battery Low" "Battery at ${percent}% — consider charging" ;;
-            10) _play_bat_sound "$BAT_SOUND_2010" & ; notify-send -u critical -t 8000 "Battery Very Low" "Only ${percent}% remaining — plug in soon!" ;;
-            5)  _play_bat_sound "$BAT_SOUND_53" & ; notify-send -u critical -t 10000 "Battery Critical" "${percent}% — system will suspend soon!" ;;
+            20) _play_bat_sound "$BAT_SOUND_2010" &
+                notify-send -u critical -t 5000 "Battery Low" "Battery at ${percent}% — consider charging" ;;
+            10) _play_bat_sound "$BAT_SOUND_2010" &
+                notify-send -u critical -t 8000 "Battery Very Low" "Only ${percent}% remaining — plug in soon!" ;;
+            5)  _play_bat_sound "$BAT_SOUND_53" &
+                notify-send -u critical -t 10000 "Battery Critical" "${percent}% — system will suspend soon!" ;;
         esac
     done
 else
