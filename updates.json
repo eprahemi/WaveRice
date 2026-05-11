@@ -1,7 +1,16 @@
 {
-  "latest_version": "1.7.11",
+  "latest_version": "1.7.12",
   "videos": [],
   "changelog": [
+    {
+      "version": "1.7.12",
+      "changes": [
+        "ADDED: Lock screen audio — music plays on lock via pw-play with playlist management",
+        "ADDED: Media controls (prev/play/next) in lock screen for playlist navigation",
+        "FIXED: Volume slider now controls only pw-play stream (not system audio)",
+        "FIXED: Volume starts at 50% every lock, slider syncs correctly"
+      ]
+    },
     {
       "version": "1.7.11",
       "changes": [

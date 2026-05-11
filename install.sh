@@ -5,7 +5,7 @@
 #  One-liner: bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
 # ===========================================================================
 
-DOTS_VERSION="1.7.11"
+DOTS_VERSION="1.7.12"
 DOTS_VERSION_NAME=""
 
 set -e
