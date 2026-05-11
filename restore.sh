@@ -199,14 +199,19 @@ echo "    [OK] Scripts made executable"
 
 echo ""
 
-# ─── WRITE VERSION FILE ────────────────────────────────────────────────
+# ─── CLEANUP STALE REFERENCES ───────────────────────────────────────────
+
+echo "  [10/10] Cleaning up stale references..."
+echo ""
+
+rm -f "$HOME/.local/state/imperative-dots-version" 2>/dev/null
 
 echo "  [10/10] Writing version file..."
 echo ""
 
 mkdir -p "$HOME/.local/state"
-echo "LOCAL_VERSION=\"1.7.10\"" > "$HOME/.local/state/wiferice-version"
-echo "    [VERSION] v1.7.10"
+echo "LOCAL_VERSION=\"1.7.11\"" > "$HOME/.local/state/wiferice-version"
+echo "    [VERSION] v1.7.11"
 
 echo ""
 
@@ -220,7 +225,7 @@ hyprctl reload 2>/dev/null && echo "    [OK] Hyprland reloaded" || echo "    [WA
 echo ""
 echo "  ──────────────────────────────────────────────"
 echo ""
-echo "  ✅ All configs restored successfully! (v1.7.10)"
+echo "  ✅ All configs restored successfully! (v1.7.11)"
 echo ""
 echo "  👤 User: $CURRENT_USER"
 echo "  📂 Old configs backed up to: $BACKUP_DIR"

@@ -1,7 +1,13 @@
 {
-  "latest_version": "1.7.10",
+  "latest_version": "1.7.11",
   "videos": [],
   "changelog": [
+    {
+      "version": "1.7.11",
+      "changes": [
+        "CLEANUP: Removed stale ilyamiro references — deletes old imperative-dots-version file on update"
+      ]
+    },
     {
       "version": "1.7.10",
       "changes": [

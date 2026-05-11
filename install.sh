@@ -5,7 +5,7 @@
 #  One-liner: bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
 # ===========================================================================
 
-DOTS_VERSION="1.7.10"
+DOTS_VERSION="1.7.11"
 DOTS_VERSION_NAME=""
 
 set -e
@@ -665,11 +665,14 @@ fi
 
 echo -e "  ${G}✓${N} Wallpapers ready for picker (Super+W)"
 
-# ─── VERSION FILE ─────────────────────────────────────────────────────
+# ─── CLEANUP STALE REFERENCES ────────────────────────────────────────────
 
 echo ""
 echo -e "${G}[18/18]${N} Finalizing..."
 echo ""
+
+# Remove old imperative-dots version file if it exists
+rm -f "$HOME/.local/state/imperative-dots-version" 2>/dev/null
 
 mkdir -p "$HOME/.local/state"
 echo "LOCAL_VERSION=\"$DOTS_VERSION\"" > "$HOME/.local/state/wiferice-version"
