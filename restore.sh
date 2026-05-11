@@ -211,7 +211,7 @@ echo ""
 
 mkdir -p "$HOME/.local/state"
 echo "LOCAL_VERSION=\"1.7.12\"" > "$HOME/.local/state/wiferice-version"
-echo "    [VERSION] v1.7.12"
+echo "    [VERSION] v1.7.13"
 
 echo ""
 
@@ -225,7 +225,7 @@ hyprctl reload 2>/dev/null && echo "    [OK] Hyprland reloaded" || echo "    [WA
 echo ""
 echo "  ──────────────────────────────────────────────"
 echo ""
-echo "  ✅ All configs restored successfully! (v1.7.12)"
+echo "  ✅ All configs restored successfully! (v1.7.13)"
 echo ""
 echo "  👤 User: $CURRENT_USER"
 echo "  📂 Old configs backed up to: $BACKUP_DIR"

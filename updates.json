@@ -1,7 +1,16 @@
 {
-  "latest_version": "1.7.12",
+  "latest_version": "1.7.13",
   "videos": [],
   "changelog": [
+    {
+      "version": "1.7.13",
+      "changes": [
+        "FIXED: Update checker now follows redirects (curl -sL) — GuidePopup, UpdaterPopup, and update_notifier were silently failing",
+        "REMOVED: Terminal update() function from .zshrc — updates now via Guide popup and notification tap only",
+        "REMOVED: 'Type update in terminal' tip from Guide popup",
+        "FIXED: GuidePopup missing closing brace after removing terminal hint"
+      ]
+    },
     {
       "version": "1.7.12",
       "changes": [
