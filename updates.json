@@ -1,7 +1,13 @@
 {
-  "latest_version": "1.7.13",
+  "latest_version": "1.7.14",
   "videos": [],
   "changelog": [
+    {
+      "version": "1.7.14",
+      "changes": [
+        "UPDATED: Wallpapers link in Guide About section now opens wallvault.pages.dev"
+      ]
+    },
     {
       "version": "1.7.13",
       "changes": [
