@@ -14,5 +14,3 @@ My custom Hyprland setup with QuickShell widgets, Matugen theming, and dynamic w
 ## Install Location
 `~/.config/hypr/`
 
-## Credits
-Originally based on [ilyamiro/imperative-dots](https://github.com/ilyamiro/imperative-dots).
