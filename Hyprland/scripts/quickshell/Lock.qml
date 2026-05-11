@@ -73,6 +73,20 @@ ShellRoot {
     Process { id: suspendProcess; command: ["systemctl", "suspend"]  }
     Process { id: poweroffProcess; command: ["systemctl", "poweroff"] }
     Process { id: reloadProcess; command: ["systemctl", "reboot"]   }
+    Process { id: playPauseProcess; command: ["bash", "-c", "/home/eprahemi/.config/hypr/scripts/quickshell/music_control.sh toggle"] }
+    Process { id: nextProcess; command: ["bash", "-c", "/home/eprahemi/.config/hypr/scripts/quickshell/music_control.sh next"] }
+    Process { id: prevProcess; command: ["bash", "-c", "/home/eprahemi/.config/hypr/scripts/quickshell/music_control.sh prev"] }
+    Process { id: muteProcess; command: ["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"] }
+
+    property bool isMuted: false
+    property real volumePercent: 1.0
+    property real pwVolume: 0.5
+    Process {
+        id: muteCheck
+        command: ["bash", "-c", "wpctl get-volume @DEFAULT_AUDIO_SINK@ | head -1 | awk '{print $2, $3}'"]
+        stdout: StdioCollector { onStreamFinished: { let parts = this.text.trim().split(/\s+/); let v = parseFloat(parts[0]); if (!isNaN(v)) root.volumePercent = v; root.isMuted = (parts[1] || "").indexOf("MUTED") >= 0 } }
+    }
+    Timer { interval: 2000; running: true; repeat: true; triggeredOnStart: true; onTriggered: muteCheck.running = true }
 
     // ═════════════════════════════════════════════════════════════════════════
     WlSessionLock {
@@ -285,12 +299,10 @@ ShellRoot {
                 Timer { interval: 900000; running: true; repeat: true; triggeredOnStart: true; onTriggered: weatherPoller.running = true }
 
                 // Hostname
-                Process {
-                    id: hostnamePoller
-                    command: ["hostname"]
-                    stdout: StdioCollector { onStreamFinished: screenRoot.hostname = this.text.trim() }
-                    Component.onCompleted: running = true
-                }
+    Process {
+        id: volumeSet
+        command: ["bash", "-c", "SINK_ID=$(pactl list sink-inputs 2>/dev/null | grep -B20 'pw-play' | grep 'Sink Input #' | head -1 | grep -o '[0-9][0-9]*') && pactl set-sink-input-volume \"$SINK_ID\" \"100%\""]
+    }
 
                 // Uptime (compact format)
                 Process {
@@ -1909,7 +1921,109 @@ ShellRoot {
                 }
 
                 // ═════════════════════════════════════════════════════════════
-                // 7. POWER MENU + POWER BUTTON
+                // 7. MEDIA CONTROLS — bottom-left
+                // ═════════════════════════════════════════════════════════════
+                Item {
+                    anchors.bottom: parent.bottom; anchors.left: parent.left
+                    anchors.margins: 40 * screenRoot.sc
+                    height: 52 * screenRoot.sc
+                    width: childrenRect.width
+                    opacity: screenRoot.introState
+
+                    RowLayout {
+                        spacing: 12 * screenRoot.sc
+
+                        // Previous
+                        Rectangle {
+                            width: 44 * screenRoot.sc; height: width; radius: height/2
+                            color: prevMouse.containsMouse ? Qt.rgba(root.surface1.r,root.surface1.g,root.surface1.b,0.8) : Qt.rgba(root.surface0.r,root.surface0.g,root.surface0.b,0.4)
+                            border.color: Qt.rgba(root.text.r,root.text.g,root.text.b,0.15); border.width: Math.max(1, 1*screenRoot.sc)
+                            scale: prevMouse.pressed ? 0.88 : (prevMouse.containsMouse ? 1.1 : 1.0)
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+                            Text { anchors.centerIn: parent; text: "󰒮"; font.family: "Iosevka Nerd Font"; font.pixelSize: 18*screenRoot.sc; color: prevMouse.containsMouse ? root.text : root.subtext0 }
+                            MouseArea { id: prevMouse; anchors.fill: parent; hoverEnabled: true; onClicked: prevProcess.running = true }
+                        }
+
+                        // Play/Pause
+                        Rectangle {
+                            width: 44 * screenRoot.sc; height: width; radius: height/2
+                            color: playMouse.containsMouse ? Qt.rgba(root.surface1.r,root.surface1.g,root.surface1.b,0.8) : Qt.rgba(root.surface0.r,root.surface0.g,root.surface0.b,0.4)
+                            border.color: Qt.rgba(root.text.r,root.text.g,root.text.b,0.15); border.width: Math.max(1, 1*screenRoot.sc)
+                            scale: playMouse.pressed ? 0.88 : (playMouse.containsMouse ? 1.1 : 1.0)
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+                            Text { anchors.centerIn: parent; text: "󰐎"; font.family: "Iosevka Nerd Font"; font.pixelSize: 18*screenRoot.sc; color: playMouse.containsMouse ? root.text : root.subtext0 }
+                            MouseArea { id: playMouse; anchors.fill: parent; hoverEnabled: true; onClicked: playPauseProcess.running = true }
+                        }
+
+                        // Next
+                        Rectangle {
+                            width: 44 * screenRoot.sc; height: width; radius: height/2
+                            color: nextMouse.containsMouse ? Qt.rgba(root.surface1.r,root.surface1.g,root.surface1.b,0.8) : Qt.rgba(root.surface0.r,root.surface0.g,root.surface0.b,0.4)
+                            border.color: Qt.rgba(root.text.r,root.text.g,root.text.b,0.15); border.width: Math.max(1, 1*screenRoot.sc)
+                            scale: nextMouse.pressed ? 0.88 : (nextMouse.containsMouse ? 1.1 : 1.0)
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+                            Text { anchors.centerIn: parent; text: "󰒭"; font.family: "Iosevka Nerd Font"; font.pixelSize: 18*screenRoot.sc; color: nextMouse.containsMouse ? root.text : root.subtext0 }
+                            MouseArea { id: nextMouse; anchors.fill: parent; hoverEnabled: true; onClicked: nextProcess.running = true }
+                        }
+
+                        // Volume slider
+                        Item {
+                            width: 100 * screenRoot.sc; height: 44 * screenRoot.sc
+                            clip: true
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width; height: 4 * screenRoot.sc; radius: height/2
+                                color: Qt.rgba(root.surface1.r, root.surface1.g, root.surface1.b, 0.6)
+                                Rectangle {
+                                    height: parent.height; radius: height/2
+                                    width: parent.width * root.pwVolume
+                                    color: root.isMuted ? root.red : root.mauve
+                                    Behavior on color { ColorAnimation { duration: 200 } }
+                                }
+                            }
+                            Rectangle {
+                                id: volThumb
+                                x: (parent.width - width) * root.pwVolume
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 14 * screenRoot.sc; height: width; radius: height/2
+                                color: volMouse.pressed ? root.peach : (volMouse.containsMouse ? root.text : root.surface2)
+                                border.color: root.surface0; border.width: Math.max(1, 2*screenRoot.sc)
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                                transform: Scale { origin.x: width/2; origin.y: height/2; xScale: volMouse.pressed ? 1.3 : (volMouse.containsMouse ? 1.15 : 1.0) }
+                            }
+                            MouseArea {
+                                id: volMouse; anchors.fill: parent; hoverEnabled: true
+                                onPositionChanged: (e) => { if (pressed) { let p = Math.max(0, Math.min(1, e.x / width)); root.pwVolume = p; let vol = Math.round(p * 100); volumeSet.command = ["bash", "-c", "SINK_ID=$(pactl list sink-inputs 2>/dev/null | grep -B20 'pw-play' | grep 'Sink Input #' | head -1 | grep -o '[0-9][0-9]*') && pactl set-sink-input-volume \"$SINK_ID\" \"" + vol + "%\""]; volumeSet.running = true } }
+                                onPressed: (e) => { let p = Math.max(0, Math.min(1, e.x / width)); root.pwVolume = p; let vol = Math.round(p * 100); volumeSet.command = ["bash", "-c", "SINK_ID=$(pactl list sink-inputs 2>/dev/null | grep -B20 'pw-play' | grep 'Sink Input #' | head -1 | grep -o '[0-9][0-9]*') && pactl set-sink-input-volume \"$SINK_ID\" \"" + vol + "%\""]; volumeSet.running = true }
+                            }
+                        }
+
+                        // Separator
+                        Rectangle {
+                            width: Math.max(1, 1*screenRoot.sc); height: 24*screenRoot.sc; color: Qt.rgba(root.text.r,root.text.g,root.text.b,0.15)
+                        }
+
+                        // Mute/Unmute
+                        Rectangle {
+                            width: 44 * screenRoot.sc; height: width; radius: height/2
+                            color: muteMouse.containsMouse ? Qt.rgba(root.surface1.r,root.surface1.g,root.surface1.b,0.8) : Qt.rgba(root.surface0.r,root.surface0.g,root.surface0.b,0.4)
+                            border.color: Qt.rgba(root.text.r,root.text.g,root.text.b,0.15); border.width: Math.max(1, 1*screenRoot.sc)
+                            scale: muteMouse.pressed ? 0.88 : (muteMouse.containsMouse ? 1.1 : 1.0)
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.isMuted ? "󰝟" : "󰕾"
+                                font.family: "Iosevka Nerd Font"; font.pixelSize: 18*screenRoot.sc
+                                color: root.isMuted ? root.red : (muteMouse.containsMouse ? root.text : root.subtext0)
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                            }
+                            MouseArea { id: muteMouse; anchors.fill: parent; hoverEnabled: true; onClicked: muteProcess.running = true }
+                        }
+                    }
+                }
+
+                // ═════════════════════════════════════════════════════════════
+                // 8. POWER MENU + POWER BUTTON
                 // ═════════════════════════════════════════════════════════════
                 Rectangle {
                     id: powerMenu
@@ -2067,7 +2181,7 @@ ShellRoot {
                 }
 
                 // ═════════════════════════════════════════════════════════════
-                // 8. INTRO ANIMATION OVERLAY — FLUID LIQUID REVEAL
+                // 9. INTRO ANIMATION OVERLAY — FLUID LIQUID REVEAL
                 // ═════════════════════════════════════════════════════════════
                 Item {
                     id: introOverlay
