@@ -2312,21 +2312,6 @@ Item {
                         }
                     }
 
-                    // ─── TERMINAL HINT ─────────────────────────────────
-                    RowLayout {
-                        Layout.alignment: Qt.AlignHCenter
-                        spacing: root.s(6)
-                        opacity: 0.55
-
-                        Text {
-                            text: "Tip: Type 'update' in your terminal"
-                            font.family: "JetBrains Mono"
-                            font.pixelSize: root.s(10)
-                            color: root.subtext0
-                        }
-                    }
-                }
-
                 // ─── COPYRIGHT ────────────────────────
                 // ─── COPYRIGHT ────────────────────────
                 Item {
