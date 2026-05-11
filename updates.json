@@ -1,7 +1,14 @@
 {
-  "latest_version": "1.7.9",
+  "latest_version": "1.7.10",
   "videos": [],
   "changelog": [
+    {
+      "version": "1.7.10",
+      "changes": [
+        "ADDED: 3% critical countdown + auto-suspend to real-time battery monitor (battery_fetch.sh)",
+        "FIXED: Countdown fires on udev events instantly, sound every 3s, suspends at 0"
+      ]
+    },
     {
       "version": "1.7.9",
       "changes": [

@@ -205,8 +205,8 @@ echo "  [10/10] Writing version file..."
 echo ""
 
 mkdir -p "$HOME/.local/state"
-echo "LOCAL_VERSION=\"1.7.9\"" > "$HOME/.local/state/wiferice-version"
-echo "    [VERSION] v1.7.9"
+echo "LOCAL_VERSION=\"1.7.10\"" > "$HOME/.local/state/wiferice-version"
+echo "    [VERSION] v1.7.10"
 
 echo ""
 
@@ -220,7 +220,7 @@ hyprctl reload 2>/dev/null && echo "    [OK] Hyprland reloaded" || echo "    [WA
 echo ""
 echo "  ──────────────────────────────────────────────"
 echo ""
-echo "  ✅ All configs restored successfully! (v1.7.9)"
+echo "  ✅ All configs restored successfully! (v1.7.10)"
 echo ""
 echo "  👤 User: $CURRENT_USER"
 echo "  📂 Old configs backed up to: $BACKUP_DIR"
