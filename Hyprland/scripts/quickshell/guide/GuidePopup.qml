@@ -386,7 +386,7 @@ Item {
     Process {
         id: updateChecker
         running: false
-        command: ["bash", "-c", "LOCAL_VER=$(source ~/.local/state/wiferice-version 2>/dev/null && echo \"$LOCAL_VERSION\" || echo \"Unknown\"); REMOTE_VER=$(curl -m 5 -s https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh | grep '^DOTS_VERSION=' | cut -d'\"' -f2); echo \"${LOCAL_VER:-Unknown}|${REMOTE_VER:-ERROR}\""]
+        command: ["bash", "-c", "LOCAL_VER=$(source ~/.local/state/wiferice-version 2>/dev/null && echo \"$LOCAL_VERSION\" || echo \"Unknown\"); REMOTE_VER=$(curl -m 5 -sL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh | grep '^DOTS_VERSION=' | cut -d'\"' -f2); echo \"${LOCAL_VER:-Unknown}|${REMOTE_VER:-ERROR}\""]
         stdout: StdioCollector {
             onStreamFinished: {
                 let out = this.text ? this.text.trim() : "";
