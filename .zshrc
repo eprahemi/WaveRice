@@ -210,33 +210,5 @@ refresh() {
     fetch
 }
 
-# ─── UPDATE CHECKER ────────────────────────────────────────────────────
-update() {
-    local remote_ver=$(curl -m 5 -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh | grep '^DOTS_VERSION=' | cut -d'"' -f2)
-    local local_ver=$(source ~/.local/state/wiferice-version 2>/dev/null && echo "$LOCAL_VERSION" || echo "0")
-    if [ -z "$remote_ver" ]; then
-        echo "  [ERROR] Could not check for updates. Check your internet connection."
-        return 1
-    fi
-    if [ "$remote_ver" = "$local_ver" ]; then
-        echo ""
-        echo "  ✅ You have the latest version (v$local_ver)!"
-        echo ""
-        return 0
-    fi
-    echo ""
-    echo "  📦 Update available: v$local_ver → v$remote_ver"
-    echo ""
-    printf "  Do you want to update? [y/N]: "
-    read -r answer
-    if [[ "$answer" =~ ^[Yy]$ ]]; then
-        echo ""
-        echo "  Downloading and installing v$remote_ver..."
-        bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
-    else
-        echo "  Update skipped."
-    fi
-}
-
 # opencode
 export PATH=$HOME/.opencode/bin:$PATH
