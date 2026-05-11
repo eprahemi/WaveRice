@@ -220,7 +220,7 @@ AUDIO_PKGS=(
 CODEC_PKGS=(
     ffmpeg ffmpegthumbnailer gst-plugins-base gst-plugins-good
     gst-plugins-bad gst-plugins-ugly gst-libav gst-plugin-pipewire
-    libdvdcss libdvdread libdvdnav
+    libdvdcss libdvdread libdvdnav mpg123
 )
 
 # Thumbnailers

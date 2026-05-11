@@ -25,11 +25,22 @@ get_battery_icon() {
     fi
 }
 
-# ─── LOW BATTERY WARNINGS ──────────────────────────────────────────
+# ─── LOW BATTERY WARNINGS + SOUNDS ──────────────────────────────────
 percent=$(get_battery_percent)
 status=$(get_battery_status)
 WARN_DIR="/tmp/qs_battery_warn"
+BAT_SOUND_2010="$HOME/.config/hypr/scripts/quickshell/battery/lowbattery20-10.mp3"
+BAT_SOUND_53="$HOME/.config/hypr/scripts/quickshell/battery/lowbattery5.mp3"
 mkdir -p "$WARN_DIR"
+
+_play_bat_sound() {
+    local file="$1"
+    [ -f "$file" ] && (
+        mpg123 --quiet "$file" 2>/dev/null ||
+        ffplay -nodisp -autoexit "$file" 2>/dev/null ||
+        true
+    )
+}
 
 if [ "$status" = "Discharging" ]; then
     for threshold in 20 10 5; do
@@ -38,9 +49,9 @@ if [ "$status" = "Discharging" ]; then
         [ -f "$flag" ] && continue
         touch "$flag"
         case $threshold in
-            20) notify-send -u critical -t 5000 "Battery Low" "Battery at ${percent}% — consider charging" ;;
-            10) notify-send -u critical -t 8000 "Battery Very Low" "Only ${percent}% remaining — plug in soon!" ;;
-            5)  notify-send -u critical -t 10000 "Battery Critical" "${percent}% — system will suspend soon!" ;;
+            20) _play_bat_sound "$BAT_SOUND_2010" & ; notify-send -u critical -t 5000 "Battery Low" "Battery at ${percent}% — consider charging" ;;
+            10) _play_bat_sound "$BAT_SOUND_2010" & ; notify-send -u critical -t 8000 "Battery Very Low" "Only ${percent}% remaining — plug in soon!" ;;
+            5)  _play_bat_sound "$BAT_SOUND_53" & ; notify-send -u critical -t 10000 "Battery Critical" "${percent}% — system will suspend soon!" ;;
         esac
     done
 else
