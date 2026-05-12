@@ -165,6 +165,11 @@ echo "    [INFO] Add more wallpapers to ~/Pictures/Wallpapers/"
 rm -rf "$HOME/.cache/wallpaper_picker" 2>/dev/null || true
 echo "    [OK] Wallpaper thumbnail cache cleared"
 
+# Re-enable tumblerd thumbnail service and clear Thunar thumbnail cache
+systemctl --user enable --now tumblerd 2>/dev/null || true
+rm -rf "$HOME/.cache/thumbnails" 2>/dev/null || true
+echo "    [OK] Thumbnail service re-enabled and Thunar thumbnail cache cleared"
+
 echo ""
 
 # ─── SDDM WALLPAPER ──────────────────────────────────────────

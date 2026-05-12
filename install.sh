@@ -5,7 +5,7 @@
 #  One-liner: bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
 # ===========================================================================
 
-DOTS_VERSION="1.7.17"
+DOTS_VERSION="1.7.18"
 DOTS_VERSION_NAME=""
 
 set -e
@@ -225,7 +225,7 @@ CODEC_PKGS=(
 
 # Thumbnailers
 THUMB_PKGS=(
-    ffmpegthumbnailer tumbler poppler-glib libgsf raw-thumbnailer
+    ffmpegthumbnailer tumbler poppler-glib libgsf libopenraw libgepub
     webp-pixbuf-loader freetype2 fontconfig
 )
 
@@ -843,7 +843,7 @@ echo "  🔧 System: Updated all packages (pacman -Syu)"
 echo "  🎵 Audio: PipeWire + WirePlumber + codecs"
 echo "  🖼  Codecs: ffmpeg, gst-plugins (all), libdvdcss"
 echo "  🔤 Fonts: JetBrains Mono, Nerd Fonts, Noto, emoji, CJK"
-echo "  🖼  Thumbnails: ffmpegthumbnailer, tumbler, raw, webp"
+echo "  🖼  Thumbnails: ffmpegthumbnailer, tumbler, libopenraw, libgepub, webp"
 echo "  📦 Flatpak: Installed + Flathub configured"
 echo ""
 echo "  📱 APPLICATIONS INSTALLED:"
