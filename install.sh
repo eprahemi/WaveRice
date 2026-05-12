@@ -247,6 +247,8 @@ echo -e "  ${G}✓${N} Base packages installed"
 # Enable audio and thumbnail services for the user session
 sudo -u "$CURRENT_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "$CURRENT_USER")" systemctl --user enable --now pipewire pipewire-pulse wireplumber 2>/dev/null || true
 sudo -u "$CURRENT_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "$CURRENT_USER")" systemctl --user enable --now tumblerd 2>/dev/null || true
+# Clear stale thumbnail cache so existing users get working thumbnails immediately
+sudo -u "$CURRENT_USER" rm -rf "$HOME/.cache/thumbnails" 2>/dev/null || true
 echo -e "  ${G}✓${N} Audio and thumbnail services enabled"
 
 # ─── FONTS & EMOJIS ───────────────────────────────────────────────────
