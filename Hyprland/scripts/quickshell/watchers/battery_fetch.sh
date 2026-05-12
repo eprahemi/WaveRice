@@ -44,6 +44,21 @@ _play_bat_sound() {
     )
 }
 
+# ─── CHARGER PLUG / UNPLUG SOUNDS ────────────────────────────────────
+CHARGER_PLUG_SOUND="$HOME/.config/hypr/scripts/quickshell/battery/charger-plug-sound.mp3"
+CHARGER_UNPLUG_SOUND="$HOME/.config/hypr/scripts/quickshell/battery/charger-unplug-sound.mp3"
+PREV_STATUS_FILE="$WARN_DIR/prev_status"
+PREV_STATUS=$(cat "$PREV_STATUS_FILE" 2>/dev/null || echo "")
+
+if [ "$PREV_STATUS" != "$status" ] && [ -n "$PREV_STATUS" ]; then
+    if [ "$status" = "Charging" ] || [ "$status" = "Full" ]; then
+        _play_bat_sound "$CHARGER_PLUG_SOUND" &
+    elif [ "$status" = "Discharging" ]; then
+        _play_bat_sound "$CHARGER_UNPLUG_SOUND" &
+    fi
+fi
+echo "$status" > "$PREV_STATUS_FILE"
+
 if [ "$status" = "Discharging" ]; then
     for threshold in 20 10 5; do
         [ "$percent" -gt "$threshold" ] && continue

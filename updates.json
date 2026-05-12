@@ -1,7 +1,31 @@
 {
-  "latest_version": "1.7.16",
+  "latest_version": "1.7.20",
   "videos": [],
   "changelog": [
+    {
+      "version": "1.7.20",
+      "changes": [
+        "ADDED: Charger plug/unplug sounds — plays charger-plug-sound.mp3 when plugged in, charger-unplug-sound.mp3 when unplugged"
+      ]
+    },
+    {
+      "version": "1.7.19",
+      "changes": [
+        "CRITICAL: Fixed Hyprland config wipe on update — replaced destructive Syu with safe config restore and settings.json backup"
+      ]
+    },
+    {
+      "version": "1.7.18",
+      "changes": [
+        "FIXED: Thunar thumbnails not showing — fixed RAW/ODF/EPUB tumbler plugins, auto-clears cache on install/update"
+      ]
+    },
+    {
+      "version": "1.7.17",
+      "changes": [
+        "FIXED: Battery sounds now play reliably — battery_fetch.sh uses pw-play/paplay + nohup"
+      ]
+    },
     {
       "version": "1.7.16",
       "changes": [
