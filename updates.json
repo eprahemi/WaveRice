@@ -1,7 +1,15 @@
 {
-  "latest_version": "1.7.15",
+  "latest_version": "1.7.16",
   "videos": [],
   "changelog": [
+    {
+      "version": "1.7.16",
+      "changes": [
+        "FIXED: Lock screen (Super+L) password always rejected — quickshell PAM service 'quickshell.service.pam' had no config file, fell through to pam_deny.so",
+        "FIXED: Thunar admin:// and polkit privilege escalation not working — polkit-1 PAM config existed in /usr/lib/pam.d/ but was not linked in /etc/pam.d/",
+        "ADDED: Installer now creates /etc/pam.d/quickshell.service.pam and symlinks /etc/pam.d/polkit-1 on new installs and updates"
+      ]
+    },
     {
       "version": "1.7.15",
       "changes": [

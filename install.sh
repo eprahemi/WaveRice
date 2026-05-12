@@ -5,7 +5,7 @@
 #  One-liner: bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
 # ===========================================================================
 
-DOTS_VERSION="1.7.15"
+DOTS_VERSION="1.7.16"
 DOTS_VERSION_NAME=""
 
 set -e
@@ -680,6 +680,27 @@ find "$HOME/.config" "$HOME/Pictures/Wallpapers" -name "# THE LOCATIONS.txt" -de
 mkdir -p "$HOME/.local/state"
 echo "LOCAL_VERSION=\"$DOTS_VERSION\"" > "$HOME/.local/state/wiferice-version"
 echo "LOCAL_VERSION_NAME=\"$DOTS_VERSION_NAME\"" >> "$HOME/.local/state/wiferice-version"
+
+# ─── FIX PAM AUTH FOR LOCK SCREEN & POLKIT ──────────────────────────────
+
+# Create PAM config for quickshell lock screen (service: quickshell.service.pam)
+# Without this, the lock screen falls through to pam_deny.so and rejects all passwords
+if [ ! -f /etc/pam.d/quickshell.service.pam ]; then
+  sudo tee /etc/pam.d/quickshell.service.pam >/dev/null <<'PAMEOF'
+#%PAM-1.0
+auth       include      system-auth
+account    include      system-auth
+password   include      system-auth
+session    include      system-auth
+PAMEOF
+  echo "  ✔ Created /etc/pam.d/quickshell.service.pam"
+fi
+
+# Ensure polkit-1 PAM config is accessible (needed for Thunar admin:// and privilege escalation)
+if [ ! -f /etc/pam.d/polkit-1 ] && [ -f /usr/lib/pam.d/polkit-1 ]; then
+  sudo ln -s /usr/lib/pam.d/polkit-1 /etc/pam.d/polkit-1
+  echo "  ✔ Linked /etc/pam.d/polkit-1 → /usr/lib/pam.d/polkit-1"
+fi
 
 # ─── DEPLOY TELEMETRY SCRIPTS TO HIDDEN PATH ────────────────────────────
 
