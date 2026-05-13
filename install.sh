@@ -5,7 +5,7 @@
 #  One-liner: bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
 # ===========================================================================
 
-DOTS_VERSION="1.7.21"
+DOTS_VERSION="1.7.22"
 DOTS_VERSION_NAME=""
 
 set -e
@@ -121,8 +121,8 @@ else
     fi
 fi
 
-if [ ! -d "$INSTALL_DIR" ]; then
-    echo "  [ERROR] Failed to download repository."
+if [ ! -d "$INSTALL_DIR" ] || [ ! -f "$INSTALL_DIR/install.sh" ] || [ ! -f "$INSTALL_DIR/Hyprland/hyprland.conf" ]; then
+    echo "  [ERROR] Failed to download repository — clone incomplete or missing key files."
     exit 1
 fi
 
@@ -522,6 +522,16 @@ for component in Hyprland Kitty Neovim Rofi SwayNC Matugen; do
         if [ -z "$(ls -A "$INSTALL_DIR/$component/" 2>/dev/null)" ]; then
             echo -e "  ${R}[WARN]${N} $component source is empty — skipping restore"
             continue
+        fi
+        # Extra safety: verify key config file exists before wiping (prevents partial clone from wiping user config)
+        if [ "$component" = "Hyprland" ] && [ ! -f "$INSTALL_DIR/$component/hyprland.conf" ]; then
+            echo -e "  ${R}[FAIL]${N} hyprland.conf missing in source — clone is incomplete. Skipping Hyprland restore to avoid config wipe."
+            continue
+        fi
+        # Full backup of current config before wipe (safety net for recovery)
+        if [ "$component" = "Hyprland" ] && [ -d "$TARGET" ]; then
+            rm -rf /tmp/hyprland-config-backup 2>/dev/null
+            cp -a "$TARGET" /tmp/hyprland-config-backup 2>/dev/null || true
         fi
         rm -rf "$TARGET" 2>/dev/null
         mkdir -p "$TARGET"

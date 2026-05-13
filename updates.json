@@ -1,7 +1,13 @@
 {
-  "latest_version": "1.7.21",
+  "latest_version": "1.7.22",
   "videos": [],
   "changelog": [
+    {
+      "version": "1.7.22",
+      "changes": [
+        "CRITICAL: Fixed partial git clone silently wiping ~/.config/hypr — added key-file integrity check after clone + pre-wipe safety check for hyprland.conf in source + full backup before wipe"
+      ]
+    },
     {
       "version": "1.7.21",
       "changes": [
