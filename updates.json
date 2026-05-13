@@ -1,7 +1,14 @@
 {
-  "latest_version": "1.7.22",
+  "latest_version": "1.7.23",
   "videos": [],
   "changelog": [
+    {
+      "version": "1.7.23",
+      "changes": [
+        "ADDED: update() command back in .zshrc — type 'update' in terminal to check and install the latest version",
+        "FIXED: .zshrc now force-overwritten on every update (removed deploy-once guard) so new functions reach existing users"
+      ]
+    },
     {
       "version": "1.7.22",
       "changes": [
