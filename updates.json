@@ -1,7 +1,18 @@
 {
-  "latest_version": "1.7.25",
+  "latest_version": "1.8.0",
   "videos": [],
   "changelog": [
+    {
+      "version": "1.8.0",
+      "changes": [
+        "ADDED: Offline detection — if Discord webhook fails, button shows 'Failed - no internet' and keeps your typed message",
+        "ADDED: Polished Discord embed with category emojis, severity colors, ANSI system info block, and ISO timestamp",
+        "FIXED: Category/Severity chips now use blue highlight when selected (were invisible before)",
+        "FIXED: Chip selection now works — properties moved to correct scope so clicks register",
+        "FIXED: System info toggle collapse works in nested layouts",
+        "CHANGED: report_send.sh now returns curl exit code so QML detects network failures"
+      ]
+    },
     {
       "version": "1.7.25",
       "changes": [

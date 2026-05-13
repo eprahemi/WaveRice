@@ -464,6 +464,8 @@ Item {
     // -------------------------------------------------------------------------
     property int currentTab: 1
     property int selectedModuleIndex: 0
+    property string selectedCategory: "Bug"
+    property string selectedSeverity: "Low"
 
     function setTab(tab) {
         if (currentTab === 2 && tab !== 2) {
@@ -2599,6 +2601,7 @@ Item {
                         spacing: root.s(6)
 
                         model: ListModel {
+                            ListElement { version: "v1.8.0"; title: "Report Tab Overhaul"; desc: "Offline detection, polished Discord embeds, blue chip selection, fixed send flow"; icon: "󰊟"; clr: "blue"; detail: "Complete Report tab polish. NEW: Offline detection — if Discord webhook fails (no internet), the button shows 'Failed - no internet' in red and keeps your typed message so you can retry without retyping. NEW: Polished Discord embed with category emojis (🪲/✨/💬), severity color coding, ANSI-styled system info block, and ISO timestamp. FIXED: Category/Severity chips now use blue highlight when selected (was invisible before). FIXED: Chip selection properties moved to root scope so clicks actually register. FIXED: System info toggle now uses explicit id reference so click-to-collapse works in nested layouts. FIXED: report_send.sh now returns curl's exit code so QML can detect network failures." }
                             ListElement { version: "v1.7.19"; title: "Fix Hyprland Config Wipe"; desc: "Replaced destructive Syu, safe config restore with settings backup"; icon: "󰅟"; clr: "red"; detail: "CRITICAL: Fixed bug where updating could wipe the entire Hyprland config (users see Hyprland logo + auto-generated message with no Quickshell). Fix 1: Replaced 'sudo pacman -Syu' (full system upgrade) with 'sudo pacman -Sy' (sync only) — Syu was upgrading Hyprland, nvidia drivers, and kernel mid-install. This broke the running session after relog and could orphan the system. Fix 2: Added settings.json backup before config wipe — user's monitor setup, keybinds, and startup apps now survive reinstall. Fix 3: Added empty-source safety check — if the repo download fails, the rm -rf wipe is skipped entirely. Fix 4: All required packages are still installed via pacman -S --needed in later steps." }
                             ListElement { version: "v1.7.18"; title: "Fix Thunar Thumbnails"; desc: "Fixed RAW/ODF/EPUB tumbler plugins, auto-clears cache on install/update"; icon: "󰋼"; clr: "blue"; detail: "Fixed Thunar thumbnails for users who couldn't see image or video previews. Fix 1: Replaced broken 'raw-thumbnailer' AUR package in install.sh with 'libopenraw' from official repos — tumbler's raw thumbnailer plugin needs libopenrawgnome.so.9 to load. Fix 2: Added 'libgepub' to THUMB_PKGS for EPUB document thumbnails. Fix 3: 'raw-thumbnailer' was an AUR-only package that silently failed to install via pacman — now removed. Fix 4: Added automatic ~/.cache/thumbnails clearing to install.sh and restore.sh so every install/update/restore clears stale caches. Fix 5: tumblerd is auto-restarted during install. Existing users just need to re-run install.sh via the update button." }
                             ListElement { version: "v1.7.17"; title: "Fix Battery Sound in Quickshell"; desc: "battery_fetch.sh now uses pw-play/paplay + nohup so audio always plays"; icon: "󰁹"; clr: "green"; detail: "Low battery notifications (20%/10%/5%/3%) now play audio reliably for all users. Fix 1: Added pw-play and paplay as primary audio players — mpg123/ffplay fail silently when spawned from Quickshell's Process sandbox. Fix 2: Added nohup + explicit /dev/null redirect to fully detach audio playback from the shell process tree, preventing any SIGHUP from killing the sound. All users already have pipewire-pulse installed, so this is zero-dependency." }
@@ -2774,206 +2777,571 @@ Item {
                 }
             }
 
-        }
-
-        // ══════════════════════════════════════════════════════════════════
-        // TAB 7 — REPORT
-        // ══════════════════════════════════════════════════════════════════
-        Item {
-            anchors.fill: parent
-            opacity: root.currentTab === 7 ? 1.0 : 0.0
-            scale: root.currentTab === 7 ? 1.0 : 0.95
-            property real slideY: root.currentTab === 7 ? 0 : root.s(10)
-            enabled: root.currentTab === 7
-
-            Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
-            Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
-            Behavior on slideY { NumberAnimation { duration: 300; easing.type: Easing.OutQuart } }
-            transform: Translate { y: slideY }
-
-            ColumnLayout {
+            // ══════════════════════════════════════════════════════════════
+            // TAB 7 — REPORT
+            // ══════════════════════════════════════════════════════════════
+            Item {
+                id: reportTab
                 anchors.fill: parent
-                anchors.topMargin: root.s(15)
-                anchors.leftMargin: root.s(20)
-                anchors.rightMargin: root.s(20)
-                anchors.bottomMargin: root.s(20)
-                spacing: root.s(20)
+                opacity: root.currentTab === 7 ? 1.0 : 0.0
+                scale: root.currentTab === 7 ? 1.0 : 0.95
+                property real slideY: root.currentTab === 7 ? 0 : root.s(10)
+                enabled: root.currentTab === 7
 
-                // ─── HEADER ────────────────────────────────────────
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: root.s(15)
+                Behavior on scale { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
+                Behavior on slideY { NumberAnimation { duration: 300; easing.type: Easing.OutQuart } }
+                transform: Translate { y: slideY }
 
-                    Rectangle {
-                        Layout.preferredWidth: root.s(48)
-                        Layout.preferredHeight: root.s(48)
-                        radius: root.s(12)
-                        color: Qt.alpha(root.mauve, 0.15)
-                        Text {
-                            anchors.centerIn: parent
-                            text: "󰊟"
-                            font.family: "Iosevka Nerd Font"
-                            font.pixelSize: root.s(24)
-                            color: root.mauve
+                property bool sysInfoExpanded: true
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.topMargin: root.s(12)
+                    anchors.leftMargin: root.s(18)
+                    anchors.rightMargin: root.s(18)
+                    anchors.bottomMargin: root.s(12)
+                    spacing: root.s(10)
+
+                    // ─── HEADER ────────────────────────────────────
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: root.s(12)
+
+                        Rectangle {
+                            Layout.preferredWidth: root.s(40)
+                            Layout.preferredHeight: root.s(40)
+                            radius: root.s(10)
+                            color: Qt.alpha(root.mauve, 0.15)
+                            Text {
+                                anchors.centerIn: parent
+                                text: "󰊟"
+                                font.family: "Iosevka Nerd Font"
+                                font.pixelSize: root.s(20)
+                                color: root.mauve
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
+                            spacing: root.s(2)
+                            Text {
+                                text: "Report a Problem"
+                                font.family: "JetBrains Mono"
+                                font.weight: Font.Black
+                                font.pixelSize: root.s(22)
+                                color: root.text
+                            }
+                            Text {
+                                text: "Send feedback directly to the developer"
+                                font.family: "JetBrains Mono"
+                                font.pixelSize: root.s(11)
+                                color: root.subtext0
+                            }
                         }
                     }
 
+                    // ─── CATEGORY + SEVERITY ROW ───────────────────
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: root.s(10)
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: root.s(4)
+
+                            Text {
+                                text: "Category"
+                                font.family: "JetBrains Mono"
+                                font.weight: Font.Bold
+                                font.pixelSize: root.s(10)
+                                color: root.subtext0
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: root.s(4)
+
+                                Repeater {
+                                    model: ["Bug", "Feature", "Feedback", "Other"]
+
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: root.s(28)
+                                        radius: root.s(6)
+                                        property bool isActive: root.selectedCategory === modelData
+                                        color: isActive ? Qt.alpha(root.blue, 0.25) : Qt.alpha(root.surface0, 0.3)
+                                        border.color: isActive ? root.blue : "transparent"
+                                        border.width: isActive ? 1 : 0
+                                        scale: catMa.pressed ? 0.95 : (catMa.containsMouse ? 1.04 : 1.0)
+
+                                        Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+                                        Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: modelData
+                                            font.family: "JetBrains Mono"
+                                            font.weight: parent.isActive ? Font.Black : Font.Medium
+                                            font.pixelSize: root.s(9)
+                                            color: parent.isActive ? root.blue : root.subtext0
+                                        }
+
+                                        MouseArea {
+                                            id: catMa
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.selectedCategory = modelData
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: root.s(4)
+
+                            Text {
+                                text: "Severity"
+                                font.family: "JetBrains Mono"
+                                font.weight: Font.Bold
+                                font.pixelSize: root.s(10)
+                                color: root.subtext0
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: root.s(4)
+
+                                Repeater {
+                                    model: [
+                                        { label: "Low", c: "green" },
+                                        { label: "Medium", c: "yellow" },
+                                        { label: "High", c: "peach" },
+                                        { label: "Critical", c: "red" }
+                                    ]
+
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: root.s(28)
+                                        radius: root.s(6)
+                                        property bool isActive: root.selectedSeverity === modelData.label
+                                        color: isActive ? Qt.alpha(root.blue, 0.25) : Qt.alpha(root.surface0, 0.3)
+                                        border.color: isActive ? root.blue : "transparent"
+                                        border.width: isActive ? 1 : 0
+                                        scale: sevMa.pressed ? 0.95 : (sevMa.containsMouse ? 1.04 : 1.0)
+
+                                        Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+                                        Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                                        property real pulse: 0
+                                        SequentialAnimation on pulse {
+                                            loops: Animation.Infinite
+                                            running: isActive
+                                            PauseAnimation { duration: index * 200 }
+                                            NumberAnimation { from: 0; to: 1; duration: 1200; easing.type: Easing.InOutSine }
+                                            NumberAnimation { from: 1; to: 0; duration: 1200; easing.type: Easing.InOutSine }
+                                        }
+
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            radius: root.s(6)
+                                            color: "transparent"
+                                            border.color: Qt.alpha(root.blue, 0.15 + 0.1 * pulse)
+                                            border.width: 2
+                                            visible: isActive
+                                        }
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: modelData.label
+                                            font.family: "JetBrains Mono"
+                                            font.weight: parent.isActive ? Font.Black : Font.Medium
+                                            font.pixelSize: root.s(9)
+                                            color: parent.isActive ? root.blue : root.subtext0
+                                        }
+
+                                        MouseArea {
+                                            id: sevMa
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.selectedSeverity = modelData.label
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ─── TITLE INPUT ──────────────────────────────
                     ColumnLayout {
                         Layout.fillWidth: true
-                        Layout.alignment: Qt.AlignVCenter
                         spacing: root.s(4)
-                        Text {
-                            text: "Report a Problem"
-                            font.family: "JetBrains Mono"
-                            font.weight: Font.Black
-                            font.pixelSize: root.s(28)
-                            color: root.text
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                text: "Title"
+                                font.family: "JetBrains Mono"
+                                font.weight: Font.Bold
+                                font.pixelSize: root.s(11)
+                                color: root.subtext0
+                            }
+                            Item { Layout.fillWidth: true }
+                            Text {
+                                text: reportTitle.text.length + "/100"
+                                font.family: "JetBrains Mono"
+                                font.pixelSize: root.s(9)
+                                color: reportTitle.text.length > 90 ? root.red : root.subtext0
+                            }
                         }
-                        Text {
-                            text: "Send feedback directly to the developer"
-                            font.family: "JetBrains Mono"
-                            font.pixelSize: root.s(12)
-                            color: root.subtext0
-                        }
-                    }
-                }
 
-                // ─── TITLE INPUT ────────────────────────────────────
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: root.s(6)
+                        Rectangle {
+                            id: titleInputRect
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: root.s(36)
+                            radius: root.s(8)
+                            color: Qt.alpha(root.surface0, 0.4)
+                            border.color: reportTitle.activeFocus ? root.mauve : root.surface1
+                            border.width: 1
 
-                    Text {
-                        text: "Title"
-                        font.family: "JetBrains Mono"
-                        font.weight: Font.Bold
-                        font.pixelSize: root.s(12)
-                        color: root.subtext0
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: root.s(42)
-                        radius: root.s(8)
-                        color: Qt.alpha(root.surface0, 0.4)
-                        border.color: reportTitle.activeFocus ? root.mauve : root.surface1
-                        border.width: 1
-
-                        TextInput {
-                            id: reportTitle
-                            anchors.fill: parent
-                            anchors.margins: root.s(10)
-                            font.family: "JetBrains Mono"
-                            font.pixelSize: root.s(13)
-                            color: root.text
-                            clip: true
-                            verticalAlignment: TextInput.AlignVCenter
-                        }
-                    }
-                }
-
-                // ─── DESCRIPTION INPUT ──────────────────────────────
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    spacing: root.s(6)
-
-                    Text {
-                        text: "Description"
-                        font.family: "JetBrains Mono"
-                        font.weight: Font.Bold
-                        font.pixelSize: root.s(12)
-                        color: root.subtext0
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        radius: root.s(8)
-                        color: Qt.alpha(root.surface0, 0.4)
-                        border.color: reportDesc.activeFocus ? root.mauve : root.surface1
-                        border.width: 1
-
-                        ScrollView {
-                            anchors.fill: parent
-                            anchors.margins: root.s(10)
-                            clip: true
-
-                            TextArea {
-                                id: reportDesc
+                            TextInput {
+                                id: reportTitle
+                                anchors.fill: parent
+                                anchors.margins: root.s(8)
                                 font.family: "JetBrains Mono"
                                 font.pixelSize: root.s(12)
                                 color: root.text
-                                placeholderText: "Describe the issue in detail..."
-                                placeholderTextColor: Qt.alpha(root.subtext0, 0.4)
-                                wrapMode: TextEdit.WordWrap
-                                background: null
+                                clip: true
+                                verticalAlignment: TextInput.AlignVCenter
+                                maximumLength: 100
+                            }
+                        }
+                    }
+
+                    // ─── DESCRIPTION INPUT ────────────────────────
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: root.s(4)
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                text: "Description"
+                                font.family: "JetBrains Mono"
+                                font.weight: Font.Bold
+                                font.pixelSize: root.s(11)
+                                color: root.subtext0
+                            }
+                            Item { Layout.fillWidth: true }
+                            Text {
+                                text: reportDesc.text.length + "/1000"
+                                font.family: "JetBrains Mono"
+                                font.pixelSize: root.s(9)
+                                color: reportDesc.text.length > 900 ? root.red : root.subtext0
+                            }
+                        }
+
+                        Rectangle {
+                            id: descInputRect
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            radius: root.s(8)
+                            color: Qt.alpha(root.surface0, 0.4)
+                            border.color: reportDesc.activeFocus ? root.mauve : root.surface1
+                            border.width: 1
+
+                            ScrollView {
+                                anchors.fill: parent
+                                anchors.margins: root.s(8)
+                                clip: true
+
+                                TextArea {
+                                    id: reportDesc
+                                    font.family: "JetBrains Mono"
+                                    font.pixelSize: root.s(11)
+                                    color: root.text
+                                    placeholderText: "Describe the issue in detail..."
+                                    placeholderTextColor: Qt.alpha(root.subtext0, 0.4)
+                                    wrapMode: TextEdit.WordWrap
+                                    background: null
+                                    onTextChanged: {
+                                        if (reportDesc.text.length > 1000) {
+                                            reportDesc.text = reportDesc.text.substring(0, 1000);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ─── SYSTEM INFO ──────────────────────────────
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: root.s(4)
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: root.s(28)
+                            radius: root.s(6)
+                            color: sysInfoMa.containsMouse ? Qt.alpha(root.surface1, 0.4) : Qt.alpha(root.surface0, 0.25)
+                            border.color: sysInfoMa.containsMouse ? root.surface2 : "transparent"
+                            border.width: 1
+                            scale: sysInfoMa.pressed ? 0.98 : 1.0
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: root.s(8)
+                                spacing: root.s(6)
+                                Text {
+                                    text: "󰌆"
+                                    font.family: "Iosevka Nerd Font"
+                                    font.pixelSize: root.s(12)
+                                    color: root.subtext0
+                                }
+                                Text {
+                                    text: "System Info (sent with report)"
+                                    font.family: "JetBrains Mono"
+                                    font.weight: Font.Bold
+                                    font.pixelSize: root.s(9)
+                                    color: root.subtext0
+                                    Layout.fillWidth: true
+                                }
+                                Text {
+                                    text: reportTab.sysInfoExpanded ? "" : ""
+                                    font.family: "Iosevka Nerd Font"
+                                    font.pixelSize: root.s(9)
+                                    color: root.subtext0
+                                }
+                            }
+
+                            MouseArea {
+                                id: sysInfoMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: reportTab.sysInfoExpanded = !reportTab.sysInfoExpanded
+                            }
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: reportTab.sysInfoExpanded ? root.s(60) : 0
+                            clip: true
+
+                            Behavior on Layout.preferredHeight { NumberAnimation { duration: 200; easing.type: Easing.OutQuart } }
+
+                            GridLayout {
+                                anchors.fill: parent
+                                anchors.topMargin: root.s(4)
+                                columns: 3
+                                rowSpacing: root.s(2)
+                                columnSpacing: root.s(8)
+                                visible: reportTab.sysInfoExpanded
+
+                                Repeater {
+                                    model: [
+                                        { icon: "󰑖", label: "Version", value: root.dotsVersion },
+                                        { icon: "", label: "Host", value: root.sysHost },
+                                        { icon: "", label: "OS", value: root.sysOS },
+                                        { icon: "", label: "Kernel", value: root.sysKernel },
+                                        { icon: "", label: "CPU", value: root.sysCPU },
+                                        { icon: "󰢮", label: "GPU", value: root.sysGPU }
+                                    ]
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: root.s(4)
+                                        Text {
+                                            text: modelData.icon
+                                            font.family: "Iosevka Nerd Font"
+                                            font.pixelSize: root.s(9)
+                                            color: root.subtext0
+                                        }
+                                        Text {
+                                            text: modelData.label + ":"
+                                            font.family: "JetBrains Mono"
+                                            font.weight: Font.Bold
+                                            font.pixelSize: root.s(8)
+                                            color: root.subtext0
+                                        }
+                                        Text {
+                                            text: modelData.value
+                                            font.family: "JetBrains Mono"
+                                            font.pixelSize: root.s(8)
+                                            color: root.text
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ─── SEND BUTTON ──────────────────────────────
+                    Rectangle {
+                        id: sendBtn
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: root.s(44)
+                        radius: root.s(10)
+                        color: sendBtnMouse.containsMouse ? Qt.alpha(root.mauve, 0.9) : Qt.alpha(root.mauve, 0.75)
+                        border.color: root.mauve
+                        border.width: 1
+                        scale: sendBtnMouse.pressed ? 0.95 : (sendBtnMouse.containsMouse ? 1.03 : 1.0)
+
+                        Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        property bool isSending: false
+
+                        RowLayout {
+                            anchors.centerIn: parent
+                            spacing: root.s(8)
+
+                            Text {
+                                id: sendIcon
+                                text: "󰊟"
+                                font.family: "Iosevka Nerd Font"
+                                font.pixelSize: root.s(18)
+                                color: root.text
+                                RotationAnimation on rotation {
+                                    from: 0; to: 360
+                                    duration: 1500; loops: Animation.Infinite
+                                    running: sendBtn.isSending
+                                }
+                            }
+
+                            Text {
+                                id: sendText
+                                text: "Send Report"
+                                font.family: "JetBrains Mono"
+                                font.weight: Font.Black
+                                font.pixelSize: root.s(13)
+                                color: root.text
+                            }
+                        }
+
+                        Timer {
+                            id: sendResetTimer
+                            interval: 3000
+                            onTriggered: {
+                                sendBtn.isSending = false;
+                                sendIcon.text = "󰊟";
+                                sendText.text = "Send Report";
+                                sendBtn.color = sendBtnMouse.containsMouse ? Qt.alpha(root.mauve, 0.9) : Qt.alpha(root.mauve, 0.75);
+                            }
+                        }
+
+                        Process {
+                            id: reportSender
+                            running: false
+                            onExited: {
+                                if (exitCode === 0) {
+                                    reportTitle.text = "";
+                                    reportDesc.text = "";
+                                    sendIcon.text = "󰄴";
+                                    sendText.text = "Sent!";
+                                    sendBtn.color = Qt.alpha(root.green, 0.8);
+                                } else {
+                                    sendIcon.text = "";
+                                    sendText.text = "Failed - no internet";
+                                    sendBtn.color = Qt.alpha(root.red, 0.8);
+                                }
+                                sendResetTimer.restart();
+                            }
+                        }
+
+                        Timer {
+                            id: sendingTimer
+                            interval: 600
+                            onTriggered: {
+                                var title = reportTitle.text.trim();
+                                var desc = reportDesc.text.trim();
+                                var script = Quickshell.env("HOME") + "/.config/hypr/scripts/quickshell/guide/report_send.sh";
+                                reportSender.command = ["bash", script, title, desc, root.selectedCategory, root.selectedSeverity];
+                                reportSender.running = true;
+                            }
+                        }
+
+                        SequentialAnimation {
+                            id: shakeAnim
+                            running: false
+                            NumberAnimation { target: sendBtn; property: "scale"; to: 1.05; duration: 80; easing.type: Easing.OutQuad }
+                            NumberAnimation { target: sendBtn; property: "scale"; to: 0.95; duration: 80; easing.type: Easing.InQuad }
+                            NumberAnimation { target: sendBtn; property: "scale"; to: 1.02; duration: 60; easing.type: Easing.OutQuad }
+                            NumberAnimation { target: sendBtn; property: "scale"; to: 0.98; duration: 60; easing.type: Easing.InQuad }
+                            NumberAnimation { target: sendBtn; property: "scale"; to: 1.0; duration: 60; easing.type: Easing.OutQuad }
+                        }
+
+                        Timer {
+                            id: titleFlashTimer
+                            interval: 600
+                            onTriggered: {
+                                titleInputRect.border.color = reportTitle.activeFocus ? root.mauve : root.surface1;
+                            }
+                        }
+
+                        Timer {
+                            id: descFlashTimer
+                            interval: 600
+                            onTriggered: {
+                                descInputRect.border.color = reportDesc.activeFocus ? root.mauve : root.surface1;
+                            }
+                        }
+
+                        MouseArea {
+                            id: sendBtnMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                var title = reportTitle.text.trim();
+                                var desc = reportDesc.text.trim();
+                                if (title === "" || desc === "") {
+                                    if (title === "") {
+                                        titleInputRect.border.color = root.red;
+                                        titleFlashTimer.restart();
+                                    }
+                                    if (desc === "") {
+                                        descInputRect.border.color = root.red;
+                                        descFlashTimer.restart();
+                                    }
+                                    shakeAnim.restart();
+                                    return;
+                                }
+                                if (sendBtn.isSending) return;
+                                sendBtn.isSending = true;
+                                sendIcon.text = "";
+                                sendText.text = "Sending...";
+                                sendingTimer.restart();
+                            }
+                            onEntered: {
+                                if (!sendBtn.isSending) {
+                                    sendBtn.color = Qt.alpha(root.mauve, 0.9);
+                                }
+                            }
+                            onExited: {
+                                if (!sendBtn.isSending) {
+                                    sendBtn.color = Qt.alpha(root.mauve, 0.75);
+                                }
                             }
                         }
                     }
                 }
-
-                // ─── SEND BUTTON ────────────────────────────────────
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: root.s(48)
-                    radius: root.s(10)
-                    color: sendBtnMouse.containsMouse ? Qt.alpha(root.mauve, 0.2) : Qt.alpha(root.mauve, 0.1)
-                    border.color: sendBtnMouse.containsMouse ? root.mauve : Qt.alpha(root.mauve, 0.2)
-                    border.width: 1
-                    scale: sendBtnMouse.pressed ? 0.96 : (sendBtnMouse.containsMouse ? 1.02 : 1.0)
-
-                    Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                    Behavior on border.color { ColorAnimation { duration: 150 } }
-
-                    RowLayout {
-                        anchors.centerIn: parent
-                        spacing: root.s(10)
-
-                        Text {
-                            id: sendIcon
-                            text: "󰊟"
-                            font.family: "Iosevka Nerd Font"
-                            font.pixelSize: root.s(18)
-                            color: root.mauve
-                        }
-
-                        Text {
-                            id: sendText
-                            text: "Send Report"
-                            font.family: "JetBrains Mono"
-                            font.weight: Font.Bold
-                            font.pixelSize: root.s(14)
-                            color: root.mauve
-                        }
-                    }
-
-                    MouseArea {
-                        id: sendBtnMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            var title = reportTitle.text.trim();
-                            var desc = reportDesc.text.trim();
-                            if (title === "" || desc === "") return;
-                            sendIcon.text = "";
-                            sendText.text = "Sending...";
-                            var script = Quickshell.env("HOME") + "/.config/hypr/scripts/quickshell/guide/report_send.sh";
-                            Quickshell.execDetached(["bash", script, title, desc]);
-                            reportTitle.text = "";
-                            reportDesc.text = "";
-                            Qt.callLater(function() {
-                                sendIcon.text = "󰄴";
-                                sendText.text = "Sent!";
-                                sendText.color = root.green;
-                                sendIcon.color = root.green;
-                            });
-                        }
-                    }
-                }
             }
+
         }
+
     }
 }
