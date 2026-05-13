@@ -535,7 +535,7 @@ for component in Hyprland Kitty Neovim Rofi SwayNC Matugen; do
         fi
         rm -rf "$TARGET" 2>/dev/null
         mkdir -p "$TARGET"
-        cp -rf "$INSTALL_DIR/$component/"* "$TARGET/" 2>/dev/null
+        cp -rf "$INSTALL_DIR/$component/"* "$TARGET/" 2>/dev/null || true
         if [ "$component" = "Hyprland" ] && [ -f /tmp/hyprland_weather_env.bak ]; then
             mkdir -p "$TARGET/scripts/quickshell/calendar"
             mv /tmp/hyprland_weather_env.bak "$TARGET/scripts/quickshell/calendar/.env"
@@ -547,8 +547,15 @@ for component in Hyprland Kitty Neovim Rofi SwayNC Matugen; do
         fi
         # Integrity check: verify key files were actually written
         if [ "$component" = "Hyprland" ] && [ ! -f "$TARGET/hyprland.conf" ]; then
-            echo -e "  ${R}[FAIL]${N} hyprland.conf missing after restore — cp may have failed"
-            echo -e "  ${R}[FAIL]${N} Your Hyprland config may be broken. Re-run install or manually restore."
+            echo -e "  ${R}[FAIL]${N} hyprland.conf missing after restore — restoring from backup..."
+            if [ -d /tmp/hyprland-config-backup ]; then
+                rm -rf "$TARGET" 2>/dev/null
+                cp -a /tmp/hyprland-config-backup "$TARGET" 2>/dev/null || true
+                echo -e "  ${G}✓${N} Hyprland config restored from backup"
+            else
+                echo -e "  ${R}[FAIL]${N} No backup found at /tmp/hyprland-config-backup"
+                echo -e "  ${R}[FAIL]${N} Run install.sh again to recover."
+            fi
         else
             echo -e "  ${G}✓${N} $component restored"
         fi
