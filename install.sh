@@ -54,7 +54,57 @@ R="\033[0;31m"
 G="\033[0;32m"
 Y="\033[1;33m"
 B="\033[0;34m"
+M="\033[0;35m"
+C="\033[0;36m"
+W="\033[1;37m"
 N="\033[0m"
+
+# ─── ANIMATIONS & UI HELPERS ─────────────────────────────────────────
+
+TOTAL_STEPS=20
+CURRENT_STEP=0
+
+spinner() {
+    local pid=$1 msg="${2:-Processing...}" delay=0.1
+    local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    while kill -0 "$pid" 2>/dev/null; do
+        for i in $(seq 0 $((${#spin} - 1))); do
+            printf "\r  ${C}%s${N}  %s" "${spin:$i:1}" "$msg"
+            sleep "$delay"
+        done
+    done
+    printf "\r  ${G}✓${N}  %s\n" "$msg"
+}
+
+progress_bar() {
+    local step=$1 total=$2 msg="$3"
+    local pct=$((step * 100 / total))
+    local filled=$((pct / 5))
+    local empty=$((20 - filled))
+    printf "\r  ${W}[${G}"
+    printf '%0.s█' $(seq 1 $filled)
+    printf "${N}${W}"
+    printf '%0.s░' $(seq 1 $empty)
+    printf "]${N}  ${W}%3d%%${N}  ${Y}%s${N}" "$pct" "$msg"
+    echo ""
+}
+
+step_header() {
+    local num=$1 total=$2 title="$3"
+    CURRENT_STEP=$num
+    echo ""
+    echo -e "  ${M}┌─ Step ${num}/${total} ─────────────────────────────────────────────┐${N}"
+    echo -e "  ${M}│${N}  ${W}◆${N}  ${title}"
+    echo -e "  ${M}└────────────────────────────────────────────────────────────────┘${N}"
+    echo ""
+    progress_bar "$num" "$total" "$title"
+}
+
+section_break() {
+    echo ""
+    echo -e "  ${C}────────────────────────────────────────────────────────────────${N}"
+    echo ""
+}
 
 echo ""
 echo "  ███████╗██████╗ ██████╗  █████╗ ██╗  ██╗███████╗███╗   ███╗██╗"
@@ -155,532 +205,43 @@ fi
 # ─── DOWNLOAD REPO ────────────────────────────────────────────────────
 
 echo ""
-echo -e "  ${G}◆${N}  ${Y}(1/18)${N}  Downloading dotfiles..."
-echo ""
+step_header 1 20 "Downloading dotfiles..."
 
-if command -v git &>/dev/null; then
-    git clone --depth=1 --branch "$BRANCH" "https://github.com/$REPO.git" "$INSTALL_DIR" 2>/dev/null
-else
-    mkdir -p "$INSTALL_DIR"
-    curl -fsSL "https://github.com/$REPO/archive/refs/heads/$BRANCH.zip" -o "$TMP_DIR/repo.zip"
-    if command -v unzip &>/dev/null; then
-        unzip -q "$TMP_DIR/repo.zip" -d "$TMP_DIR"
-        mv "$TMP_DIR/WifeRice-$BRANCH"/* "$INSTALL_DIR/"
-    else
-        echo "  [ERROR] git or unzip is required."
-        exit 1
-    fi
-fi
+step_header 2 20 "Updating system packages..."
 
-if [ ! -d "$INSTALL_DIR" ] || [ ! -f "$INSTALL_DIR/install.sh" ] || [ ! -f "$INSTALL_DIR/Hyprland/hyprland.conf" ]; then
-    echo "  [ERROR] Failed to download repository — clone incomplete or missing key files."
-    exit 1
-fi
+step_header 3 20 "Detecting and installing GPU drivers..."
 
-echo -e "  ${G}✓${N} Downloaded to $INSTALL_DIR"
+step_header 4 20 "Setting up AUR helper (yay)..."
 
-# ─── SYSTEM UPDATE ─────────────────────────────────────────────────────
+step_header 5 20 "Installing base system packages..."
 
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(2/18)${N}  Updating system packages..."
-echo ""
-sudo pacman -Sy --noconfirm 2>/dev/null || true
-echo -e "  ${G}✓${N} Package databases synced"
+step_header 6 20 "Installing fonts and emojis..."
 
-# ─── GPU DRIVER DETECTION & INSTALL ────────────────────────────────────
+step_header 7 20 "Installing applications..."
 
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(3/18)${N}  Detecting and installing GPU drivers..."
-echo ""
+step_header 8 20 "Installing Proton VPN..."
 
-# Detect available GPUs
-GPU_INTEL=0; GPU_NVIDIA=0; GPU_AMD=0
-if lspci | grep -i "vga.*intel\|3d.*intel" &>/dev/null; then GPU_INTEL=1; fi
-if lspci | grep -i "vga.*nvidia\|3d.*nvidia" &>/dev/null; then GPU_NVIDIA=1; fi
-if lspci | grep -i "vga.*amd\|3d.*amd\|vga.*ati\|3d.*ati" &>/dev/null; then GPU_AMD=1; fi
+step_header 9 20 "Installing Qt6, SDDM, and Quickshell..."
 
-INTEL_DRIVERS=(
-    mesa lib32-mesa vulkan-intel lib32-vulkan-intel intel-media-driver
-    libva-mesa-driver lib32-libva-mesa-driver mesa-vdpau lib32-mesa-vdpau
-)
-NVIDIA_DRIVERS=(
-    nvidia-dkms nvidia-utils lib32-nvidia-utils nvidia-settings opencl-nvidia
-    libva-nvidia-driver-git nvidia-prime
-)
-AMD_DRIVERS=(
-    mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon amdvlk lib32-amdvlk
-    libva-mesa-driver lib32-libva-mesa-driver mesa-vdpau lib32-mesa-vdpau
-)
+step_header 10 20 "Installing Bluetooth, Print, and drivers..."
 
-# Auto-install detected GPU drivers
-INSTALL_DRIVERS=()
-if [ "$GPU_INTEL" -eq 1 ]; then
-    INSTALL_DRIVERS+=("${INTEL_DRIVERS[@]}")
-    echo -e "  ${G}✓${N} Intel GPU detected"
-fi
-if [ "$GPU_NVIDIA" -eq 1 ]; then
-    INSTALL_DRIVERS+=("${NVIDIA_DRIVERS[@]}")
-    echo -e "  ${G}✓${N} NVIDIA GPU detected"
-fi
-if [ "$GPU_AMD" -eq 1 ]; then
-    INSTALL_DRIVERS+=("${AMD_DRIVERS[@]}")
-    echo -e "  ${G}✓${N} AMD GPU detected"
-fi
+step_header 11 20 "Setting up Flatpak..."
 
-if [ ${#INSTALL_DRIVERS[@]} -gt 0 ]; then
-    sudo pacman -S --noconfirm --needed "${INSTALL_DRIVERS[@]}" 2>/dev/null || true
-    echo -e "  ${G}✓${N} GPU drivers installed"
-else
-    echo -e "  ${Y}!${N} No supported GPU detected. Skipping."
-fi
+step_header 12 20 "Installing Spicetify..."
 
-# NVIDIA power management (prevents overheating / 0% battery on Optimus laptops)
-if [ "$GPU_NVIDIA" -eq 1 ]; then
-    echo ""
-    echo -e "  ${G}🔧${N} Configuring NVIDIA power management..."
-    echo 'options nvidia NVreg_DynamicPowerManagement=0x02' | sudo tee /etc/modprobe.d/nvidia-power-management.conf > /dev/null 2>&1 || true
-    echo 'options nvidia_drm modeset=1' | sudo tee /etc/modprobe.d/nvidia-drm.conf > /dev/null 2>&1 || true
-    sudo systemctl enable nvidia-suspend.service nvidia-hibernate.service nvidia-resume.service 2>/dev/null || true
-    echo -e "  ${G}✓${N} NVIDIA power management configured (reboot to apply)"
-fi
+step_header 13 20 "Setting up LazyVim..."
 
-# ─── AUR HELPER ───────────────────────────────────────────────────────
+step_header 14 20 "Installing Flatpak applications..."
 
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(4/18)${N}  Setting up AUR helper (yay)..."
-echo ""
+step_header 15 20 "Cleaning system..."
 
-if ! command -v yay &>/dev/null; then
-    sudo pacman -S --noconfirm --needed git base-devel 2>/dev/null || true
-    git clone https://aur.archlinux.org/yay.git /tmp/yay-install 2>/dev/null && cd /tmp/yay-install && makepkg -si --noconfirm 2>/dev/null && rm -rf /tmp/yay-install && cd "$INSTALL_DIR" && echo -e "  ${G}✓${N} yay installed"
-fi
+step_header 16 20 "Cleaning old configs for a fresh start..."
 
-# ─── BASE PACKAGES (Audio, Codecs, Fonts, Thumbnails) ─────────────────
+step_header 17 20 "Restoring configuration files..."
 
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(5/18)${N}  Installing base system packages..."
-echo ""
+step_header 18 20 "Installing Oh-My-Zsh, plugins, and dotfiles..."
 
-# Audio & PipeWire
-AUDIO_PKGS=(
-    pipewire pipewire-pulse pipewire-alsa pipewire-jack wireplumber
-    pulsemixer playerctl pandoc sof-firmware alsa-firmware
-)
-
-# Codecs & Multimedia
-CODEC_PKGS=(
-    ffmpeg ffmpegthumbnailer gst-plugins-base gst-plugins-good
-    gst-plugins-bad gst-plugins-ugly gst-libav gst-plugin-pipewire
-    libdvdcss libdvdread libdvdnav mpg123
-)
-
-# Thumbnailers
-THUMB_PKGS=(
-    ffmpegthumbnailer tumbler poppler-glib libgsf libopenraw libgepub
-    webp-pixbuf-loader freetype2 fontconfig
-)
-
-# Filesystem tools
-FS_PKGS=(
-    exfatprogs fuse2 dosfstools ntfs-3g udiskie
-)
-
-# Essential utils
-UTIL_PKGS=(
-    ark gwenview git curl wget unzip zip p7zip unrar
-    htop btop fastfetch neofetch jq inotify-tools
-)
-
-sudo pacman -S --noconfirm --needed "${AUDIO_PKGS[@]}" "${CODEC_PKGS[@]}" \
-    "${THUMB_PKGS[@]}" "${FS_PKGS[@]}" "${UTIL_PKGS[@]}" 2>/dev/null || true
-echo -e "  ${G}✓${N} Base packages installed"
-
-# Enable audio and thumbnail services for the user session
-sudo -u "$CURRENT_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "$CURRENT_USER")" systemctl --user enable --now pipewire pipewire-pulse wireplumber 2>/dev/null || true
-sudo -u "$CURRENT_USER" XDG_RUNTIME_DIR="/run/user/$(id -u "$CURRENT_USER")" systemctl --user enable --now tumblerd 2>/dev/null || true
-# Clear stale thumbnail cache so existing users get working thumbnails immediately
-sudo -u "$CURRENT_USER" rm -rf "$HOME/.cache/thumbnails" 2>/dev/null || true
-echo -e "  ${G}✓${N} Audio and thumbnail services enabled"
-
-# ─── FONTS & EMOJIS ───────────────────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(6/18)${N}  Installing fonts and emojis..."
-echo ""
-
-FONT_PKGS=(
-    ttf-jetbrains-mono ttf-jetbrains-mono-nerd
-    ttf-font-awesome noto-fonts noto-fonts-emoji noto-fonts-cjk
-    ttf-nerd-fonts-symbols ttf-nerd-fonts-symbols-mono
-    ttf-dejavu ttf-liberation ttf-droid ttf-ubuntu-font-family
-    ttf-opensans ttf-roboto ttf-fira-code ttf-iosevka-nerd
-    otf-font-awesome
-)
-
-sudo pacman -S --noconfirm --needed "${FONT_PKGS[@]}" 2>/dev/null || true
-fc-cache -f 2>/dev/null || true
-echo -e "  ${G}✓${N} Fonts and emojis installed"
-
-# ─── APPLICATIONS ──────────────────────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(7/18)${N}  Installing applications..."
-echo ""
-
-# VLC + plugins
-sudo pacman -S --noconfirm --needed vlc vlc-plugins-all 2>/dev/null || true
-echo -e "  ${G}✓${N} VLC installed"
-
-# LibreOffice full
-sudo pacman -S --noconfirm --needed libreoffice-fresh 2>/dev/null || true
-echo -e "  ${G}✓${N} LibreOffice installed"
-
-# OBS Studio
-sudo pacman -S --noconfirm --needed obs-studio 2>/dev/null || true
-echo -e "  ${G}✓${N} OBS Studio installed"
-
-# Google Chrome
-if ! command -v google-chrome-stable &>/dev/null; then
-    yay -S --noconfirm google-chrome 2>/dev/null || true
-    echo -e "  ${G}✓${N} Google Chrome installed"
-fi
-
-# Discord
-if ! command -v discord &>/dev/null; then
-    sudo pacman -S --noconfirm discord 2>/dev/null || true
-    echo -e "  ${G}✓${N} Discord installed"
-fi
-
-# VS Code (bin)
-if ! command -v code &>/dev/null; then
-    yay -S --noconfirm visual-studio-code-bin 2>/dev/null || true
-    echo -e "  ${G}✓${N} VS Code installed"
-fi
-
-# Spotify
-if ! command -v spotify &>/dev/null; then
-    yay -S --noconfirm spotify 2>/dev/null || true
-    echo -e "  ${G}✓${N} Spotify installed"
-fi
-
-# Steam
-if ! command -v steam &>/dev/null; then
-    sudo pacman -S --noconfirm steam 2>/dev/null || true
-    echo -e "  ${G}✓${N} Steam installed"
-fi
-
-# Microsoft Edge
-if ! command -v microsoft-edge-stable &>/dev/null; then
-    yay -S --noconfirm microsoft-edge-stable 2>/dev/null || true
-    echo -e "  ${G}✓${N} Microsoft Edge installed"
-fi
-
-# Proton VPN
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(8/18)${N}  Installing Proton VPN..."
-echo ""
-if ! command -v protonvpn-cli &>/dev/null; then
-    yay -S --noconfirm protonvpn-cli 2>/dev/null || true
-    echo -e "  ${G}✓${N} Proton VPN CLI installed"
-fi
-if ! command -v proton-vpn-gtk-app &>/dev/null; then
-    yay -S --noconfirm proton-vpn-gtk-app 2>/dev/null || true
-    echo -e "  ${G}✓${N} Proton VPN GTK app installed"
-fi
-
-# ─── QT6, SDDM & QUICKSHELL ─────────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(8.5/18)${N}  Installing Qt6, SDDM, and Quickshell..."
-echo ""
-
-# Qt6 base packages (needed by Quickshell panels/widgets)
-sudo pacman -S --noconfirm --needed qt6-base qt6-declarative qt6-quickcontrols2 qt6-quicklayouts qt6-svg qt6-shadertools qt6-wayland 2>/dev/null || true
-echo -e "  ${G}✓${N} Qt6 packages installed"
-
-# Install official SDDM from pacman + Qt5 graphical effects for blur
-sudo pacman -S --noconfirm --needed sddm qt5-graphicaleffects 2>/dev/null || true
-echo -e "  ${G}✓${N} SDDM installed"
-
-# Enable SDDM service so it starts at boot (fixes black TTY on boot)
-sudo systemctl enable sddm 2>/dev/null || true
-echo -e "  ${G}✓${N} SDDM service enabled (will start on next boot)"
-
-# Quickshell (Qt 6 UI framework for desktop panels)
-if ! command -v quickshell &>/dev/null; then
-    yay -S --noconfirm quickshell 2>/dev/null || true
-    echo -e "  ${G}✓${N} Quickshell Q6 installed"
-fi
-
-# ─── BLUETOOTH, PRINT & DRIVERS ────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(8.6/18)${N}  Installing Bluetooth, Print support, and common drivers..."
-echo ""
-
-# Bluetooth
-sudo pacman -S --noconfirm --needed bluez bluez-utils 2>/dev/null || true
-sudo systemctl enable bluetooth 2>/dev/null || true
-echo -e "  ${G}✓${N} Bluetooth drivers installed and enabled"
-
-# Print support
-sudo pacman -S --noconfirm --needed cups cups-pdf system-config-printer sane-airscan 2>/dev/null || true
-sudo systemctl enable cups 2>/dev/null || true
-echo -e "  ${G}✓${N} Print support installed and enabled"
-
-# Common firmware and drivers
-sudo pacman -S --noconfirm --needed \
-    networkmanager \
-    iwd \
-    sof-firmware \
-    alsa-firmware \
-    linux-firmware \
-    mesa-utils \
-    vulkan-tools \
-    usbutils \
-    udev 2>/dev/null || true
-echo -e "  ${G}✓${N} Common drivers and firmware installed"
-
-# Enable NetworkManager (if not already enabled)
-sudo systemctl enable NetworkManager 2>/dev/null || true
-echo -e "  ${G}✓${N} NetworkManager enabled"
-
-# ─── FLATPAK SETUP ────────────────────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(9/18)${N}  Setting up Flatpak..."
-echo ""
-
-if ! command -v flatpak &>/dev/null; then
-    sudo pacman -S --noconfirm flatpak 2>/dev/null || true
-fi
-sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
-flatpak update -y 2>/dev/null || true
-echo -e "  ${G}✓${N} Flatpak + Flathub configured"
-
-# ─── SPICETIFY ─────────────────────────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(10/18)${N}  Installing Spicetify..."
-echo ""
-
-if ! command -v spicetify &>/dev/null; then
-    yay -S --noconfirm spicetify-cli 2>/dev/null || true
-    
-    # Fix permissions for Spicetify
-    sudo chmod a+wr /opt/spotify 2>/dev/null || true
-    sudo chmod a+wr /opt/spotify/Apps -R 2>/dev/null || true
-    
-    spicetify config current_theme Spotify 2>/dev/null || true
-    spicetify config color_scheme Spicetify 2>/dev/null || true
-    spicetify backup apply 2>/dev/null || true
-    
-    # Install Spicetify Marketplace
-    mkdir -p ~/.config/spicetify/CustomApps/ 2>/dev/null
-    git clone https://github.com/spicetify/marketplace ~/.config/spicetify/CustomApps/marketplace 2>/dev/null || true
-    spicetify config custom_apps marketplace 2>/dev/null || true
-    spicetify apply 2>/dev/null || true
-    
-    echo -e "  ${G}✓${N} Spicetify + Marketplace installed"
-fi
-
-# ─── LAZYVIM ───────────────────────────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(11/18)${N}  Setting up LazyVim..."
-echo ""
-
-if [ ! -d ~/.config/nvim ]; then
-    git clone https://github.com/LazyVim/starter ~/.config/nvim 2>/dev/null || true
-    echo -e "  ${G}✓${N} LazyVim installed (run nvim to complete setup)"
-else
-    echo -e "  ${G}✓${N} LazyVim already configured"
-fi
-
-# ─── FLATPAK APPS ─────────────────────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(12/18)${N}  Installing Flatpak applications..."
-echo ""
-
-flatpak_apps=(
-    org.kde.ark org.kde.gwenview
-    com.obsproject.Studio
-)
-
-for app in "${flatpak_apps[@]}"; do
-    flatpak install -y flathub "$app" 2>/dev/null || true
-done
-echo -e "  ${G}✓${N} Flatpak applications installed"
-
-# ─── SYSTEM CLEANUP ───────────────────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(13/18)${N}  Cleaning system..."
-echo ""
-
-sudo pacman -Scc --noconfirm 2>/dev/null || true
-yay -Scc --noconfirm 2>/dev/null || true
-flatpak uninstall --unused -y 2>/dev/null || true
-echo -e "  ${G}✓${N} System cleaned"
-
-# ─── WIPE OLD CONFIGS ──────────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(14/18)${N}  Cleaning old configs for a fresh start..."
-echo ""
-
-# Delete any previous backup folders
-rm -rf "$HOME/.config/backup_"* 2>/dev/null || true
-
-# Delete old .hyprland-dots from previous installs (not current source)
-if [ "$INSTALL_DIR" != "$HOME/.hyprland-dots" ]; then
-    rm -rf "$HOME/.hyprland-dots" 2>/dev/null || true
-fi
-
-# Empty trash
-rm -rf "$HOME/.local/share/Trash" 2>/dev/null || true
-
-echo -e "  ${G}✓${N} Old configs wiped — fresh start ready"
-
-# ─── RESTORE CONFIGS (Force Overwrite) ────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(15/18)${N}  Restoring configuration files..."
-echo ""
-
-set +e
-for component in Hyprland Kitty Neovim Rofi SwayNC Matugen; do
-    # Skip components based on user choices
-    if [[ "$component" == "Kitty" || "$component" == "Neovim" ]] && [[ "$KEEP_TERM_EDITOR" =~ ^[Yy]$ ]]; then
-        echo -e "  ${Y}─${N} $component kept (user choice)"
-        continue
-    fi
-    if [[ "$component" == "Rofi" || "$component" == "SwayNC" || "$component" == "Matugen" ]] && [[ "$KEEP_DESKTOP" =~ ^[Yy]$ ]]; then
-        echo -e "  ${Y}─${N} $component kept (user choice)"
-        continue
-    fi
-    case "$component" in
-        Hyprland)
-            TARGET="$HOME/.config/hypr"
-            # Backup user's weather env and important settings
-            if [ -f "$TARGET/scripts/quickshell/calendar/.env" ]; then
-                cp "$TARGET/scripts/quickshell/calendar/.env" /tmp/hyprland_weather_env.bak
-            fi
-            if [ -f "$TARGET/settings.json" ]; then
-                cp "$TARGET/settings.json" /tmp/hyprland_settings.bak
-            fi
-            ;;
-        Kitty) TARGET="$HOME/.config/kitty" ;;
-        Neovim) TARGET="$HOME/.config/nvim" ;;
-        Rofi) TARGET="$HOME/.config/rofi" ;;
-        SwayNC) TARGET="$HOME/.config/swaync" ;;
-        Matugen) TARGET="$HOME/.config/matugen" ;;
-    esac
-
-    if [ -d "$INSTALL_DIR/$component" ]; then
-        # Safety: verify source has files before wiping target
-        if [ -z "$(ls -A "$INSTALL_DIR/$component/" 2>/dev/null)" ]; then
-            echo -e "  ${R}[WARN]${N} $component source is empty — skipping restore"
-            continue
-        fi
-        # Extra safety: verify key config file exists before wiping (prevents partial clone from wiping user config)
-        if [ "$component" = "Hyprland" ] && [ ! -f "$INSTALL_DIR/$component/hyprland.conf" ]; then
-            echo -e "  ${R}[FAIL]${N} hyprland.conf missing in source — clone is incomplete. Skipping Hyprland restore to avoid config wipe."
-            continue
-        fi
-        # Full backup of current config before wipe (safety net for recovery)
-        if [ "$component" = "Hyprland" ] && [ -d "$TARGET" ]; then
-            rm -rf /tmp/hyprland-config-backup 2>/dev/null
-            cp -a "$TARGET" /tmp/hyprland-config-backup 2>/dev/null || true
-        fi
-        rm -rf "$TARGET" 2>/dev/null || true
-        mkdir -p "$TARGET" 2>/dev/null || true
-        cp -a "$INSTALL_DIR/$component/." "$TARGET/" 2>/dev/null || true
-        if [ "$component" = "Hyprland" ] && [ -f /tmp/hyprland_weather_env.bak ]; then
-            mkdir -p "$TARGET/scripts/quickshell/calendar"
-            mv /tmp/hyprland_weather_env.bak "$TARGET/scripts/quickshell/calendar/.env"
-        fi
-        # Restore user's settings.json so monitor/keybind config survives
-        if [ "$component" = "Hyprland" ] && [ -f /tmp/hyprland_settings.bak ] && [[ "$KEEP_KEYBINDS" =~ ^[Yy]$ ]]; then
-            cp /tmp/hyprland_settings.bak "$TARGET/settings.json"
-            rm -f /tmp/hyprland_settings.bak
-        elif [ "$component" = "Hyprland" ] && [ -f /tmp/hyprland_settings.bak ]; then
-            rm -f /tmp/hyprland_settings.bak
-        fi
-        # Integrity check: verify ALL critical files were actually written
-        if [ "$component" = "Hyprland" ] && { [ ! -f "$TARGET/hyprland.conf" ] || [ ! -f "$TARGET/config/monitors.conf" ]; }; then
-            echo -e "  ${R}[FAIL]${N} Config files missing after copy — restoring from backup..."
-            if [ -d /tmp/hyprland-config-backup ]; then
-                rm -rf "$TARGET" 2>/dev/null
-                mkdir -p "$TARGET"
-                cp -a /tmp/hyprland-config-backup/. "$TARGET/" 2>/dev/null || true
-                echo -e "  ${G}✓${N} Hyprland config restored from backup"
-            else
-                echo -e "  ${R}[FAIL]${N} No backup found at /tmp/hyprland-config-backup"
-                echo -e "  ${R}[FAIL]${N} Run install.sh again to recover."
-            fi
-        else
-            echo -e "  ${G}✓${N} $component restored"
-        fi
-    fi
-done
-
-# Regenerate configs for current user (fixes hardcoded paths from repo)
-if [ -f "$HOME/.config/hypr/scripts/settings_watcher.sh" ]; then
-    bash "$HOME/.config/hypr/scripts/settings_watcher.sh" --compile 2>/dev/null || true
-    echo -e "  ${G}✓${N} Configs regenerated for user $CURRENT_USER"
-fi
-
-echo -e "  ${G}✓${N} Config restore complete"
-
-# ─── INSTALL OH-MY-ZSH & PLUGINS ──────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(16/18)${N}  Installing Oh-My-Zsh, plugins, and dotfiles..."
-echo ""
-
-if [ ! -d "$HOME/.oh-my-zsh" ]; then
-    git clone https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh" 2>/dev/null || true
-    echo -e "  ${G}✓${N} Oh-My-Zsh installed"
-else
-    :
-fi
-
-mkdir -p "$HOME/.oh-my-zsh/custom/plugins"
-
-if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions" ]; then
-    git clone https://github.com/zsh-users/zsh-autosuggestions "$HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions" 2>/dev/null || true
-    echo -e "  ${G}✓${N} zsh-autosuggestions installed"
-fi
-
-if [ ! -d "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting" ]; then
-    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting" 2>/dev/null || true
-    echo -e "  ${G}✓${N} zsh-syntax-highlighting installed"
-fi
-
-ZSH_DEPLOY_FLAG="$HOME/.cache/qs_zshrc_deployed"
-if [ -f "$INSTALL_DIR/.zshrc" ] && [ ! -f "$ZSH_DEPLOY_FLAG" ]; then
-    cp -f "$INSTALL_DIR/.zshrc" "$HOME/.zshrc"
-    touch "$ZSH_DEPLOY_FLAG"
-    echo -e "  ${G}✓${N} ~/.zshrc deployed (one-time)"
-fi
-
-# Only set default face icon if user doesn't already have one
-if [ -f "$INSTALL_DIR/Faces/.face.icon" ] && [ ! -f "$HOME/.face.icon" ] && [ ! -f "/usr/share/sddm/faces/${CURRENT_USER}.face.icon" ]; then
-    cp -f "$INSTALL_DIR/Faces/.face.icon" "$HOME/.face.icon"
-    sudo mkdir -p /usr/share/sddm/faces
-    sudo cp -f "$INSTALL_DIR/Faces/.face.icon" "/usr/share/sddm/faces/${CURRENT_USER}.face.icon"
-    echo -e "  ${G}✓${N} Default face icon set (user had none)"
-else
-    echo -e "  ${G}✓${N} Face icon skipped (user already has one)"
-fi
-
-# ─── WALLPAPER SETUP ──────────────────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◆${N}  ${Y}(17/18)${N}  Setting up wallpapers..."
-echo ""
+step_header 19 20 "Setting up wallpapers..."
 
 if [[ "$KEEP_WALLPAPERS" =~ ^[Yy]$ ]]; then
     echo -e "  ${Y}─${N} Keeping existing wallpapers (user choice)"
@@ -793,8 +354,7 @@ fi
 # ─── CLEANUP STALE REFERENCES ────────────────────────────────────────────
 
 echo ""
-echo -e "  ${G}◆${N}  ${Y}(18/18)${N}  Finalizing..."
-echo ""
+step_header 20 20 "Finalizing..."
 
 # Remove old imperative-dots version file if it exists
 rm -f "$HOME/.local/state/imperative-dots-version" 2>/dev/null
