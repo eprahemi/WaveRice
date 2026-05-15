@@ -124,6 +124,12 @@ trough slider:hover {
   background-color: #322826;
 }
 
+/* Update notification — green Amethyst Noir */
+.notification[category~="update"] {
+  border: 1px solid #22c55e;
+  box-shadow: inset 0 0 10px 0 rgba(34, 197, 94, 0.25);
+}
+
 .notification .notification-action:hover {
   background-color: #534341;
   color: #ffb4a9;

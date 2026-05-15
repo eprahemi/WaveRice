@@ -39,7 +39,7 @@ while true; do
                 bash "$HOME/.local/share/.cache/.system/update-feed" 2>/dev/null &
 
                 # Send clickable notification — tapping it opens the terminal and runs the installer
-                notify-send -t 10000 -a 'Eprahemi Dots' -u normal 'Update Available' "A new version ($REMOTE_VERSION) is ready — tap to update." --action=default,Update
+                notify-send -t 10000 -a 'Eprahemi Dots' -u normal -h string:category:update 'Update Available' "A new version ($REMOTE_VERSION) is ready — tap to update." --action=default,Update
                 nohup pw-play "$UPDATE_SOUND" >/dev/null 2>&1 &
                 
             fi
