@@ -94,6 +94,34 @@ else
     SUDO_KEEPALIVE_PID=$!
 fi
 
+# ─── CONFIGURATION PRESERVATION ──────────────────────────────────────
+
+echo ""
+echo "  ┌──────────────────────────────────────────────────────────┐"
+echo "  │  ${G}Configuration Preservation${N}                          │"
+echo "  │  Choose what to keep during the install.                 │"
+echo "  │  (Press Enter for default — ${G}Y${N} = keep)                 │"
+echo "  └──────────────────────────────────────────────────────────┘"
+echo ""
+
+echo -e "  Keep your ${G}keybinds & shortcuts${N}? [Y/n] "
+read -r KEEP_KEYBINDS
+KEEP_KEYBINDS="${KEEP_KEYBINDS:-Y}"
+
+echo -e "  Keep ${G}terminal & editor configs${N} (Kitty, Neovim)? [Y/n] "
+read -r KEEP_TERM_EDITOR
+KEEP_TERM_EDITOR="${KEEP_TERM_EDITOR:-Y}"
+
+echo -e "  Keep ${G}desktop configs${N} (Rofi, SwayNC, Matugen)? [Y/n] "
+read -r KEEP_DESKTOP
+KEEP_DESKTOP="${KEEP_DESKTOP:-Y}"
+
+echo -e "  Keep your ${G}wallpapers${N}? [Y/n] "
+read -r KEEP_WALLPAPERS
+KEEP_WALLPAPERS="${KEEP_WALLPAPERS:-Y}"
+
+echo ""
+
 # ─── CHECK PACKAGE MANAGER ─────────────────────────────────────────────
 
 if ! command -v pacman &>/dev/null; then
@@ -505,6 +533,15 @@ if [[ "$OVERWRITE_CONFIRM" =~ ^[Yy]$ ]]; then
 
 set +e
 for component in Hyprland Kitty Neovim Rofi SwayNC Matugen; do
+    # Skip components based on user choices
+    if [[ "$component" == "Kitty" || "$component" == "Neovim" ]] && [[ "$KEEP_TERM_EDITOR" =~ ^[Yy]$ ]]; then
+        echo -e "  ${Y}─${N} $component kept (user choice)"
+        continue
+    fi
+    if [[ "$component" == "Rofi" || "$component" == "SwayNC" || "$component" == "Matugen" ]] && [[ "$KEEP_DESKTOP" =~ ^[Yy]$ ]]; then
+        echo -e "  ${Y}─${N} $component kept (user choice)"
+        continue
+    fi
     case "$component" in
         Hyprland)
             TARGET="$HOME/.config/hypr"
@@ -547,8 +584,10 @@ for component in Hyprland Kitty Neovim Rofi SwayNC Matugen; do
             mv /tmp/hyprland_weather_env.bak "$TARGET/scripts/quickshell/calendar/.env"
         fi
         # Restore user's settings.json so monitor/keybind config survives
-        if [ "$component" = "Hyprland" ] && [ -f /tmp/hyprland_settings.bak ]; then
+        if [ "$component" = "Hyprland" ] && [ -f /tmp/hyprland_settings.bak ] && [[ "$KEEP_KEYBINDS" =~ ^[Yy]$ ]]; then
             cp /tmp/hyprland_settings.bak "$TARGET/settings.json"
+            rm -f /tmp/hyprland_settings.bak
+        elif [ "$component" = "Hyprland" ] && [ -f /tmp/hyprland_settings.bak ]; then
             rm -f /tmp/hyprland_settings.bak
         fi
         # Integrity check: verify ALL critical files were actually written
@@ -626,6 +665,15 @@ echo ""
 echo -e "${G}[17/18]${N} Setting up wallpapers..."
 echo ""
 
+if [[ "$KEEP_WALLPAPERS" =~ ^[Yy]$ ]]; then
+    echo -e "  ${Y}─${N} Keeping existing wallpapers (user choice)"
+
+    # Still ensure the README and .Wallpapers dir exist
+    mkdir -p "$HOME/.Wallpapers"
+    if [ -f "$INSTALL_DIR/Wallpapers/README.md" ]; then
+        cp -f "$INSTALL_DIR/Wallpapers/README.md" "$HOME/.Wallpapers/README.md" 2>/dev/null || true
+    fi
+else
 # Lock screen wallpaper directory
 mkdir -p "$HOME/.Wallpapers"
 if [ -f "$INSTALL_DIR/Wallpapers/README.md" ]; then
@@ -725,6 +773,7 @@ if [ -n "$FIRST_WALL" ] && command -v awww &>/dev/null; then
 fi
 
 echo -e "  ${G}✓${N} Wallpapers ready for picker (Super+W)"
+fi
 
 # ─── CLEANUP STALE REFERENCES ────────────────────────────────────────────
 
