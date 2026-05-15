@@ -76,33 +76,11 @@ spinner() {
     printf "\r  ${G}✓${N}  %s\n" "$msg"
 }
 
-progress_bar() {
-    local step=$1 total=$2 msg="$3"
-    local pct=$((step * 100 / total))
-    local filled=$((pct / 5))
-    local empty=$((20 - filled))
-    printf "\r  ${W}[${G}"
-    printf '%0.s█' $(seq 1 $filled)
-    printf "${N}${W}"
-    printf '%0.s░' $(seq 1 $empty)
-    printf "]${N}  ${W}%3d%%${N}  ${Y}%s${N}" "$pct" "$msg"
-    echo ""
-}
-
 step_header() {
     local num=$1 total=$2 title="$3"
     CURRENT_STEP=$num
     echo ""
-    echo -e "  ${M}┌─ Step ${num}/${total} ─────────────────────────────────────────────┐${N}"
-    echo -e "  ${M}│${N}  ${W}◆${N}  ${title}"
-    echo -e "  ${M}└────────────────────────────────────────────────────────────────┘${N}"
-    echo ""
-    progress_bar "$num" "$total" "$title"
-}
-
-section_break() {
-    echo ""
-    echo -e "  ${C}────────────────────────────────────────────────────────────────${N}"
+    echo -e "  ${W}◆${N}  ${title}  ${Y}(${num}/${total})${N}"
     echo ""
 }
 
@@ -147,14 +125,13 @@ fi
 # ─── CONFIGURATION PRESERVATION ──────────────────────────────────────
 
 echo ""
-echo "  ╭──────────────────────────────────────────────────────────╮"
-echo "  │  ${G}🛡  Configuration Preservation${N}                        │"
-echo "  │  Choose what to keep during the install.                 │"
-echo "  │  ${Y}Press Enter${N} = ${G}keep${N}  │  ${R}N${N} = overwrite                         │"
-echo "  ╰──────────────────────────────────────────────────────────╯"
+echo "  ╭──────────────────────────────────────╮"
+echo "  │  ${G}🛡  Configuration${N}                   │"
+echo "  │  ${Y}Enter${N}=keep  ${R}N${N}=overwrite          │"
+echo "  ╰──────────────────────────────────────╯"
 echo ""
 
-echo -e "  ${G}◉${N}  Keep ${G}keybinds & shortcuts${N}?         [Y/n] "
+echo -e "  ${G}◉${N}  Keep ${G}keybinds & shortcuts${N}?  [Y/n] "
 read -r KEEP_KEYBINDS
 KEEP_KEYBINDS="${KEEP_KEYBINDS:-Y}"
 
@@ -162,24 +139,21 @@ echo -e "  ${G}◉${N}  Keep ${G}terminal & editor${N} (Kitty, Neovim)?  [Y/n] "
 read -r KEEP_TERM_EDITOR
 KEEP_TERM_EDITOR="${KEEP_TERM_EDITOR:-Y}"
 
-echo -e "  ${G}◉${N}  Keep ${G}desktop configs${N} (Rofi, SwayNC, Matugen)? [Y/n] "
+echo -e "  ${G}◉${N}  Keep ${G}desktop configs${N} (Rofi, SwayNC, Matugen)?  [Y/n] "
 read -r KEEP_DESKTOP
 KEEP_DESKTOP="${KEEP_DESKTOP:-Y}"
 
-echo -e "  ${G}◉${N}  Keep your ${G}wallpapers${N}?            [Y/n] "
+echo -e "  ${G}◉${N}  Keep ${G}wallpapers${N}?  [Y/n] "
 read -r KEEP_WALLPAPERS
 KEEP_WALLPAPERS="${KEEP_WALLPAPERS:-Y}"
 
 echo ""
-echo "  ╭──────────────────────────────────────────────────────────╮"
-echo "  │  ${Y}🌤  Optional Extras${N}                                  │"
-echo "  ╰──────────────────────────────────────────────────────────╯"
+echo "  ╭──────────────────────────────────────╮"
+echo "  │  ${Y}🌤  Extras${N}                           │"
+echo "  ╰──────────────────────────────────────╯"
 echo ""
-echo -e "  ${Y}▶${N}  Configure weather? (OpenWeatherMap API key + city)"
-echo -e "     ${B}→${N} Get a free key at ${B}https://openweathermap.org/api${N}"
-echo -e "     ${B}→${N} Find your city ID at ${B}https://openweathermap.org/find${N}"
-echo -e "  "
-echo -e "  ${Y}▶${N}  Enter your OpenWeatherMap API key ${Y}(or press Enter to skip)${N}: "
+echo -e "  ${Y}▶${N}  Weather API key ${Y}(Enter to skip)${N}:"
+echo -e "     ${B}→${N} https://openweathermap.org/api"
 read -r WEATHER_API_KEY
 if [ -n "$WEATHER_API_KEY" ]; then
     echo -e "  ${Y}▶${N}  Enter your numeric city ID ${Y}(e.g. 421821 for London)${N}: "
