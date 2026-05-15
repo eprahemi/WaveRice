@@ -326,20 +326,17 @@ fi
 
 # Ensure awww daemon is running for wallpaper setting
 if command -v awww &>/dev/null; then
-    # Start daemon if not already running (it'll fork to background)
-    awww init 2>/dev/null || true
     sleep 0.5
 fi
 
-# Set Himeno as active desktop wallpaper
+# Force set Himeno as active desktop wallpaper
 HIMENO_FILE="$HOME/Pictures/Wallpapers/Himeno Hot Face.png"
 if [ -f "$HIMENO_FILE" ] && command -v awww &>/dev/null; then
     awww img "$HIMENO_FILE" --transition-type fade --transition-pos 0.5,0.5 --transition-fps 60 --transition-duration 1 2>/dev/null || true
     cp "$HIMENO_FILE" "$HOME/.cache/current_wallpaper.png" 2>/dev/null || true
-    echo -e "  ${G}✓${N} Himeno wallpaper set as desktop background"
-elif [ -n "$FIRST_WALL" ] && command -v awww &>/dev/null; then
-    awww img "$FIRST_WALL" --transition-type fade --transition-pos 0.5,0.5 --transition-fps 60 --transition-duration 1 2>/dev/null || true
-    echo -e "  ${G}✓${N} First wallpaper applied"
+    echo -e "  ${G}✓${N} Desktop wallpaper set to Himeno"
+else
+    echo -e "  ${Y}─${N} Could not set desktop wallpaper (awww not available or file missing)"
 fi
 
 echo -e "  ${G}✓${N} Wallpapers ready for picker (Super+W)"
