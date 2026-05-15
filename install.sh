@@ -498,6 +498,11 @@ echo ""
 echo -e "${G}[15/18]${N} Restoring configuration files..."
 echo ""
 
+echo -e "  ${Y}?${N} Overwrite existing configs? [y/N] "
+read -r OVERWRITE_CONFIRM
+
+if [[ "$OVERWRITE_CONFIRM" =~ ^[Yy]$ ]]; then
+
 set +e
 for component in Hyprland Kitty Neovim Rofi SwayNC Matugen; do
     case "$component" in
@@ -568,6 +573,9 @@ done
 if [ -f "$HOME/.config/hypr/scripts/settings_watcher.sh" ]; then
     bash "$HOME/.config/hypr/scripts/settings_watcher.sh" --compile 2>/dev/null || true
     echo -e "  ${G}✓${N} Configs regenerated for user $CURRENT_USER"
+fi
+
+echo -e "  ${G}✓${N} Config restore complete"
 fi
 
 # ─── INSTALL OH-MY-ZSH & PLUGINS ──────────────────────────────────────
