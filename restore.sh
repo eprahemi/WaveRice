@@ -188,6 +188,10 @@ if [ -d "$SCRIPT_DIR/SDDM-Wallpaper" ]; then
         sudo cp -f "$SCRIPT_DIR/SDDM-Wallpaper/wallpaper.png" /usr/share/wallpapers/lock.png
         echo "    [RESTORED] /usr/share/wallpapers/lock.png (Lockscreen)"
     fi
+    # Copy existing system wallpaper to user's home folder so they can customize it
+    if [ -f /usr/share/wallpapers/lock.png ] && ! ls "$HOME/.Wallpapers/lock."* &>/dev/null; then
+        cp -f /usr/share/wallpapers/lock.png "$HOME/.Wallpapers/lock.png" 2>/dev/null || true
+    fi
     # SDDM login wallpaper — only set on first install
     if [ ! -d /usr/share/sddm/themes/matugen-minimal ] && command -v sudo &>/dev/null; then
         sudo mkdir -p /usr/share/sddm/themes/matugen-minimal

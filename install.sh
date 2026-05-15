@@ -644,6 +644,10 @@ if [ -f "$INSTALL_DIR/SDDM-Wallpaper/wallpaper.png" ]; then
         sudo mkdir -p /usr/share/wallpapers
         sudo cp -f "$INSTALL_DIR/SDDM-Wallpaper/wallpaper.png" /usr/share/wallpapers/lock.png
     fi
+    # Copy existing system wallpaper to user's home folder so they can customize it
+    if [ -f /usr/share/wallpapers/lock.png ] && ! ls "$HOME/.Wallpapers/lock."* &>/dev/null; then
+        cp -f /usr/share/wallpapers/lock.png "$HOME/.Wallpapers/lock.png" 2>/dev/null || true
+    fi
     # SDDM login theme — always deploy to pick up theme updates
     if [ -d "$INSTALL_DIR/SDDM/matugen-minimal" ] && command -v sudo &>/dev/null; then
         sudo mkdir -p /usr/share/sddm/themes/matugen-minimal
