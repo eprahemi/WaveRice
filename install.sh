@@ -225,6 +225,15 @@ step_header 19 20 "Setting up wallpapers..."
 mkdir -p "$HOME/.Wallpapers"
 if [ -f "$INSTALL_DIR/Wallpapers/README.md" ]; then
     cp -f "$INSTALL_DIR/Wallpapers/README.md" "$HOME/.Wallpapers/README.md" 2>/dev/null || true
+    echo -e "  ${G}✓${N} Lock screen README copied to ~/.Wallpapers/"
+else
+    echo -e "  ${Y}─${N} README not found at \$INSTALL_DIR — trying script directory..."
+    # Fallback: check relative to the install script itself
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "$SCRIPT_DIR/Wallpapers/README.md" ]; then
+        cp -f "$SCRIPT_DIR/Wallpapers/README.md" "$HOME/.Wallpapers/README.md" 2>/dev/null || true
+        echo -e "  ${G}✓${N} Lock screen README copied from script dir"
+    fi
 fi
 
 # Add Himeno wallpaper to Pictures (always — one image won't hurt)
