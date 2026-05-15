@@ -97,47 +97,51 @@ fi
 # ─── CONFIGURATION PRESERVATION ──────────────────────────────────────
 
 echo ""
-echo "  ┌──────────────────────────────────────────────────────────┐"
-echo "  │  ${G}Configuration Preservation${N}                          │"
+echo "  ╭──────────────────────────────────────────────────────────╮"
+echo "  │  ${G}🛡  Configuration Preservation${N}                        │"
 echo "  │  Choose what to keep during the install.                 │"
-echo "  │  (Press Enter for default — ${G}Y${N} = keep)                 │"
-echo "  └──────────────────────────────────────────────────────────┘"
+echo "  │  ${Y}Press Enter${N} = ${G}keep${N}  │  ${R}N${N} = overwrite                         │"
+echo "  ╰──────────────────────────────────────────────────────────╯"
 echo ""
 
-echo -e "  Keep your ${G}keybinds & shortcuts${N}? [Y/n] "
+echo -e "  ${G}◉${N}  Keep ${G}keybinds & shortcuts${N}?         [Y/n] "
 read -r KEEP_KEYBINDS
 KEEP_KEYBINDS="${KEEP_KEYBINDS:-Y}"
 
-echo -e "  Keep ${G}terminal & editor configs${N} (Kitty, Neovim)? [Y/n] "
+echo -e "  ${G}◉${N}  Keep ${G}terminal & editor${N} (Kitty, Neovim)?  [Y/n] "
 read -r KEEP_TERM_EDITOR
 KEEP_TERM_EDITOR="${KEEP_TERM_EDITOR:-Y}"
 
-echo -e "  Keep ${G}desktop configs${N} (Rofi, SwayNC, Matugen)? [Y/n] "
+echo -e "  ${G}◉${N}  Keep ${G}desktop configs${N} (Rofi, SwayNC, Matugen)? [Y/n] "
 read -r KEEP_DESKTOP
 KEEP_DESKTOP="${KEEP_DESKTOP:-Y}"
 
-echo -e "  Keep your ${G}wallpapers${N}? [Y/n] "
+echo -e "  ${G}◉${N}  Keep your ${G}wallpapers${N}?            [Y/n] "
 read -r KEEP_WALLPAPERS
 KEEP_WALLPAPERS="${KEEP_WALLPAPERS:-Y}"
 
 echo ""
-echo -e "  ${Y}?${N} Configure weather? (OpenWeatherMap API key + city)"
-echo -e "    Get a free key at ${B}https://openweathermap.org/api${N}"
-echo -e "    Find your city ID at ${B}https://openweathermap.org/find${N}"
+echo "  ╭──────────────────────────────────────────────────────────╮"
+echo "  │  ${Y}🌤  Optional Extras${N}                                  │"
+echo "  ╰──────────────────────────────────────────────────────────╯"
+echo ""
+echo -e "  ${Y}▶${N}  Configure weather? (OpenWeatherMap API key + city)"
+echo -e "     ${B}→${N} Get a free key at ${B}https://openweathermap.org/api${N}"
+echo -e "     ${B}→${N} Find your city ID at ${B}https://openweathermap.org/find${N}"
 echo -e "  "
-echo -e "  ${Y}?${N} Enter your OpenWeatherMap API key (or press Enter to skip): "
+echo -e "  ${Y}▶${N}  Enter your OpenWeatherMap API key ${Y}(or press Enter to skip)${N}: "
 read -r WEATHER_API_KEY
 if [ -n "$WEATHER_API_KEY" ]; then
-    echo -e "  ${Y}?${N} Enter your numeric city ID (e.g. 421821 for London): "
+    echo -e "  ${Y}▶${N}  Enter your numeric city ID ${Y}(e.g. 421821 for London)${N}: "
     read -r WEATHER_CITY_ID
-    echo -e "  ${Y}?${N} Unit: metric (C) / imperial (F) / standard (K)? [metric] "
+    echo -e "  ${Y}▶${N}  Unit: ${G}metric${N} (C) / ${Y}imperial${N} (F) / ${R}standard${N} (K)? [metric] "
     read -r WEATHER_UNIT
     WEATHER_UNIT="${WEATHER_UNIT:-metric}"
 fi
 
 echo ""
-echo -e "  ${Y}?${N} Override SDDM login screen with my theme & wallpaper?"
-echo -e "    (No = keep your current login screen as-is)  [y/N] "
+echo -e "  ${Y}▶${N}  Override SDDM login screen with theme & wallpaper?"
+echo -e "     ${Y}(No = keep your current login screen as-is)${N}  [y/N] "
 read -r SDDM_OVERWRITE
 echo ""
 
@@ -151,7 +155,7 @@ fi
 # ─── DOWNLOAD REPO ────────────────────────────────────────────────────
 
 echo ""
-echo -e "${G}[1/18]${N} Downloading dotfiles..."
+echo -e "  ${G}◆${N}  ${Y}(1/18)${N}  Downloading dotfiles..."
 echo ""
 
 if command -v git &>/dev/null; then
@@ -178,7 +182,7 @@ echo -e "  ${G}✓${N} Downloaded to $INSTALL_DIR"
 # ─── SYSTEM UPDATE ─────────────────────────────────────────────────────
 
 echo ""
-echo -e "${G}[2/18]${N} Updating system packages..."
+echo -e "  ${G}◆${N}  ${Y}(2/18)${N}  Updating system packages..."
 echo ""
 sudo pacman -Sy --noconfirm 2>/dev/null || true
 echo -e "  ${G}✓${N} Package databases synced"
@@ -186,7 +190,7 @@ echo -e "  ${G}✓${N} Package databases synced"
 # ─── GPU DRIVER DETECTION & INSTALL ────────────────────────────────────
 
 echo ""
-echo -e "${G}[3/18]${N} Detecting and installing GPU drivers..."
+echo -e "  ${G}◆${N}  ${Y}(3/18)${N}  Detecting and installing GPU drivers..."
 echo ""
 
 # Detect available GPUs
@@ -243,7 +247,7 @@ fi
 # ─── AUR HELPER ───────────────────────────────────────────────────────
 
 echo ""
-echo -e "${G}[4/18]${N} Setting up AUR helper (yay)..."
+echo -e "  ${G}◆${N}  ${Y}(4/18)${N}  Setting up AUR helper (yay)..."
 echo ""
 
 if ! command -v yay &>/dev/null; then
@@ -254,7 +258,7 @@ fi
 # ─── BASE PACKAGES (Audio, Codecs, Fonts, Thumbnails) ─────────────────
 
 echo ""
-echo -e "${G}[5/18]${N} Installing base system packages..."
+echo -e "  ${G}◆${N}  ${Y}(5/18)${N}  Installing base system packages..."
 echo ""
 
 # Audio & PipeWire
@@ -301,7 +305,7 @@ echo -e "  ${G}✓${N} Audio and thumbnail services enabled"
 # ─── FONTS & EMOJIS ───────────────────────────────────────────────────
 
 echo ""
-echo -e "${G}[6/18]${N} Installing fonts and emojis..."
+echo -e "  ${G}◆${N}  ${Y}(6/18)${N}  Installing fonts and emojis..."
 echo ""
 
 FONT_PKGS=(
@@ -320,7 +324,7 @@ echo -e "  ${G}✓${N} Fonts and emojis installed"
 # ─── APPLICATIONS ──────────────────────────────────────────────────────
 
 echo ""
-echo -e "${G}[7/18]${N} Installing applications..."
+echo -e "  ${G}◆${N}  ${Y}(7/18)${N}  Installing applications..."
 echo ""
 
 # VLC + plugins
@@ -373,7 +377,7 @@ fi
 
 # Proton VPN
 echo ""
-echo -e "${G}[8/18]${N} Installing Proton VPN..."
+echo -e "  ${G}◆${N}  ${Y}(8/18)${N}  Installing Proton VPN..."
 echo ""
 if ! command -v protonvpn-cli &>/dev/null; then
     yay -S --noconfirm protonvpn-cli 2>/dev/null || true
@@ -387,7 +391,7 @@ fi
 # ─── QT6, SDDM & QUICKSHELL ─────────────────────────────────────────
 
 echo ""
-echo -e "${G}[8.5/18]${N} Installing Qt6, SDDM, and Quickshell..."
+echo -e "  ${G}◆${N}  ${Y}(8.5/18)${N}  Installing Qt6, SDDM, and Quickshell..."
 echo ""
 
 # Qt6 base packages (needed by Quickshell panels/widgets)
@@ -411,7 +415,7 @@ fi
 # ─── BLUETOOTH, PRINT & DRIVERS ────────────────────────────────────
 
 echo ""
-echo -e "${G}[8.6/18]${N} Installing Bluetooth, Print support, and common drivers..."
+echo -e "  ${G}◆${N}  ${Y}(8.6/18)${N}  Installing Bluetooth, Print support, and common drivers..."
 echo ""
 
 # Bluetooth
@@ -444,7 +448,7 @@ echo -e "  ${G}✓${N} NetworkManager enabled"
 # ─── FLATPAK SETUP ────────────────────────────────────────────────────
 
 echo ""
-echo -e "${G}[9/18]${N} Setting up Flatpak..."
+echo -e "  ${G}◆${N}  ${Y}(9/18)${N}  Setting up Flatpak..."
 echo ""
 
 if ! command -v flatpak &>/dev/null; then
@@ -457,7 +461,7 @@ echo -e "  ${G}✓${N} Flatpak + Flathub configured"
 # ─── SPICETIFY ─────────────────────────────────────────────────────────
 
 echo ""
-echo -e "${G}[10/18]${N} Installing Spicetify..."
+echo -e "  ${G}◆${N}  ${Y}(10/18)${N}  Installing Spicetify..."
 echo ""
 
 if ! command -v spicetify &>/dev/null; then
@@ -483,7 +487,7 @@ fi
 # ─── LAZYVIM ───────────────────────────────────────────────────────────
 
 echo ""
-echo -e "${G}[11/18]${N} Setting up LazyVim..."
+echo -e "  ${G}◆${N}  ${Y}(11/18)${N}  Setting up LazyVim..."
 echo ""
 
 if [ ! -d ~/.config/nvim ]; then
@@ -496,7 +500,7 @@ fi
 # ─── FLATPAK APPS ─────────────────────────────────────────────────────
 
 echo ""
-echo -e "${G}[12/18]${N} Installing Flatpak applications..."
+echo -e "  ${G}◆${N}  ${Y}(12/18)${N}  Installing Flatpak applications..."
 echo ""
 
 flatpak_apps=(
@@ -512,7 +516,7 @@ echo -e "  ${G}✓${N} Flatpak applications installed"
 # ─── SYSTEM CLEANUP ───────────────────────────────────────────────────
 
 echo ""
-echo -e "${G}[13/18]${N} Cleaning system..."
+echo -e "  ${G}◆${N}  ${Y}(13/18)${N}  Cleaning system..."
 echo ""
 
 sudo pacman -Scc --noconfirm 2>/dev/null || true
@@ -523,7 +527,7 @@ echo -e "  ${G}✓${N} System cleaned"
 # ─── WIPE OLD CONFIGS ──────────────────────────────────────────
 
 echo ""
-echo -e "${G}[14/18]${N} Cleaning old configs for a fresh start..."
+echo -e "  ${G}◆${N}  ${Y}(14/18)${N}  Cleaning old configs for a fresh start..."
 echo ""
 
 # Delete any previous backup folders
@@ -542,7 +546,7 @@ echo -e "  ${G}✓${N} Old configs wiped — fresh start ready"
 # ─── RESTORE CONFIGS (Force Overwrite) ────────────────────────────────
 
 echo ""
-echo -e "${G}[15/18]${N} Restoring configuration files..."
+echo -e "  ${G}◆${N}  ${Y}(15/18)${N}  Restoring configuration files..."
 echo ""
 
 set +e
@@ -633,7 +637,7 @@ echo -e "  ${G}✓${N} Config restore complete"
 # ─── INSTALL OH-MY-ZSH & PLUGINS ──────────────────────────────────────
 
 echo ""
-echo -e "${G}[16/18]${N} Installing Oh-My-Zsh, plugins, and dotfiles..."
+echo -e "  ${G}◆${N}  ${Y}(16/18)${N}  Installing Oh-My-Zsh, plugins, and dotfiles..."
 echo ""
 
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
@@ -675,7 +679,7 @@ fi
 # ─── WALLPAPER SETUP ──────────────────────────────────────────────────
 
 echo ""
-echo -e "${G}[17/18]${N} Setting up wallpapers..."
+echo -e "  ${G}◆${N}  ${Y}(17/18)${N}  Setting up wallpapers..."
 echo ""
 
 if [[ "$KEEP_WALLPAPERS" =~ ^[Yy]$ ]]; then
@@ -789,7 +793,7 @@ fi
 # ─── CLEANUP STALE REFERENCES ────────────────────────────────────────────
 
 echo ""
-echo -e "${G}[18/18]${N} Finalizing..."
+echo -e "  ${G}◆${N}  ${Y}(18/18)${N}  Finalizing..."
 echo ""
 
 # Remove old imperative-dots version file if it exists
