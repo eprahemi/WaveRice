@@ -8,9 +8,9 @@
 ## 🔴🔴🔴 THREE GOLDEN RULES — NEVER, EVER BREAK THESE 🔴🔴🔴
 
 ### RULE 1: ALWAYS OVERWRITE USER FILES WITH NEW UPDATES
-When we update a file in the repo, users MUST receive it. Every update overwrites their existing file. No exceptions except `.env` (weather config) and `settings.json` (user settings). If we update GuidePopup.qml → overwrite. If we update Lock.qml → overwrite. If we update SDDM theme → overwrite. Floating.qml? Overwrite. WallpaperPicker.qml? Overwrite. wallpaper.png? Overwrite. Users get ALL changes.
+When we update a file in the repo, users MUST receive it. Every update overwrites their existing file. No exceptions except `.env` (weather config), `qs_colors.json` (Matugen-generated colors), and `settings.json` (user settings). If we update GuidePopup.qml → overwrite. If we update Lock.qml → overwrite. If we update SDDM theme → overwrite. Floating.qml? Overwrite. WallpaperPicker.qml? Overwrite. wallpaper.png? Overwrite. Users get ALL changes.
 
-The rsync command in step 17 (`rsync -a --exclude='.env'`) ALREADY does this — it mirrors the repo's quickshell/ to the user's system, overwriting everything except `.env`. Do NOT change this to `--delete` (which would remove user-added files like custom MP3s). But do NOT add more `--exclude` flags unless the user explicitly tells you to preserve something.
+The rsync command in step 17 (`rsync -a --ignore-times --exclude='.env' --exclude='qs_colors.json'`) ALREADY does this — it mirrors the repo's quickshell/ to the user's system, overwriting everything except `.env` and `qs_colors.json`. Do NOT change this to `--delete` (which would remove user-added files like custom MP3s). The `qs_colors.json` exclusion was added because Matugen regenerates this file per-user based on their wallpaper — overwriting it would break their color scheme. Do NOT add more `--exclude` flags unless the user explicitly tells you to preserve something.
 
 ### RULE 2: NEVER WIPE USER CONFIG (`~/.config/hypr/`)
 The user's `~/.config/hypr/` directory contains:
@@ -92,7 +92,7 @@ WifeRice/
 │       │
 │       └── quickshell/            ★★★ AUTO-DEPLOYED BY STEP 17 ★★★
 │           │                      → ~/.config/hypr/scripts/quickshell/
-│           │                      OVERWRITES everything except .env
+│           │                      OVERWRITES everything except .env and qs_colors.json
 │           │
 │           ├── Main.qml           Master overlay (notifications, popups)
 │           ├── TopBar.qml         Multi-monitor top bar
@@ -103,7 +103,7 @@ WifeRice/
 │           ├── MatugenColors.qml  Material You colors
 │           ├── SysData.qml        System data component
 │           ├── WindowRegistry.js  Window tracker
-│           ├── qs_colors.json     Default theme
+│           ├── qs_colors.json     Matugen-generated colors 🔒 PRESERVED on update
 │           ├── music_control.sh   Lock screen music controller
 │           ├── workspaces.sh      Hyprland socket → /tmp/qs_workspaces.json
 │           │
@@ -169,7 +169,8 @@ WifeRice/
 |---|---|---|
 | **quickshell/ QML files** (GuidePopup, Lock, Floating, TopBar, Main, WallpaperPicker, etc.) | **YES — always overwrites** | Step 17 rsync overwrites all files. Users always get latest. |
 | **quickshell/ shell scripts** (music_control.sh, workspaces.sh, watchers/*) | **YES — always overwrites** | Same rsync. Users get latest. |
-| **quickshell/ assets** (qs_colors.json, mp3 files, etc.) | **YES — always overwrites** | Same rsync. |
+| **quickshell/ assets** (mp3 files, images, etc.) | **YES — always overwrites** | Same rsync. |
+| **quickshell/qs_colors.json** | **NO — preserved** | Matugen-generated colors based on user's wallpaper. Never touch. |
 | **quickshell/calendar/.env** | **NO — preserved** | User's weather API key + city. Never touch. |
 | **Hyprland/scripts/*.sh** (init.sh, qs_manager.sh, etc.) | ⚠️ **NOT auto-deployed** | Must add cp/rsync to install.sh if changed! |
 | **Hyprland/config/*** (autostart.conf, etc.) | **Regenerated from templates** | settings_watcher.sh --compile does this during install. Templates are NOT auto-deployed though. |
@@ -221,7 +222,7 @@ When asked to make changes, follow these steps in ORDER:
 - Change `DOTS_VERSION="1.7.XX"` to next number
 
 ### Step 5: Verify deployment locally
-- For quickshell files: `rsync -a --exclude='.env' /tmp/WifeRice/Hyprland/scripts/quickshell/ ~/.config/hypr/scripts/quickshell/`
+- For quickshell files: `rsync -a --ignore-times --exclude='.env' --exclude='qs_colors.json' /tmp/WifeRice/Hyprland/scripts/quickshell/ ~/.config/hypr/scripts/quickshell/`
 - For other files: manually run the cp commands you added
 - Open the Guide (Super+H) → Recent Changes tab → verify your entry shows
 - Test the changed feature
@@ -276,12 +277,17 @@ The old installer never deployed quickshell QML files at all. Users who updated 
 
 **Fix:** Added `rsync -a --exclude='.env'` as step 17.
 
+### The quickshell-skip bug (v1.7.42)
+Step 17 had an `if [ -d "$INSTALL_DIR/..." ]` guard that silently skipped deployment if the source directory was missing (e.g. git clone failed). Also, `rsync -a` uses timestamp-based quick-check — if source and dest timestamps matched (possible from git clone), files were skipped.
+
+**Fix:** Removed the `if` guard, added `--ignore-times` to force overwrite, added `--exclude='qs_colors.json'` to preserve Matugen colors, and added `cp -a` fallback with backup/restore of `.env` and `qs_colors.json` for systems without rsync.
+
 ---
 
 ## 🛡️ THE CONFIG PRESERVATION RULES
 
 Only these directories/files are safe to overwrite:
-1. `~/.config/hypr/scripts/quickshell/` — All QML, JS, shell scripts, assets (except .env)
+1. `~/.config/hypr/scripts/quickshell/` — All QML, JS, shell scripts, assets (except .env and qs_colors.json)
 2. `/usr/share/wallpapers/lock.png` — System lock screen
 3. `/usr/share/sddm/themes/matugen-minimal/` — SDDM theme (only when user agrees)
 4. `~/Pictures/Wallpapers/Himeno Hot Face.png` — Default wallpaper
@@ -292,32 +298,40 @@ These are SACRED and NEVER touched:
 2. `~/.config/hypr/hyprland.conf` — Main config (only deployed during initial install, not updated)
 3. `~/.Wallpapers/lock.*` — User's custom lock screen image
 4. `quickshell/calendar/.env` — User's weather API key + city ID + unit
-5. `~/.zshrc` — User's shell config
+5. `quickshell/qs_colors.json` — Matugen-generated colors per-user wallpaper
+6. `~/.zshrc` — User's shell config
 
 ---
 
 ## 🔧 WHAT install.sh STEP 17 DOES (The Quickshell Deployer)
 
 ```bash
-# This runs during EVERY install/update.
+# This runs during EVERY install/update without any guard — ALWAYS runs.
 # It is the ONLY auto-deploy mechanism in the entire installer.
 
-if [ -d "$INSTALL_DIR/Hyprland/scripts/quickshell" ]; then
-    QS_TARGET="$HOME/.config/hypr/scripts/quickshell"
-    mkdir -p "$QS_TARGET"
-    
-    # rsync -a = archive mode (preserves permissions, timestamps, recursive)
-    # --exclude='.env' = preserves user's weather API key/city/unit
-    # This OVERWRITES all existing files with repo versions
-    rsync -a --exclude='.env' "$INSTALL_DIR/Hyprland/scripts/quickshell/" "$QS_TARGET/"
-    
-    # Clean up deprecated files that were removed from repo but still exist on user systems
-    rm -f "$QS_TARGET/wallpaper/ddg_search.sh" "$QS_TARGET/wallpaper/get_ddg_links.py"
+QS_TARGET="$HOME/.config/hypr/scripts/quickshell"
+mkdir -p "$QS_TARGET"
+
+# rsync -a = archive mode (preserves permissions, recursive)
+# --ignore-times = force overwrite even if timestamps match (files from git clone may have same timestamps)
+# --exclude='.env' = preserves user's weather API key/city/unit
+# --exclude='qs_colors.json' = preserves Matugen-generated colors per-user wallpaper
+# This OVERWRITES all other files with repo versions
+if command -v rsync &>/dev/null; then
+    rsync -a --ignore-times --exclude='.env' --exclude='qs_colors.json' "$INSTALL_DIR/Hyprland/scripts/quickshell/" "$QS_TARGET/"
+else
+    # Backup user files that must be preserved, then restore after copy
+    [ -f "$QS_TARGET/.env" ] && cp "$QS_TARGET/.env" /tmp/qs_dotenv_backup
+    [ -f "$QS_TARGET/qs_colors.json" ] && cp "$QS_TARGET/qs_colors.json" /tmp/qs_colors_backup
+    cp -a "$INSTALL_DIR/Hyprland/scripts/quickshell/." "$QS_TARGET/"
+    [ -f /tmp/qs_dotenv_backup ] && mv /tmp/qs_dotenv_backup "$QS_TARGET/.env"
+    [ -f /tmp/qs_colors_backup ] && mv /tmp/qs_colors_backup "$QS_TARGET/qs_colors.json"
 fi
 ```
 
 **If you want to preserve ANY OTHER user file across updates, add another `--exclude` flag.**
 **If you want to remove a deprecated file, add a `rm -f` line after the rsync.**
+**`qs_colors.json` was added as an exclusion because Matugen overwrites it every wallpaper change — it's user-specific generated content, not a repo-managed file.**
 
 ---
 
@@ -405,6 +419,7 @@ This shows the AI's full thought process:
 | Repo DELETED a file that user still has | File STAYS on user's system. (No `--delete` flag.) Clean up manually with `rm -f` after rsync. |
 | User added their OWN file not in repo | File PRESERVED. (No `--delete` flag.) |
 | `.env` file in calendar/ | **EXCLUDED** from rsync. User's weather config preserved. |
+| `qs_colors.json` in quickshell/ | **EXCLUDED** from rsync. Matugen-generated colors preserved. |
 
 ---
 
@@ -419,7 +434,7 @@ This shows the AI's full thought process:
 - [ ] `grep "v1.7.XX" /tmp/WifeRice/Hyprland/scripts/quickshell/guide/GuidePopup.qml` — changelog entry exists?
 - [ ] `grep 'DOTS_VERSION=' /tmp/WifeRice/install.sh` — version bumped?
 - [ ] If I changed files OUTSIDE quickshell/, did I add deployment commands to install.sh?
-- [ ] Did I accidentally add `--exclude` that would prevent users from getting updates? (Only .env should be excluded)
+- [ ] Did I accidentally add `--exclude` that would prevent users from getting updates? (Only .env and qs_colors.json should be excluded)
 - [ ] Did I use `cp -a source/. target/` (not `cp source/* target/`)?
 - [ ] Did I add `|| true` to risky commands?
 - [ ] Did I check for deprecated files that need `rm -f` cleanup?
@@ -444,12 +459,12 @@ This shows the AI's full thought process:
 
 1. **"I'll just edit the file and commit"** without checking deployment → Users never get the change.
 2. **"The file is in the repo so users have it"** → Install.sh is the ONLY delivery mechanism. If install.sh doesn't copy it, users don't have it.
-3. **"I added --exclude to protect user files"** → Now users can't get updates to those files. Bad!
+3. **"I added --exclude to protect user files"** → Now users can't get updates to those files. Bad! (Only `.env` and `qs_colors.json` are valid exclusions.)
 4. **"I'll skip the changelog, it's a small change"** → Users have no idea what changed. This demotivates them from updating.
 5. **"I'll skip the version bump, it's minor"** → Update notifier won't detect the new version. Users won't update.
 6. **"cp -a source/* target/ is fine"** → Misses hidden files, fails on ARG_MAX. Use `source/.` instead.
 7. **"rm -rf old && cp -a new"** → If `new` doesn't exist, user loses everything. Never pattern like this.
-8. **"The quickshell files were always deployed"** → WRONG. Before v1.7.42, they NEVER were. Step 17 was empty.
+8. **"The quickshell files were always deployed"** → WRONG. Before v1.7.42, step 17 was entirely empty — users NEVER got QML updates. In v1.7.42, step 17 was added but had an `if [ -d ... ]` guard and used plain `rsync -a` (no `--ignore-times`), so files could still be skipped if timestamps matched. From v1.7.43 onward, step 17 always runs unconditionally with `--ignore-times`.
 9. **"I only changed one QML file, the rest are fine"** → Step 17 rsync handles ALL quickshell files. No need to copy individual files.
 10. **"I'll add --delete to clean up old files"** → Users lose their custom additions (MP3s, images, etc.). Only add explicit `rm -f` for known deprecated files.
 

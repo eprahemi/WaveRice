@@ -229,11 +229,79 @@ step_header 14 20 "Installing Flatpak applications..."
 
 step_header 15 20 "Cleaning system..."
 
-step_header 16 20 "Cleaning old configs for a fresh start..."
+step_header 16 20 "Deploying Hyprland core config..."
 
-step_header 17 20 "Restoring configuration files..."
+HYPR_TARGET="$HOME/.config/hypr"
+mkdir -p "$HYPR_TARGET/scripts"
 
-step_header 18 20 "Installing Oh-My-Zsh, plugins, and dotfiles..."
+# Hyprland core config — always deploy
+cp -f "$INSTALL_DIR/Hyprland/hyprland.conf" "$HYPR_TARGET/" 2>/dev/null || true
+cp -f "$INSTALL_DIR/Hyprland/hypridle.conf" "$HYPR_TARGET/" 2>/dev/null || true
+cp -f "$INSTALL_DIR/Hyprland/colors.conf" "$HYPR_TARGET/" 2>/dev/null || true
+cp -f "$INSTALL_DIR/Hyprland/settings.json" "$HYPR_TARGET/" 2>/dev/null || true
+echo -e "  ${G}✓${N} Hyprland core config deployed"
+
+# Keybinds
+if [[ "$KEEP_KEYBINDS" =~ ^[Nn]$ ]]; then
+    cp -f "$INSTALL_DIR/Hyprland/config" "$HYPR_TARGET/" 2>/dev/null || true
+    echo -e "  ${G}✓${N} Keybinds overwritten"
+else
+    if [ ! -f "$HYPR_TARGET/config" ]; then
+        cp -f "$INSTALL_DIR/Hyprland/config" "$HYPR_TARGET/" 2>/dev/null || true
+    fi
+    echo -e "  ${Y}─${N} Keybinds preserved"
+fi
+
+# Kitty + Neovim
+if [[ "$KEEP_TERM_EDITOR" =~ ^[Nn]$ ]]; then
+    [ -d "$INSTALL_DIR/Kitty" ] && mkdir -p "$HOME/.config/kitty" && cp -rf "$INSTALL_DIR/Kitty/"* "$HOME/.config/kitty/" 2>/dev/null || true
+    [ -d "$INSTALL_DIR/Neovim" ] && mkdir -p "$HOME/.config/nvim" && cp -rf "$INSTALL_DIR/Neovim/"* "$HOME/.config/nvim/" 2>/dev/null || true
+    echo -e "  ${G}✓${N} Terminal & editor config overwritten"
+else
+    echo -e "  ${Y}─${N} Terminal & editor config preserved"
+fi
+
+# Rofi + SwayNC + Matugen
+if [[ "$KEEP_DESKTOP" =~ ^[Nn]$ ]]; then
+    for cfg in Rofi SwayNC Matugen; do
+        src="$INSTALL_DIR/$cfg"
+        tgt="$HOME/.config/$(echo "$cfg" | tr '[:upper:]' '[:lower:]')"
+        [ -d "$src" ] && mkdir -p "$tgt" && cp -rf "$src/"* "$tgt/" 2>/dev/null || true
+    done
+    echo -e "  ${G}✓${N} Desktop configs overwritten"
+else
+    echo -e "  ${Y}─${N} Desktop configs preserved"
+fi
+
+step_header 17 20 "Deploying QuickShell QML files..."
+
+QS_TARGET="$HYPR_TARGET/scripts/quickshell"
+mkdir -p "$QS_TARGET"
+# Always overwrite QML files on every update — users must get latest Floating.qml, GuidePopup.qml, etc.
+if command -v rsync &>/dev/null; then
+    rsync -a --delete --ignore-times --exclude='.env' --exclude='qs_colors.json' "$INSTALL_DIR/Hyprland/scripts/quickshell/" "$QS_TARGET/" 2>/dev/null || true
+else
+    # Backup user files that must be preserved, then restore after copy
+    [ -f "$QS_TARGET/.env" ] && cp "$QS_TARGET/.env" /tmp/qs_dotenv_backup 2>/dev/null || true
+    [ -f "$QS_TARGET/qs_colors.json" ] && cp "$QS_TARGET/qs_colors.json" /tmp/qs_colors_backup 2>/dev/null || true
+    cp -a "$INSTALL_DIR/Hyprland/scripts/quickshell/." "$QS_TARGET/" 2>/dev/null || true
+    [ -f /tmp/qs_dotenv_backup ] && mv /tmp/qs_dotenv_backup "$QS_TARGET/.env" 2>/dev/null || true
+    [ -f /tmp/qs_colors_backup ] && mv /tmp/qs_colors_backup "$QS_TARGET/qs_colors.json" 2>/dev/null || true
+fi
+echo -e "  ${G}✓${N} All QuickShell QML files deployed (Floating.qml, GuidePopup.qml, Main.qml, Lock.qml, TopBar.qml)"
+
+step_header 18 20 "Deploying scripts and extras..."
+
+# Deploy scripts (excluding quickshell which is handled above)
+if [ -d "$INSTALL_DIR/Hyprland/scripts" ]; then
+    rsync -a --exclude='quickshell/' "$INSTALL_DIR/Hyprland/scripts/" "$HYPR_TARGET/scripts/" 2>/dev/null || true
+    echo -e "  ${G}✓${N} Scripts deployed"
+fi
+
+# Faces + Templates
+[ -d "$INSTALL_DIR/Faces" ] && mkdir -p "$HYPR_TARGET/Faces" && cp -rf "$INSTALL_DIR/Faces/"* "$HYPR_TARGET/Faces/" 2>/dev/null || true
+[ -d "$INSTALL_DIR/Hyprland/templates" ] && mkdir -p "$HYPR_TARGET/templates" && cp -rf "$INSTALL_DIR/Hyprland/templates/"* "$HYPR_TARGET/templates/" 2>/dev/null || true
+echo -e "  ${G}✓${N} Faces & templates deployed"
 
 step_header 19 20 "Setting up wallpapers..."
 
