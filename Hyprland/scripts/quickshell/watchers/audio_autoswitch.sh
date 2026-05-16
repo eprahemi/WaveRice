@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 BUILT_IN_PATTERN="pci.*analog-stereo"
-EXTERNAL_PATTERN="(headphone|headset|bluez|bluetooth)"
+EXTERNAL_PATTERN="(headphone|headset|bluez|bluetooth|usb)"
 
 pactl subscribe | while read -r event; do
   if echo "$event" | grep -q "server"; then
