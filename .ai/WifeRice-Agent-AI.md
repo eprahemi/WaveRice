@@ -633,8 +633,8 @@ Think about architecture, user experience, stability, and elegance. Challenge ba
 - **WifeRice-Website:** `changelog.html`, `components.html`, `faq.html`, `features.html`, `home.html`, `install-arch-dualboot.html`, `install-arch-fullwipe.html`, `install-arch.html`, `install-dots.html`, `keybinds.html`, `screenshots.html`, `showcase.html`
 
 ### Current Versions
-- `updates.json latest_version`: **1.7.50** (all v1.7.43–v1.7.50 changelog entries exist)
-- Website changelog: complete through **v1.7.50** (2026-05-18)
+- `updates.json latest_version`: **1.7.51** (all v1.7.43–v1.7.51 changelog entries exist)
+- Website changelog: complete through **v1.7.51** (2026-05-18)
 - Website "Last updated": all **2026-05-18**
 - settings.json policy everywhere: **"updated every release with backup to /tmp/"**
 
