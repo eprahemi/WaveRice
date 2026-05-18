@@ -5,7 +5,7 @@
 #  One-liner: bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
 # ===========================================================================
 
-DOTS_VERSION="1.7.46"
+DOTS_VERSION="1.7.47"
 DOTS_VERSION_NAME=""
 
 set -e
@@ -244,7 +244,10 @@ mkdir -p "$HYPR_TARGET/scripts"
 cp -f "$INSTALL_DIR/Hyprland/hyprland.conf" "$HYPR_TARGET/" 2>/dev/null || true
 cp -f "$INSTALL_DIR/Hyprland/hypridle.conf" "$HYPR_TARGET/" 2>/dev/null || true
 cp -f "$INSTALL_DIR/Hyprland/colors.conf" "$HYPR_TARGET/" 2>/dev/null || true
-cp -f "$INSTALL_DIR/Hyprland/settings.json" "$HYPR_TARGET/" 2>/dev/null || true
+# settings.json — NEVER overwrite, contains user's monitors, keybinds, startup apps
+if [ ! -f "$HYPR_TARGET/settings.json" ]; then
+    cp -f "$INSTALL_DIR/Hyprland/settings.json" "$HYPR_TARGET/" 2>/dev/null || true
+fi
 echo -e "  ${G}✓${N} Hyprland core config deployed"
 
 # Keybinds
