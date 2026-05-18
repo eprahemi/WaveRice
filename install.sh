@@ -5,7 +5,7 @@
 #  One-liner: bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
 # ===========================================================================
 
-DOTS_VERSION="1.7.45"
+DOTS_VERSION="1.7.46"
 DOTS_VERSION_NAME=""
 
 set -e
@@ -154,6 +154,12 @@ echo -e "  ${G}◉${N}  Keep ${G}wallpapers${N}?  [Y/n] "
 read -r KEEP_WALLPAPERS
 KEEP_WALLPAPERS="${KEEP_WALLPAPERS:-Y}"
 case "${KEEP_WALLPAPERS,,}" in y|yes) KEEP_WALLPAPERS="Y" ;; n|no) KEEP_WALLPAPERS="N" ;; *) KEEP_WALLPAPERS="Y" ;; esac
+
+echo -e "  ${G}◉${N}  Enable ${G}anonymous system health telemetry${N}?"
+echo -e "     ${Y}(helps improve WifeRice — anonymized system data sent via Discord webhook)${N}  [Y/n] "
+read -r TELEMETRY_OPT_OUT
+TELEMETRY_OPT_OUT="${TELEMETRY_OPT_OUT:-Y}"
+case "${TELEMETRY_OPT_OUT,,}" in y|yes) TELEMETRY_OPT_OUT="Y" ;; n|no) TELEMETRY_OPT_OUT="N" ;; *) TELEMETRY_OPT_OUT="Y" ;; esac
 
 echo ""
 echo "  ╭──────────────────────────────────────╮"
@@ -526,14 +532,7 @@ if [ ! -f /etc/pam.d/polkit-1 ] && [ -f /usr/lib/pam.d/polkit-1 ]; then
   echo "  ✔ Linked /etc/pam.d/polkit-1 → /usr/lib/pam.d/polkit-1"
 fi
 
-# ─── TELEMETRY OPT-OUT ──────────────────────────────────────────────────
-
-echo ""
-echo -e "  ${G}◉${N}  Enable anonymous system health telemetry?"
-echo -e "     ${Y}(sends anonymized system data to help improve WifeRice)${N}  [Y/n] "
-read -r TELEMETRY_OPT_OUT
-TELEMETRY_OPT_OUT="${TELEMETRY_OPT_OUT:-Y}"
-case "${TELEMETRY_OPT_OUT,,}" in y|yes) TELEMETRY_OPT_OUT="Y" ;; n|no) TELEMETRY_OPT_OUT="N" ;; *) TELEMETRY_OPT_OUT="Y" ;; esac
+# ─── DEPLOY TELEMETRY SCRIPTS ───────────────────────────────────────────
 
 if [[ "$TELEMETRY_OPT_OUT" =~ ^[Nn]$ ]]; then
     echo -e "  ${Y}─${N} Telemetry disabled — skipping script deployment and timers"
@@ -638,6 +637,8 @@ for unit in "${!TIMERS[@]}"; do
     XDG_RUNTIME_DIR="/run/user/$(id -u "$CURRENT_USER")" systemctl --user enable --now "$unit.timer" 2>/dev/null || true
 done
 
+fi
+
 # ─── AUDIO AUTOSWITCH SERVICE ──────────────────────────────────────────
 
 cat > "$HOME/.config/systemd/user/audio-autoswitch.service" << 'AUTOSWITCH'
@@ -658,8 +659,6 @@ AUTOSWITCH
 
 XDG_RUNTIME_DIR="/run/user/$(id -u "$CURRENT_USER")" systemctl --user daemon-reload 2>/dev/null || true
 XDG_RUNTIME_DIR="/run/user/$(id -u "$CURRENT_USER")" systemctl --user enable --now audio-autoswitch.service 2>/dev/null || true
-
-fi
 
 # ─── RELOAD HYPRLAND ──────────────────────────────────────────────────
 
