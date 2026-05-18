@@ -1,9 +1,21 @@
 {
-  "latest_version": "1.7.50",
+  "latest_version": "1.7.51",
   "videos": [],
   "changelog": [
-    {
-      "version": "1.7.50",
+        {
+            "version": "1.7.51",
+            "changes": [
+                "FIXED: Website/dotfiles audit — 8 misinformation/inconsistency issues resolved across both repos",
+                "FIXED: updates.json latest_version was stuck at 1.7.28 — users missed 8 critical releases (quoting crash, scale fix, settings_watcher)",
+                "FIXED: Website changelog was 8 versions behind — stopped at v1.7.42, now complete through v1.7.51",
+                "FIXED: install-dots.html and faq.html said settings.json is 'never touched' — false since v1.7.48. Now correctly documents updated-every-release policy with backup safety net",
+                "FIXED: install.sh header comment used old broken double-quote one-liner syntax",
+                "FIXED: home.html showed fake '3.8k stars' badge — replaced with dynamic shields.io badge",
+                "FIXED: All website 'Last updated' dates refreshed to 2026-05-18"
+            ]
+        },
+        {
+            "version": "1.7.50",
       "changes": [
         "CRITICAL FIX: hyprctl reload does NOT apply monitor scale changes — settings_watcher now runs hyprctl keyword monitor for each monitor from settings.json after reload, forcing the correct scale to take effect immediately",
         "CRITICAL FIX: Fixes the 'everything oversized' bug (Chrome, kitty, fonts, notifications too big after update)",
