@@ -594,6 +594,52 @@ Think about architecture, user experience, stability, and elegance. Challenge ba
 
 ---
 
+## 📋 COMPREHENSIVE AUDIT LOG — WEBSITE vs DOTFILES
+
+### When & Why
+- **Date:** 2026-05-18
+- **Trigger:** User asked me to check the website for misinformation/inconsistencies
+- **Result:** 8 issues discovered across WifeRice dotfiles repo + WifeRice-Website repo
+- **All 8 fixed and pushed to GitHub on 2026-05-18** (commits: `16bed99` in dotfiles, `f127527` in website)
+
+### The 8 Issues
+
+| # | Issue | Location | What was wrong | Fix applied |
+|---|-------|----------|---------------|-------------|
+| 1 | Stale `updates.json` | `WifeRice/updates.json` | `latest_version` stuck at **v1.7.28** — users running v1.7.28+ were told they're up-to-date, missing 8 critical releases (quoting crash fix, scale fix, settings_watcher fix, etc.) | Updated to **v1.7.50**, added all v1.7.43–v1.7.50 changelog entries |
+| 2 | Website changelog behind | `WifeRice-Website/changelog.html` | Stopped at **v1.7.42** — 8 versions missing including 3 critical-fix releases | Added v1.7.43 through v1.7.50 entries |
+| 3 | settings.json policy WRONG | `install-dots.html` (×1), `faq.html` (×3) | Said settings.json is **"never touched" / "ARE preserved"** — FALSE since v1.7.48 where it was changed to be overwritten every update | All 4 occurrences now say **"updated every release"** with backup safety net (`/tmp/wiferice_settings_backup.json`) |
+| 4 | install.sh comment broken | `WifeRice/install.sh` line 5 | Still showed old `bash -c "$(curl ...)"` double-quote syntax that causes terminal crash | Changed to `bash -c 'eval "$(curl ...)"'` — single quotes + eval |
+| 5 | Fake stars badge | `home.html` line 98 | Static **"3.8k stars"** badge — actual repo has 0 stars, undermines credibility | Replaced with **dynamic shields.io badge** (`img.shields.io/github/stars/eprahemi/WifeRice`) showing real count |
+| 6 | Stale changelog card | `home.html` line 180 | Said "through **v1.7.42**" | Updated to "through **v1.7.50**" |
+| 7 | Stale "Last updated" dates | All 11 website `.html` files | All showed **2026-05-16** | Updated all to **2026-05-18** |
+| 8 | FAQ update instructions | `faq.html` line 95 | No mention of settings.json new policy | Added note that settings.json is updated every release with backup |
+
+### Root Causes
+- **No cross-referencing discipline:** Website and dotfiles were maintained independently — changes in one were never reflected in the other
+- **Policy reversal not documented:** settings.json stopped being "preserved" in v1.7.48 but website was never updated
+- **updates.json forgotten:** Version bumps are manual; the update notifier (used by ALL users) was stuck at v1.7.28, meaning critical fixes (quoting, scale, watcher) were never announced
+
+### Lesson Learned
+**The website IS documentation.** Every time the dotfiles behavior changes, the website must be updated in lockstep. Specifically:
+- `updates.json` must be updated on EVERY version bump (automatic/forgotten check)
+- Website changelog must be updated on EVERY release
+- Policy changes (like settings.json overwrite) must be reflected in `install-dots.html` AND `faq.html`
+- "Last updated" dates must be refreshed on EVERY change
+- Badges should be dynamic (shields.io), never static/fake numbers
+
+### Files Changed
+- **WifeRice (dotfiles):** `install.sh`, `updates.json`
+- **WifeRice-Website:** `changelog.html`, `components.html`, `faq.html`, `features.html`, `home.html`, `install-arch-dualboot.html`, `install-arch-fullwipe.html`, `install-arch.html`, `install-dots.html`, `keybinds.html`, `screenshots.html`, `showcase.html`
+
+### Current Versions
+- `updates.json latest_version`: **1.7.50** (all v1.7.43–v1.7.50 changelog entries exist)
+- Website changelog: complete through **v1.7.50** (2026-05-18)
+- Website "Last updated": all **2026-05-18**
+- settings.json policy everywhere: **"updated every release with backup to /tmp/"**
+
+---
+
 ## ⚡ QUICK INVOCATION
 
 To load this agent in your AI chat:
