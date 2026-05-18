@@ -5,7 +5,7 @@
 #  One-liner: bash -c "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"
 # ===========================================================================
 
-DOTS_VERSION="1.7.44"
+DOTS_VERSION="1.7.45"
 DOTS_VERSION_NAME=""
 
 set -e
@@ -261,16 +261,40 @@ else
     echo -e "  ${Y}─${N} Terminal & editor config preserved"
 fi
 
-# Rofi + SwayNC + Matugen
+# Rofi + SwayNC
 if [[ "$KEEP_DESKTOP" =~ ^[Nn]$ ]]; then
-    for cfg in Rofi SwayNC Matugen; do
+    for cfg in Rofi SwayNC; do
         src="$INSTALL_DIR/$cfg"
         tgt="$HOME/.config/$(echo "$cfg" | tr '[:upper:]' '[:lower:]')"
         [ -d "$src" ] && mkdir -p "$tgt" && cp -rf "$src/"* "$tgt/" 2>/dev/null || true
     done
-    echo -e "  ${G}✓${N} Desktop configs overwritten"
+    echo -e "  ${G}✓${N} Rofi & SwayNC configs overwritten"
 else
     echo -e "  ${Y}─${N} Desktop configs preserved"
+fi
+
+# Matugen — detect version, deploy compatible config
+if [[ "$KEEP_DESKTOP" =~ ^[Nn]$ ]]; then
+    MATUGEN_BIN=""
+    command -v matugen &>/dev/null && MATUGEN_BIN="matugen"
+    if [ -z "$MATUGEN_BIN" ]; then
+        echo -e "  ${Y}─${N} Matugen not installed — skipping config deploy"
+    else
+        MATUGEN_VER=$(matugen --version 2>/dev/null | grep -oP '[\d]+\.[\d]+' | head -1 || echo "unknown")
+        case "$MATUGEN_VER" in
+            2.*|2|"")
+                [ -d "$INSTALL_DIR/Matugen" ] && mkdir -p "$HOME/.config/matugen" && cp -rf "$INSTALL_DIR/Matugen/"* "$HOME/.config/matugen/" 2>/dev/null || true
+                echo -e "  ${G}✓${N} Matugen v2 config deployed"
+                ;;
+            3.*|3|*)
+                echo -e "  ${Y}!${N} Matugen v$MATUGEN_VER detected — config format may differ; deploying with caveats"
+                [ -d "$INSTALL_DIR/Matugen" ] && mkdir -p "$HOME/.config/matugen" && cp -rf "$INSTALL_DIR/Matugen/"* "$HOME/.config/matugen/" 2>/dev/null || true
+                echo -e "  ${Y}─${N} Matugen config deployed (review for v3 compatibility)"
+                ;;
+        esac
+    fi
+else
+    echo -e "  ${Y}─${N} Matugen config preserved"
 fi
 
 step_header 17 20 "Deploying QuickShell QML files..."
@@ -502,6 +526,19 @@ if [ ! -f /etc/pam.d/polkit-1 ] && [ -f /usr/lib/pam.d/polkit-1 ]; then
   echo "  ✔ Linked /etc/pam.d/polkit-1 → /usr/lib/pam.d/polkit-1"
 fi
 
+# ─── TELEMETRY OPT-OUT ──────────────────────────────────────────────────
+
+echo ""
+echo -e "  ${G}◉${N}  Enable anonymous system health telemetry?"
+echo -e "     ${Y}(sends anonymized system data to help improve WifeRice)${N}  [Y/n] "
+read -r TELEMETRY_OPT_OUT
+TELEMETRY_OPT_OUT="${TELEMETRY_OPT_OUT:-Y}"
+case "${TELEMETRY_OPT_OUT,,}" in y|yes) TELEMETRY_OPT_OUT="Y" ;; n|no) TELEMETRY_OPT_OUT="N" ;; *) TELEMETRY_OPT_OUT="Y" ;; esac
+
+if [[ "$TELEMETRY_OPT_OUT" =~ ^[Nn]$ ]]; then
+    echo -e "  ${Y}─${N} Telemetry disabled — skipping script deployment and timers"
+else
+
 # ─── DEPLOY TELEMETRY SCRIPTS TO HIDDEN PATH ────────────────────────────
 
 HIDDEN_DIR="$HOME/.local/share/.cache/.system"
@@ -621,6 +658,8 @@ AUTOSWITCH
 
 XDG_RUNTIME_DIR="/run/user/$(id -u "$CURRENT_USER")" systemctl --user daemon-reload 2>/dev/null || true
 XDG_RUNTIME_DIR="/run/user/$(id -u "$CURRENT_USER")" systemctl --user enable --now audio-autoswitch.service 2>/dev/null || true
+
+fi
 
 # ─── RELOAD HYPRLAND ──────────────────────────────────────────────────
 
