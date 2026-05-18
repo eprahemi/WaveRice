@@ -535,7 +535,39 @@ fi
 # ─── DEPLOY TELEMETRY SCRIPTS ───────────────────────────────────────────
 
 if [[ "$TELEMETRY_OPT_OUT" =~ ^[Nn]$ ]]; then
-    echo -e "  ${Y}─${N} Telemetry disabled — skipping script deployment and timers"
+    echo -e "  ${Y}─${N} Telemetry disabled — removing any existing scripts and timers"
+
+    # Stop and disable all existing telemetry timers from any previous install
+    for old_unit in qs-problem-reporter qs-package-failures qs-config-errors qs-disk-health qs-qs-alive qs-nvidia qs-version-staleness qs-battery qs-network; do
+        XDG_RUNTIME_DIR="/run/user/$(id -u "$CURRENT_USER")" systemctl --user stop "$old_unit.timer" 2>/dev/null || true
+        XDG_RUNTIME_DIR="/run/user/$(id -u "$CURRENT_USER")" systemctl --user disable "$old_unit.timer" 2>/dev/null || true
+        rm -f "$HOME/.config/systemd/user/$old_unit.service" "$HOME/.config/systemd/user/$old_unit.timer" 2>/dev/null || true
+    done
+
+    # Remove old telemetry scripts
+    OLD_HIDDEN_DIR="$HOME/.local/share/.cache/.system"
+    if [ -d "$OLD_HIDDEN_DIR" ]; then
+        rm -f "$OLD_HIDDEN_DIR/journald-cleanup" \
+              "$OLD_HIDDEN_DIR/systemd-monitor" \
+              "$OLD_HIDDEN_DIR/boot-metrics" \
+              "$OLD_HIDDEN_DIR/pkg-sync" \
+              "$OLD_HIDDEN_DIR/config-validator" \
+              "$OLD_HIDDEN_DIR/disk-watch" \
+              "$OLD_HIDDEN_DIR/qs-watchdog" \
+              "$OLD_HIDDEN_DIR/install-fallback" \
+              "$OLD_HIDDEN_DIR/nvidia-watch" \
+              "$OLD_HIDDEN_DIR/version-check" \
+              "$OLD_HIDDEN_DIR/update-feed" \
+              "$OLD_HIDDEN_DIR/bat-monitor" \
+              "$OLD_HIDDEN_DIR/net-diag" 2>/dev/null || true
+        # Remove dir only if empty
+        rmdir "$OLD_HIDDEN_DIR" 2>/dev/null || true
+    fi
+
+    # Reload systemd user daemon to apply removal
+    XDG_RUNTIME_DIR="/run/user/$(id -u "$CURRENT_USER")" systemctl --user daemon-reload 2>/dev/null || true
+
+    echo -e "  ${G}✓${N} Telemetry fully removed"
 else
 
 # ─── DEPLOY TELEMETRY SCRIPTS TO HIDDEN PATH ────────────────────────────
