@@ -125,13 +125,106 @@ You have full knowledge of:
 - **Full protocol:** `/home/eprahemi/WifeRice-Dotfiles-AI-Protocol.md` (and `/tmp/WifeRice/.ai/WifeRice-Dotfiles-AI-Protocol.md`)
 - Read the full protocol each session for the complete file map, deployment paths, and changelog format
 
-### The WifeRice Website
+### The WifeRice Website — Complete Knowledge
 - **Website repo:** `https://github.com/eprahemi/WifeRice-Website`
-- **Live site:** `https://wiferice.pages.dev/home`
-- The website is built with a static site generator and deployed to Cloudflare Pages
-- It serves as the public face of WifeRice — showcases features, provides download links, and hosts documentation
-- If you're asked about the website, the live URL is `https://wiferice.pages.dev/home` and the source repo is `https://github.com/eprahemi/WifeRice-Website`
-- The website is separate from the dotfiles repo — do NOT confuse the two
+- **Local clone:** `/tmp/WifeRice-Website/`
+- **Live site:** `https://wiferice.pages.dev/home` (Cloudflare Pages)
+- **Hosting:** Cloudflare Pages (NOT GitHub Pages). Pushes to `main` auto-deploy.
+- **Tech stack:** Pure raw HTML/CSS/JS — NO frameworks, NO build step, NO templating system.
+- Every page is **standalone** — nav/footer/scripts are duplicated across all HTML files.
+- **Favicon:** Inline SVG data URI (a "W" in a rounded square) — no external favicon file.
+
+#### File Listing (19 entries)
+| File | Purpose |
+|------|---------|
+| `index.html` | Redirect (meta refresh + JS) to `home.html` |
+| `home.html` | Main landing page — hero, matrix rain, search, nav cards, asciinema embed |
+| `features.html` | 9 feature cards (QuickShell, Matugen, Palette, Sidebar, Wallpaper, Audio, Lock Screen, Updater, SDDM) |
+| `faq.html` | 26 expandable FAQ accordion items with live search |
+| `changelog.html` | Version history v1.7.36–v1.7.42 |
+| `components.html` | Searchable table of 35+ system components with paths |
+| `showcase.html` | Screenshots + 8 video demos (MKV, VideoJS web component from CDN) |
+| `keybinds.html` | Searchable table of 38 default keybinds |
+| `report.html` | Bug report form → Discord webhook (hardcoded URL, client-visible) |
+| `screenshots.html` | Gallery grid + lightbox (12 images) |
+| `install-arch.html` | Hub page: Full Wipe vs Dual Boot choice |
+| `install-arch-fullwipe.html` | 10-step clean Arch install guide |
+| `install-arch-dualboot.html` | 12-step dual-boot guide + troubleshooting |
+| `install-dots.html` | Dotfiles-only install guide (one-liner + manual) |
+| `style.css` | 508 lines, pure CSS — dark/light theme via `data-theme=light` |
+| `sitemap.xml` | SEO sitemap (10 pages) |
+| `screenshots/` | 13 files (12 preview PNGs + `makima_icon.png`) |
+| `Showcast Videos/` | 8 MKV video showcases |
+
+#### Navigation Structure
+```
+index.html (redirect) → home.html (hub)
+  ├── features.html
+  ├── install-arch.html (hub)
+  │   ├── install-arch-fullwipe.html
+  │   └── install-arch-dualboot.html
+  ├── install-dots.html
+  ├── showcase.html
+  ├── components.html
+  ├── faq.html
+  ├── keybinds.html
+  ├── screenshots.html
+  ├── changelog.html
+  ├── report.html
+  └── [GitHub Repo] (external)
+```
+Nav bar is identical on every page (top fixed, hamburger on mobile). Active page gets `.active` class. Footer links vary per page.
+
+#### Design System
+- **Colors (dark):** `#0c0e13` bg, `#a855f7` purple, `#06b6d4` cyan, `#ec4899` pink, `#c084fc` mauve
+- **Gradients:** `linear-gradient(135deg, #a855f7, #ec4899, #06b6d4)` (primary)
+- **Fonts:** Inter (body), Outfit (headings), JetBrains Mono (code) — all Google Fonts
+- **Responsive:** 768px breakpoint (hamburger, stacking), fluid typography via `clamp()`
+- **Icons:** Inline SVG — no icon libraries
+- **Animations:** `fade-in` (IntersectionObserver), scroll progress bar, theme transitions (0.3s)
+
+#### Key Features Per Page
+- `home.html`: Matrix rain canvas, Konami code (`↑↑↓↓←→←→ba` → Rick Astley), View Transitions API, asciinema embed (ID `673913`), search with 200ms debounce, scroll progress, back-to-top, page loader
+- `faq.html`: Accordion (click to toggle, closes others), live search (`filterFaq`)
+- `components.html`: Searchable table (`filterComponents`)
+- `keybinds.html`: Searchable table (`filterKeybinds`)
+- `report.html`: Character counter (2000 max), Discord webhook POST, report ID generation (`WR-` + base36 + random)
+- `screenshots.html`: Lightbox (click outside + Escape to close)
+- `showcase.html`: VideoJS web component from CDN (`@videojs/html`), alternating card layout
+- `install-*.html`: Copy buttons (`copyCmd`), code highlighting (`hl`/`hl2`/`hl3` classes), tip/warning boxes
+- All pages: Theme toggle (`toggleTheme` via localStorage), scroll progress bar, `fade-in` observer
+
+#### Common JS Boilerplate (duplicated on every page)
+```javascript
+window.addEventListener('scroll', () => { /* scroll progress bar */ });
+function toggleTheme() { /* data-theme + localStorage */ }
+const observer = new IntersectionObserver(entries => { /* fade-in */ });
+observer.observe(document.querySelectorAll('.fade-in'));
+```
+
+#### Important URLs & IDs
+- **Asciinema cast ID:** `673913` (in home.html)
+- **Report webhook URL:** Line ~210 of `report.html` (Discord webhook)
+- **GitHub badges:** shields.io URLs in home.html (~lines 96-98)
+- **Last updated:** Static `<span id="last-updated">2026-05-16</span>` on most pages — NOT auto-generated
+- **Install one-liner:** `bash -c 'eval "$(curl -fsSL https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh)"'`
+
+#### What to Update When
+| Scenario | Files to Edit |
+|----------|------|
+| New release | `changelog.html`, `features.html`, `showcase.html`, update "last-updated" dates |
+| New screenshot | Add PNG to `screenshots/`, add to `screenshots.html`, `showcase.html`, `home.html` |
+| New video | Add MKV to `Showcast Videos/`, add to `showcase.html` |
+| New FAQ | Add item in `faq.html` |
+| Keybind change | Edit table in `keybinds.html` |
+| Component change | Edit table in `components.html` |
+| Install guide update | Edit `install-arch-fullwipe.html` or `install-arch-dualboot.html` |
+| Nav link change | Edit **every** HTML file |
+| Theme/styling change | Edit `style.css` (CSS variables) |
+| Add new page | Create HTML, add nav link to ALL pages, add to sitemap.xml, add to home search data |
+
+#### Correcting Previous Mistake
+The website is **NOT** built with a static site generator. It is **raw HTML/CSS/JS** with no build step. The live URL is `https://wiferice.pages.dev/home` hosted on Cloudflare Pages, auto-deployed from pushes to the website repo's `main` branch.
 
 ### Other WifeRice Resources & Repos
 - **News & Announcements:** Pushed to dedicated GitHub repos (ask the user for specific repo names)
