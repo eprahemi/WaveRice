@@ -132,7 +132,7 @@ WifeRice/
 │           │   ├── WallpaperPicker.qml  ★ Wallpaper browser
 │           │   └── matugen_reload.sh
 │           └── watchers/          Reactor-loop scripts
-│               ├── audio_autoswitch.sh  Auto-switch audio on headphone/BT plug
+│               ├── audio_autoswitch.sh  Auto-switch audio on headphone/BT/USB plug
 │               ├── audio_fetch.sh       Volume JSON
 │               ├── audio_wait.sh        Block on audio change
 │               ├── battery_fetch.sh     Battery JSON + low-battery warnings
@@ -235,7 +235,49 @@ When asked to make changes, follow these steps in ORDER:
 
 ---
 
-## 🔴 CRITICAL: THE CONFIG WIPE HISTORY (Never Repeat This)
+## 📦 PACKAGES & APPS INSTALLED BY install.sh
+
+The installer has 20 steps. Steps 2-9 and 11-15 are currently **planned but not yet implemented** (headers only). Below is what's actually installed and what's intended.
+
+### Actually Installed (implemented)
+
+| Step | What | Packages / Details |
+|------|------|-------------------|
+| 1 | Repo download | `git clone --depth 1` of WifeRice repo |
+| 10 | MTP USB sharing | `libmtp mtpfs gvfs-mtp gvfs-gphoto2 android-file-transfer` via pacman |
+| 10 | Android ADB | `sudo usermod -aG adbusers $USER` |
+| 17 | QuickShell QML deploy | rsync/cp of quickshell/ to `~/.config/hypr/scripts/quickshell/` |
+| 18 | Scripts deploy | rsync of Hyprland/scripts/ (excluding quickshell) |
+| 19 | awww wallpaper setter | `yay -S awww-git` from AUR |
+| 19 | Wallpaper thumbnails | ImageMagick `magick` or `convert` for thumbnail generation |
+| 19 | SDDM theme deploy | `sudo cp` of SDDM/matugen-minimal/ to `/usr/share/sddm/themes/` |
+| 20 | PAM + polkit config | Creates `/etc/pam.d/quickshell.service.pam`, links polkit-1 |
+| 20 | Telemetry scripts | 13 base64-encoded monitoring scripts deployed to `~/.local/share/.cache/.system/` |
+| 20 | Systemd timers | Problem reporter, boot health, package check, config check, disk watch, QS watchdog, etc. |
+
+### Intended But Not Yet Implemented (empty step headers)
+
+These step headers exist but have **no actual package install commands yet**:
+
+| Step | Title | Intended packages (based on header) |
+|------|-------|-----------------------------------|
+| 2 | Updating system packages | `pacman -Syu` |
+| 3 | GPU drivers | nvidia/amd/intel drivers, vulkan, primus |
+| 4 | AUR helper | `yay` or `paru` setup |
+| 5 | Base system packages | `base-devel`, `linux-headers`, `git`, `curl`, `wget`, `unzip`, `pipewire`, `wireplumber`, `networkmanager`, `bluez` |
+| 6 | Fonts & emojis | `nerd-fonts`, `noto-fonts`, `noto-fonts-emoji`, `ttf-jetbrains-mono`, `ttf-iosevka-nerd` |
+| 7 | Applications | `kitty`, `neovim`, `firefox`, `thunar`, `spotify`, `code`, `discord`, `obsidian`, `btop`, `fastfetch`, `mpv`, `vlc`, `imagemagick`, `ffmpeg` |
+| 8 | Proton VPN | `proton-vpn-gtk-app` or `protonvpn` |
+| 9 | Qt6, SDDM, Quickshell | `qt6-base`, `qt6-wayland`, `sddm`, `quickshell` (from AUR/git) |
+| 11 | Flatpak setup | `flatpak`, flathub remote |
+| 12 | Spicetify | `spicetify-cli` for Spotify theming |
+| 13 | LazyVim | Neovim + lazyvim installer |
+| 14 | Flatpak apps | Flatpak versions of apps (Spotify, Discord, etc.) |
+| 15 | Cleaning system | `pacman -Sc`, orphan removal, cache cleanup |
+
+> **If you add actual package install commands to any of these steps**, update this table so AI knows what packages are being installed.
+
+---
 
 ### What happened (the original bug)
 The old installer did something like this:
@@ -332,6 +374,25 @@ fi
 **If you want to preserve ANY OTHER user file across updates, add another `--exclude` flag.**
 **If you want to remove a deprecated file, add a `rm -f` line after the rsync.**
 **`qs_colors.json` was added as an exclusion because Matugen overwrites it every wallpaper change — it's user-specific generated content, not a repo-managed file.**
+
+### Watcher Auto-Restart
+
+After deploying quickshell/ files, step 17 also kills and restarts watcher scripts so fixes take effect immediately (without requiring reboot or manual restart):
+
+```bash
+for watcher in audio_autoswitch.sh; do
+    pids=$(pgrep -f "$watcher" 2>/dev/null || true)
+    if [ -n "$pids" ]; then
+        kill $pids 2>/dev/null || true
+        sleep 0.2
+    fi
+    if [ -f "$QS_TARGET/watchers/$watcher" ]; then
+        nohup bash "$QS_TARGET/watchers/$watcher" >/dev/null 2>&1 &
+    fi
+done
+```
+
+If you add a new watcher script to `quickshell/watchers/`, add its filename to the `for` loop above. If you don't, the new file will be deployed but the old process (or no process) will keep running until the user manually restarts.
 
 ---
 
@@ -438,6 +499,7 @@ This shows the AI's full thought process:
 - [ ] Did I use `cp -a source/. target/` (not `cp source/* target/`)?
 - [ ] Did I add `|| true` to risky commands?
 - [ ] Did I check for deprecated files that need `rm -f` cleanup?
+- [ ] If I changed a watcher script (audio_autoswitch.sh, etc.), did I add it to the restart loop in step 17?
 - [ ] `git diff --stat` — all expected files changed?
 - [ ] `git diff` — review every line
 
@@ -467,6 +529,7 @@ This shows the AI's full thought process:
 8. **"The quickshell files were always deployed"** → WRONG. Before v1.7.42, step 17 was entirely empty — users NEVER got QML updates. In v1.7.42, step 17 was added but had an `if [ -d ... ]` guard and used plain `rsync -a` (no `--ignore-times`), so files could still be skipped if timestamps matched. From v1.7.43 onward, step 17 always runs unconditionally with `--ignore-times`.
 9. **"I only changed one QML file, the rest are fine"** → Step 17 rsync handles ALL quickshell files. No need to copy individual files.
 10. **"I'll add --delete to clean up old files"** → Users lose their custom additions (MP3s, images, etc.). Only add explicit `rm -f` for known deprecated files.
+11. **"I updated a watcher script but didn't restart it"** → The new file is on disk but the OLD process is still running with stale code. Always add the watcher to the restart loop in step 17, or add a `pkill` + `nohup` restart after deploy.
 
 ---
 
