@@ -1,7 +1,18 @@
 {
-  "latest_version": "1.7.53",
+  "latest_version": "1.7.54",
   "videos": [],
   "changelog": [
+        {
+            "version": "1.7.54",
+            "changes": [
+                "FIXED: hypridle crash — replaced with swayidle (hypridle v0.1.7 segfaults with sdbus-cpp 2.3.0 ABI mismatch)",
+                "FIXED: No more polkit auth prompts on lid close — Lock.qml runs directly via WlSessionLock Wayland protocol",
+                "FIXED: lock-session → lock-sessions (plural) in hypridle.conf",
+                "CHANGED: hypridle removed — swayidle is now the default idle daemon",
+                "CHANGED: autostart.conf uses swayidle with direct quickshell Lock.qml — no loginctl or polkit involved",
+                "NEW: swayidle added to install.sh dependencies"
+            ]
+        },
         {
             "version": "1.7.53",
             "changes": [

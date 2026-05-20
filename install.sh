@@ -222,7 +222,7 @@ step_header 9 20 "Installing Qt6, SDDM, and Quickshell..."
 
 step_header 10 20 "Installing Bluetooth, Print, and drivers..."
 
-sudo pacman -S --noconfirm libmtp mtpfs gvfs-mtp gvfs-gphoto2 android-file-transfer 2>/dev/null || true
+sudo pacman -S --noconfirm libmtp mtpfs gvfs-mtp gvfs-gphoto2 android-file-transfer swayidle 2>/dev/null || true
 sudo usermod -aG adbusers "$CURRENT_USER" 2>/dev/null || true
 
 step_header 11 20 "Setting up Flatpak..."
