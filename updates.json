@@ -1,7 +1,15 @@
 {
-  "latest_version": "1.7.54",
+  "latest_version": "1.7.55",
   "videos": [],
   "changelog": [
+        {
+            "version": "1.7.55",
+            "changes": [
+                "CRITICAL FIX: settings.json still referenced hypridle — autostart.conf was regenerated with hypridle on compile, but hypridle was removed. Result: NO idle daemon running — lid close suspended without locking",
+                "FIXED: settings.json and default_settings.json now use swayidle command directly",
+                "FIXED: DOTS_VERSION bumped so users actually receive the update notification"
+            ]
+        },
         {
             "version": "1.7.54",
             "changes": [
