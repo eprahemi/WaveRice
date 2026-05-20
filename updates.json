@@ -1,7 +1,18 @@
 {
-  "latest_version": "1.7.52",
+  "latest_version": "1.7.53",
   "videos": [],
   "changelog": [
+        {
+            "version": "1.7.53",
+            "changes": [
+                "CHANGED: All toggle buttons (Caffeine, Night Light, DND, Power Profile, Gaming, VPN) removed from TopBar — streamlined for coders",
+                "CHANGED: System Monitor button removed from left sidebar",
+                "REMOVED: Gaming Mode — entire feature removed, not designed for dev workflow",
+                "NEW: SVG Icon engine — all previous emoji icons replaced with crisp PathSvg vector icons",
+                "NEW: SvgIcon.qml — reusable component using Qt Quick Shapes PathSvg for resolution-independent icons",
+                "ENHANCED: TopBar cleaner and tighter with only essential buttons (Settings, Quick Notes, Updates, Guide, Search)"
+            ]
+        },
         {
             "version": "1.7.52",
             "changes": [

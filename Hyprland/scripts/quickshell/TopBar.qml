@@ -2,6 +2,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -82,12 +83,6 @@ Variants {
             property bool isUpdateVisible: updateAvailable || forceUpdateShow
             
             // Quick toggle states
-            property bool isCaffeineOn: false
-            property bool isNightLightOn: false
-            property bool isDndOn: false
-            property string powerProfile: "balanced"
-            property bool isGamingOn: false
-            property bool isVpnOn: false
             
             property int workspaceCount: 8
             
@@ -153,121 +148,7 @@ Variants {
                 }
             }
             
-            // --- Caffeine State Poller ---
-            Process {
-                id: caffeinePoller
-                command: ["bash", "-c", "cat ~/.cache/qs_caffeine 2>/dev/null || echo 'inactive'"]
-                stdout: StdioCollector {
-                    onStreamFinished: {
-                        barWindow.isCaffeineOn = (this.text.trim() === "active");
-                    }
-                }
-            }
-            Timer {
-                id: caffeineTimer
-                interval: 2000; running: true; repeat: true; triggeredOnStart: true
-                onTriggered: {
-                    caffeinePoller.running = false;
-                    caffeinePoller.running = true;
-                }
-            }
             
-            // --- Night Light State Poller ---
-            Process {
-                id: nightLightPoller
-                command: ["bash", "-c", "cat ~/.cache/qs_nightlight 2>/dev/null || echo 'inactive'"]
-                stdout: StdioCollector {
-                    onStreamFinished: {
-                        barWindow.isNightLightOn = (this.text.trim() === "active");
-                    }
-                }
-            }
-            Timer {
-                id: nightLightTimer
-                interval: 2000; running: true; repeat: true; triggeredOnStart: true
-                onTriggered: {
-                    nightLightPoller.running = false;
-                    nightLightPoller.running = true;
-                }
-            }
-            
-            // --- DND State Poller ---
-            Process {
-                id: dndPoller
-                command: ["bash", "-c", "cat ~/.cache/qs_dnd 2>/dev/null || echo '0'"]
-                stdout: StdioCollector {
-                    onStreamFinished: {
-                        barWindow.isDndOn = (this.text.trim() === "1");
-                    }
-                }
-            }
-            Timer {
-                id: dndTimer
-                interval: 2000; running: true; repeat: true; triggeredOnStart: true
-                onTriggered: {
-                    dndPoller.running = false;
-                    dndPoller.running = true;
-                }
-            }
-            
-            // --- Power Profile State Poller ---
-            Process {
-                id: powerProfilePoller
-                command: ["bash", "-c", "cat ~/.cache/qs_powerprofile 2>/dev/null || ~/.config/hypr/scripts/toggle_powerprofile.sh get 2>/dev/null || echo 'balanced'"]
-                stdout: StdioCollector {
-                    onStreamFinished: {
-                        let val = this.text.trim().toLowerCase();
-                        if (val.indexOf("performance") >= 0) barWindow.powerProfile = "performance";
-                        else if (val.indexOf("power-saver") >= 0 || val.indexOf("powersave") >= 0) barWindow.powerProfile = "power-saver";
-                        else barWindow.powerProfile = "balanced";
-                    }
-                }
-            }
-            Timer {
-                id: powerProfileTimer
-                interval: 3000; running: true; repeat: true; triggeredOnStart: true
-                onTriggered: {
-                    powerProfilePoller.running = false;
-                    powerProfilePoller.running = true;
-                }
-            }
-            
-            // --- Gaming Mode State Poller ---
-            Process {
-                id: gamingPoller
-                command: ["bash", "-c", "cat ~/.cache/qs_gaming 2>/dev/null || echo 'inactive'"]
-                stdout: StdioCollector {
-                    onStreamFinished: {
-                        barWindow.isGamingOn = (this.text.trim() === "active");
-                    }
-                }
-            }
-            Timer {
-                interval: 3000; running: true; repeat: true; triggeredOnStart: true
-                onTriggered: {
-                    gamingPoller.running = false;
-                    gamingPoller.running = true;
-                }
-            }
-            
-            // --- VPN State Poller ---
-            Process {
-                id: vpnPoller
-                command: ["bash", "-c", "~/.config/hypr/scripts/toggle_vpn.sh status"]
-                stdout: StdioCollector {
-                    onStreamFinished: {
-                        barWindow.isVpnOn = (this.text.trim() === "active");
-                    }
-                }
-            }
-            Timer {
-                interval: 5000; running: true; repeat: true; triggeredOnStart: true
-                onTriggered: {
-                    vpnPoller.running = false;
-                    vpnPoller.running = true;
-                }
-            }
-
             Timer {
                 interval: 500; running: true; repeat: true
                 onTriggered: {
@@ -860,30 +741,6 @@ Variants {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 onClicked: Quickshell.execDetached(["bash", "-c", "quickshell -p ~/.config/hypr/scripts/quickshell/quicknotes/QuickNotesPopup.qml"])
-                            }
-                        }
-
-                        // --- System Monitor Button ---
-                        Rectangle {
-                            property bool isHovered: sysMonMouse.containsMouse
-                            color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : "transparent"
-                            radius: barWindow.s(10)
-                            height: parent.pillHeight; width: barWindow.s(34)
-                            Behavior on color { ColorAnimation { duration: 200 } }
-                            Text {
-                                anchors.centerIn: parent
-                                text: "󰻠"
-                                font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(20)
-                                color: parent.isHovered ? mocha.peach : mocha.text
-                                Behavior on color { ColorAnimation { duration: 200 } }
-                                scale: parent.isHovered ? 1.15 : 1.0
-                                Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutExpo } }
-                            }
-                            MouseArea {
-                                id: sysMonMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                onClicked: Quickshell.execDetached(["bash", "-c", "quickshell -p ~/.config/hypr/scripts/quickshell/sysmon/SysMonPopup.qml"])
                             }
                         }
 
@@ -1698,149 +1555,7 @@ Variants {
                             }                        
 	         	}
 		    }
-		    Rectangle {
-		        id: toggleBox
-		        height: barWindow.barHeight
-		        radius: barWindow.s(14)
-		        border.color: Qt.rgba(mocha.text.r, mocha.text.g, mocha.text.b, 0.08)
-		        border.width: 1
-		        color: Qt.rgba(mocha.base.r, mocha.base.g, mocha.base.b, 0.75)
-		        clip: true
-		        
-		        width: toggleLayout.implicitWidth + barWindow.s(16)
-		        
-		        Row {
-		            id: toggleLayout
-		            anchors.centerIn: parent
-		            spacing: barWindow.s(2)
-		            
-		            // --- Caffeine Toggle ---
-		            Rectangle {
-		                property bool isHovered: caffeineMouse.containsMouse
-		                color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : "transparent"
-		                radius: barWindow.s(10)
-		                height: barWindow.s(34); width: barWindow.s(34)
-		                Behavior on color { ColorAnimation { duration: 200 } }
-		                Text {
-		                    anchors.centerIn: parent
-		                    text: barWindow.isCaffeineOn ? "☕" : ""
-		                    font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(20)
-		                    color: barWindow.isCaffeineOn ? mocha.peach : mocha.overlay2
-		                    Behavior on color { ColorAnimation { duration: 200 } }
-		                }
-		                MouseArea {
-		                    id: caffeineMouse; anchors.fill: parent; hoverEnabled: true
-		                    onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/toggle_caffeine.sh"])
-		                }
-		            }
-		            
-		            // --- Night Light Toggle ---
-		            Rectangle {
-		                property bool isHovered: nightMouse.containsMouse
-		                color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : "transparent"
-		                radius: barWindow.s(10)
-		                height: barWindow.s(34); width: barWindow.s(34)
-		                Behavior on color { ColorAnimation { duration: 200 } }
-		                Text {
-		                    anchors.centerIn: parent
-		                    text: "🌙"
-		                    font.pixelSize: barWindow.s(18)
-		                    opacity: barWindow.isNightLightOn ? 1.0 : 0.4
-		                    Behavior on opacity { NumberAnimation { duration: 200 } }
-		                }
-		                MouseArea {
-		                    id: nightMouse; anchors.fill: parent; hoverEnabled: true
-		                    onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/toggle_nightlight.sh"])
-		                }
-		            }
-		            
-		            // --- Do Not Disturb Toggle ---
-		            Rectangle {
-		                property bool isHovered: dndMouse.containsMouse
-		                color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : "transparent"
-		                radius: barWindow.s(10)
-		                height: barWindow.s(34); width: barWindow.s(34)
-		                Behavior on color { ColorAnimation { duration: 200 } }
-		                Text {
-		                    anchors.centerIn: parent
-		                    text: barWindow.isDndOn ? "🔇" : "󰂚"
-		                    font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(20)
-		                    color: barWindow.isDndOn ? mocha.red : mocha.overlay2
-		                    Behavior on color { ColorAnimation { duration: 200 } }
-		                }
-		                MouseArea {
-		                    id: dndMouse; anchors.fill: parent; hoverEnabled: true
-		                    onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/toggle_dnd.sh"])
-		                }
-		            }
-		            
-            // --- Power Profile Switcher ---
-            Rectangle {
-                property bool isHovered: powerMouse.containsMouse
-                color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : "transparent"
-                radius: barWindow.s(10)
-                height: barWindow.s(34); width: barWindow.s(34)
-                Behavior on color { ColorAnimation { duration: 200 } }
-                Text {
-                    anchors.centerIn: parent
-                    text: barWindow.powerProfile === "performance" ? "🚀" : barWindow.powerProfile === "power-saver" ? "🔋" : "⚡"
-                    font.pixelSize: barWindow.s(18)
-                }
-                MouseArea {
-                    id: powerMouse; anchors.fill: parent; hoverEnabled: true
-                    onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/toggle_powerprofile.sh"])
-                }
-            }
-            
-            // --- Separator ---
-            Rectangle {
-                width: 1; height: barWindow.s(20)
-                color: Qt.rgba(mocha.text.r, mocha.text.g, mocha.text.b, 0.1)
-                anchors.verticalCenter: parent.verticalCenter
-            }
-            
-            // --- Gaming Mode Toggle ---
-            Rectangle {
-                property bool isHovered: gamingMouse.containsMouse
-                color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : "transparent"
-                radius: barWindow.s(10)
-                height: barWindow.s(34); width: barWindow.s(34)
-                Behavior on color { ColorAnimation { duration: 200 } }
-                Text {
-                    anchors.centerIn: parent
-                    text: "🎮"
-                    font.pixelSize: barWindow.s(18)
-                    opacity: barWindow.isGamingOn ? 1.0 : 0.4
-                    Behavior on opacity { NumberAnimation { duration: 200 } }
-                }
-                MouseArea {
-                    id: gamingMouse; anchors.fill: parent; hoverEnabled: true
-                    onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/toggle_gaming.sh"])
-                }
-            }
-            
-            // --- VPN Toggle ---
-            Rectangle {
-                property bool isHovered: vpnMouse.containsMouse
-                color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : "transparent"
-                radius: barWindow.s(10)
-                height: barWindow.s(34); width: barWindow.s(34)
-                Behavior on color { ColorAnimation { duration: 200 } }
-                Text {
-                    anchors.centerIn: parent
-                    text: "🔒"
-                    font.pixelSize: barWindow.s(16)
-                    opacity: barWindow.isVpnOn ? 1.0 : 0.4
-                    Behavior on opacity { NumberAnimation { duration: 200 } }
-                }
-                MouseArea {
-                    id: vpnMouse; anchors.fill: parent; hoverEnabled: true
-                    onClicked: Quickshell.execDetached(["bash", "-c", "~/.config/hypr/scripts/toggle_vpn.sh"])
-                }
-            }
-        }
-    }
-    Rectangle {
+	    Rectangle {
                         id: recButton
                         property bool isHovered: recMouse.containsMouse
                         
