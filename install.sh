@@ -184,6 +184,12 @@ read -r SDDM_OVERWRITE
 SDDM_OVERWRITE="${SDDM_OVERWRITE:-N}"
 case "${SDDM_OVERWRITE,,}" in y|yes) SDDM_OVERWRITE="Y" ;; n|no) SDDM_OVERWRITE="N" ;; *) SDDM_OVERWRITE="N" ;; esac
 echo ""
+echo -e "  ${Y}▶${N}  Make ${G}Himeno Hot Face.png${N} your active wallpaper?"
+echo -e "     (Sets it as your desktop background)  [y/N] "
+read -r HIMENO_WALLPAPER
+HIMENO_WALLPAPER="${HIMENO_WALLPAPER:-N}"
+case "${HIMENO_WALLPAPER,,}" in y|yes) HIMENO_WALLPAPER="Y" ;; n|no) HIMENO_WALLPAPER="N" ;; *) HIMENO_WALLPAPER="N" ;; esac
+echo ""
 
 # ─── CHECK PACKAGE MANAGER ─────────────────────────────────────────────
 
@@ -529,14 +535,18 @@ if command -v awww &>/dev/null; then
     sleep 0.5
 fi
 
-# Force set Himeno as active desktop wallpaper
-HIMENO_FILE="$HOME/Pictures/Wallpapers/Himeno Hot Face.png"
-if [ -f "$HIMENO_FILE" ] && command -v awww &>/dev/null; then
-    awww img "$HIMENO_FILE" --transition-type fade --transition-pos 0.5,0.5 --transition-fps 60 --transition-duration 1 2>/dev/null || true
-    cp "$HIMENO_FILE" "$HOME/.cache/current_wallpaper.png" 2>/dev/null || true
-    echo -e "  ${G}✓${N} Desktop wallpaper set to Himeno"
+# Force set Himeno as active desktop wallpaper (only if user opted in)
+if [[ "$HIMENO_WALLPAPER" =~ ^[Yy]$ ]]; then
+    HIMENO_FILE="$HOME/Pictures/Wallpapers/Himeno Hot Face.png"
+    if [ -f "$HIMENO_FILE" ] && command -v awww &>/dev/null; then
+        awww img "$HIMENO_FILE" --transition-type fade --transition-pos 0.5,0.5 --transition-fps 60 --transition-duration 1 2>/dev/null || true
+        cp "$HIMENO_FILE" "$HOME/.cache/current_wallpaper.png" 2>/dev/null || true
+        echo -e "  ${G}✓${N} Desktop wallpaper set to Himeno"
+    else
+        echo -e "  ${Y}─${N} Could not set desktop wallpaper (awww not available or file missing)"
+    fi
 else
-    echo -e "  ${Y}─${N} Could not set desktop wallpaper (awww not available or file missing)"
+    echo -e "  ${Y}─${N} Keeping current wallpaper (user choice)"
 fi
 
 echo -e "  ${G}✓${N} Wallpapers ready for picker (Super+W)"
