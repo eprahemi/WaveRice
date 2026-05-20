@@ -769,3 +769,9 @@ exec-once = swayidle -w \
 - Do NOT push without user approval (user says "dont push" / "push now")
 - Do NOT replace packages without asking (user said "i need hypridle" when I tried)
 - Do NOT switch language without reason
+
+### ⚠️ IMPORTANT: Update Notifier Version System
+The update notifier (`update_notifier.sh`) checks version by reading `DOTS_VERSION=` from `install.sh` on GitHub — **NOT** `latest_version` from `updates.json`. Always bump `DOTS_VERSION` in `install.sh` (line 8) when releasing a new version, otherwise users won't see the update notification and will stay stuck on the old version thinking they're up to date.
+
+**Local version file**: `~/.local/state/wiferice-version`
+**Remote check**: `curl https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh | grep '^DOTS_VERSION='`
