@@ -10,7 +10,9 @@
                 "FIXED: lock-session → lock-sessions (plural) in hypridle.conf",
                 "CHANGED: hypridle removed — swayidle is now the default idle daemon",
                 "CHANGED: autostart.conf uses swayidle with direct quickshell Lock.qml — no loginctl or polkit involved",
-                "NEW: swayidle added to install.sh dependencies"
+                "NEW: swayidle added to install.sh dependencies",
+                "NEW: Display auto-off after 66min idle (33min lock + 33min dpms-off)",
+                "ENHANCED: swayidle now has 2-stage timeout — lock first, display off later"
             ]
         },
         {
