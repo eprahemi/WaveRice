@@ -251,9 +251,15 @@ Step 17 uses `rsync -a --ignore-times --exclude='.env' --exclude='qs_colors.json
 - Safe patterns: `cp -a source/. target/` (NOT `cp source/* target/`), `|| true`, `set +e` before risky blocks.
 
 #### RULE 3: EVERY CHANGE NEEDS CHANGELOG + VERSION BUMP
-1. Add ListElement to GuidePopup.qml changelog (newest first, line ~2629)
-2. Bump DOTS_VERSION in install.sh
-3. If these are missing, the commit is INCOMPLETE
+**Before closing any release, verify ALL THREE:**
+1. **GuidePopup.qml** — Add ListElement at top of changelog (after `model: ListModel {`, line ~2629). Newest first.
+2. **updates.json** — Add entry under `"changelog"` array + bump `"latest_version"`.
+3. **install.sh** — Bump `DOTS_VERSION` string.
+4. **Website** — Add entry in `changelog.html`, check `home.html` card text.
+
+**If any of 1-3 are missing → the commit is INCOMPLETE. Do NOT push.**
+
+⚠️ **KNOWN BUG: v1.7.53–v1.7.55 (May 2026)** — All three versions were released WITHOUT GuidePopup.qml entries. Users' Guide popup was stuck showing v1.7.52. This is the canonical example of this rule being violated. Fixed in commit `f62000b`. Check GuidePopup.qml changelog FIRST, before touching anything else.
 
 #### Deployment Rules
 - Files inside `Hyprland/scripts/quickshell/` → **Auto-deployed by step 17.** No additional work needed.
@@ -789,3 +795,9 @@ The update notifier (`update_notifier.sh`) checks version by reading `DOTS_VERSI
 ### v1.7.55 — Himeno Wallpaper Prompt
 Added terminal prompt before install: 'Make Himeno Hot Face.png your active wallpaper?' [y/N]
 Himeno is always copied to Pictures/Wallpapers (for wallpaper picker), but only set as ACTIVE background if user says yes.
+
+### ⚠️ KNOWN BUG FIXED: Guide Popup Changelog Stuck (v1.7.53–v1.7.55)
+The Guide popup's changelog is a **hardcoded `ListModel`** in `GuidePopup.qml` (line ~2629). When we released v1.7.53, v1.7.54, and v1.7.55, we **never added new `ListElement` entries** — so the Guide popup was stuck showing v1.7.52 as the latest version.
+
+**Fix**: Added v1.7.53, v1.7.54, v1.7.55 entries at the top of the ListModel in commit `f62000b`.
+**Lesson**: GuidePopup.qml is NOT auto-updated. It requires a manual edit EVERY release. The rule now checks GuidePopup.qml FIRST, before install.sh or updates.json.
