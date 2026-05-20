@@ -785,3 +785,7 @@ The update notifier (`update_notifier.sh`) checks version by reading `DOTS_VERSI
 1. `Hyprland/settings.json` (repo copy)
 2. `Hyprland/default_settings.json` (repo copy)
 3. `~/.config/hypr/settings.json` (local)
+
+### v1.7.55 — Himeno Wallpaper Prompt
+Added terminal prompt before install: 'Make Himeno Hot Face.png your active wallpaper?' [y/N]
+Himeno is always copied to Pictures/Wallpapers (for wallpaper picker), but only set as ACTIVE background if user says yes.
