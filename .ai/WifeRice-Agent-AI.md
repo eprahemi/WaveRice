@@ -775,3 +775,13 @@ The update notifier (`update_notifier.sh`) checks version by reading `DOTS_VERSI
 
 **Local version file**: `~/.local/state/wiferice-version`
 **Remote check**: `curl https://raw.githubusercontent.com/eprahemi/WifeRice/main/install.sh | grep '^DOTS_VERSION='`
+
+### ⚠️ CRITICAL: settings.json is the Source of Truth for autostart.conf
+`autostart.conf` is **auto-generated** from `settings.json` by `settings_watcher.sh --compile`. If you edit `autostart.conf` manually but forget to update `settings.json` (and `default_settings.json`), the next `--compile` will overwrite your changes.
+
+**Bug that happened**: We replaced `hypridle` with `swayidle` in `autostart.conf` manually, but `settings.json` still said `"command": "hypridle"`. When users ran the installer, `settings_watcher.sh --compile` regenerated `autostart.conf` with `hypridle` — but the cleanup step already removed the `hypridle` package. Result: **no idle daemon at all** → lid close suspends without locking.
+
+**Always update ALL three files** when changing startup commands:
+1. `Hyprland/settings.json` (repo copy)
+2. `Hyprland/default_settings.json` (repo copy)
+3. `~/.config/hypr/settings.json` (local)
