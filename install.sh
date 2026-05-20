@@ -234,6 +234,11 @@ step_header 13 20 "Setting up LazyVim..."
 step_header 14 20 "Installing Flatpak applications..."
 
 step_header 15 20 "Cleaning system..."
+# Remove hypridle if still installed — replaced by swayidle
+if pacman -Q hypridle &>/dev/null; then
+    sudo pacman -R --noconfirm hypridle 2>/dev/null || true
+    echo -e "  ${Y}─${N} Removed deprecated hypridle package"
+fi
 
 step_header 16 20 "Deploying Hyprland core config..."
 
