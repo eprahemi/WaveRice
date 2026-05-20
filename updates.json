@@ -1,7 +1,14 @@
 {
-  "latest_version": "1.7.55",
+  "latest_version": "1.7.56",
   "videos": [],
   "changelog": [
+        {
+            "version": "1.7.56",
+            "changes": [
+                "FIXED: Guide popup changelog was stuck at v1.7.52 — v1.7.53, v1.7.54, and v1.7.55 entries were missing from the hardcoded ListModel in GuidePopup.qml",
+                "FIXED: Added 'must update GuidePopup.qml' rule to AI memory so this never happens again"
+            ]
+        },
         {
             "version": "1.7.55",
             "changes": [
