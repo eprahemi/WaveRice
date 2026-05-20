@@ -720,30 +720,6 @@ Variants {
                             }
                         }
 
-                        // --- Quick Notes Button ---
-                        Rectangle {
-                            property bool isHovered: notesMouse.containsMouse
-                            color: isHovered ? Qt.rgba(mocha.surface1.r, mocha.surface1.g, mocha.surface1.b, 0.6) : "transparent"
-                            radius: barWindow.s(10)
-                            height: parent.pillHeight; width: barWindow.s(34)
-                            Behavior on color { ColorAnimation { duration: 200 } }
-                            Text {
-                                anchors.centerIn: parent
-                                text: "󰗨"
-                                font.family: "Iosevka Nerd Font"; font.pixelSize: barWindow.s(20)
-                                color: parent.isHovered ? mocha.green : mocha.text
-                                Behavior on color { ColorAnimation { duration: 200 } }
-                                scale: parent.isHovered ? 1.15 : 1.0
-                                Behavior on scale { NumberAnimation { duration: 250; easing.type: Easing.OutExpo } }
-                            }
-                            MouseArea {
-                                id: notesMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                onClicked: Quickshell.execDetached(["bash", "-c", "quickshell -p ~/.config/hypr/scripts/quickshell/quicknotes/QuickNotesPopup.qml"])
-                            }
-                        }
-
                         Rectangle {
                             id: updateButton
                             property bool isHovered: updateMouse.containsMouse
