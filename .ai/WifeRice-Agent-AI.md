@@ -710,11 +710,11 @@ Key entry points in this file:
 - **MEMORY** → lines 370-400
 - **DAILY SESSION START** → lines 402-415
 - **AUDIT LOG (8 fixes)** → lines 597-639
-- **Current version: 1.7.54** → SESSION MEMORY section below
+- **Current version: 1.7.55** → SESSION MEMORY section below
 - **Dotfiles repo**: https://github.com/eprahemi/WifeRice
 - **Website repo**: https://github.com/eprahemi/WifeRice-Website
 
-## 🧠 SESSION MEMORY — 2026-05-20 (v1.7.54)
+## 🧠 SESSION MEMORY — 2026-05-20 (v1.7.55)
 
 ### TopBar Cleanup (v1.7.53)
 - Created `SvgIcon.qml` — reusable PathSvg vector icon component
@@ -750,20 +750,20 @@ exec-once = swayidle -w \
 - Added cleanup: removes hypridle package if installed (step 15)
 - hypridle.conf kept as reference (marked OBSOLETE)
 
-### Files Modified in v1.7.54
+### Files Modified in v1.7.55
 | File | Change |
 |------|--------|
 | `Hyprland/config/autostart.conf` | hypridle → swayidle with 2-stage timeout |
 | `Hyprland/hypridle.conf` | Marked obsolete + lock-sessions plural fix |
-| `updates.json` | v1.7.54 changelog entry |
+| `updates.json` | v1.7.55 changelog entry |
 | `install.sh` | Add swayidle + remove hypridle in cleanup |
-| Website `changelog.html` | v1.7.54 entry |
+| Website `changelog.html` | v1.7.55 entry |
 
 ### Key Commits (latest on main)
-- `fe48750` — v1.7.54: remove hypridle in install.sh cleanup for all users
-- `06cbe1a` — v1.7.54: update changelog with dpms-off detail
-- `9cd1a8e` — v1.7.54b: add 66min dpms-off timeout after lock
-- `edb3f22` — v1.7.54: replace hypridle with swayidle, fix polkit/lock-sessions
+- `fe48750` — v1.7.55: remove hypridle in install.sh cleanup for all users
+- `06cbe1a` — v1.7.55: update changelog with dpms-off detail
+- `9cd1a8e` — v1.7.55b: add 66min dpms-off timeout after lock
+- `edb3f22` — v1.7.55: replace hypridle with swayidle, fix polkit/lock-sessions
 
 ### What NOT to do
 - Do NOT push without user approval (user says "dont push" / "push now")
