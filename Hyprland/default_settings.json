@@ -80,7 +80,7 @@
   "startup": [
     {"command": "systemctl --user start hyprpolkitagent"},
     {"command": "awww-daemon"},
-    {"command": "hypridle"},
+    {"command": "swayidle -w before-sleep 'quickshell -p ~/.config/hypr/scripts/quickshell/Lock.qml' timeout 2000 'quickshell -p ~/.config/hypr/scripts/quickshell/Lock.qml' timeout 4000 'hyprctl dispatch dpms off' after-resume 'hyprctl dispatch dpms on'"},
     {"command": "quickshell -p ~/.config/hypr/scripts/quickshell/Main.qml"},
     {"command": "quickshell -p ~/.config/hypr/scripts/quickshell/TopBar.qml"},
     {"command": "quickshell -p ~/.config/hypr/scripts/quickshell/Floating.qml"},
