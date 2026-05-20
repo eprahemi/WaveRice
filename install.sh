@@ -429,11 +429,25 @@ else
     fi
 fi
 
-# Add Himeno wallpaper to Pictures (always — one image won't hurt)
+# Add Himeno wallpaper — smart copy based on user choice
 mkdir -p "$HOME/Pictures/Wallpapers"
+HIMENO_COPIED_AS_DEFAULT=false
 if [ -f "$INSTALL_DIR/Wallpapers/Himeno Hot Face.png" ]; then
-    cp -f "$INSTALL_DIR/Wallpapers/Himeno Hot Face.png" "$HOME/Pictures/Wallpapers/"
-    echo -e "  ${G}✓${N} Himeno wallpaper added to Pictures/Wallpapers"
+    if [[ "$HIMENO_WALLPAPER" =~ ^[Yy]$ ]]; then
+        # User wants Himeno — always copy and set as active
+        cp -f "$INSTALL_DIR/Wallpapers/Himeno Hot Face.png" "$HOME/Pictures/Wallpapers/"
+        HIMENO_COPIED_AS_DEFAULT=true
+        echo -e "  ${G}✓${N} Himeno wallpaper added to Pictures/Wallpapers"
+    else
+        # User said no — only copy if folder is empty (so they have at least one wallpaper)
+        if [ -z "$(ls -A "$HOME/Pictures/Wallpapers/" 2>/dev/null | grep -i '\.\(png\|jpg\|jpeg\|webp\|bmp\|gif\)$' 2>/dev/null)" ]; then
+            cp -f "$INSTALL_DIR/Wallpapers/Himeno Hot Face.png" "$HOME/Pictures/Wallpapers/"
+            HIMENO_COPIED_AS_DEFAULT=true
+            echo -e "  ${Y}─${N} Wallpapers folder was empty — added Himeno as default"
+        else
+            echo -e "  ${Y}─${N} Keeping existing wallpapers — Himeno skipped"
+        fi
+    fi
 else
     echo -e "  ${R}!${N} Himeno wallpaper not found in repo — skipping"
 fi
@@ -535,9 +549,10 @@ if command -v awww &>/dev/null; then
     sleep 0.5
 fi
 
-# Force set Himeno as active desktop wallpaper (only if user opted in)
-if [[ "$HIMENO_WALLPAPER" =~ ^[Yy]$ ]]; then
-    HIMENO_FILE="$HOME/Pictures/Wallpapers/Himeno Hot Face.png"
+# Force set Himeno as active desktop wallpaper
+# Only if user opted in (Y) OR it was auto-added as default to empty folder
+HIMENO_FILE="$HOME/Pictures/Wallpapers/Himeno Hot Face.png"
+if [[ "$HIMENO_WALLPAPER" =~ ^[Yy]$ ]] || [[ "$HIMENO_COPIED_AS_DEFAULT" == "true" ]]; then
     if [ -f "$HIMENO_FILE" ] && command -v awww &>/dev/null; then
         awww img "$HIMENO_FILE" --transition-type fade --transition-pos 0.5,0.5 --transition-fps 60 --transition-duration 1 2>/dev/null || true
         cp "$HIMENO_FILE" "$HOME/.cache/current_wallpaper.png" 2>/dev/null || true
